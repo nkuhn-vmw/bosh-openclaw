@@ -14,10 +14,10 @@ stemcell_criteria:
   requires_cpi: false
   version: '1.*'
 
-releases:
+packages:
   - name: openclaw
-    file: openclaw-release.tgz
-    version: '0.1.0'
+    type: bosh-release
+    path: openclaw-release.tgz
 
 forms:
   - name: genai-config

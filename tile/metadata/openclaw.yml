@@ -12,7 +12,7 @@ rank: 1
 
 stemcell_criteria:
   os: ubuntu-jammy
-  version: "1.406"
+  version: "latest"
 
 releases:
   - name: openclaw

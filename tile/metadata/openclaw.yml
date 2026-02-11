@@ -27,6 +27,12 @@ releases:
 property_blueprints:
 
   #
+  # Auto-generated broker credentials (not exposed to user)
+  #
+  - name: generated_broker_credentials
+    type: simple_credentials
+
+  #
   # GenAI / LLM provider selector
   #
   - name: genai_provider
@@ -37,19 +43,14 @@ property_blueprints:
       - name: tanzu_genai
         select_value: "Tanzu GenAI Service"
         property_blueprints:
-          - name: endpoint
+          - name: offering_name
             type: string
             configurable: true
             optional: false
-          - name: api_key
-            type: secret
-            configurable: true
-            optional: false
-          - name: default_model
+          - name: plan_name
             type: string
             configurable: true
-            default: "auto"
-            optional: true
+            optional: false
       - name: anthropic_direct
         select_value: "Anthropic (Direct)"
         property_blueprints:
@@ -71,6 +72,22 @@ property_blueprints:
       - name: openai_direct
         select_value: "OpenAI (Direct)"
         property_blueprints:
+          - name: api_key
+            type: secret
+            configurable: true
+            optional: false
+          - name: model
+            type: string
+            configurable: true
+            default: "gpt-4o"
+            optional: true
+      - name: external_openai
+        select_value: "External OpenAI API"
+        property_blueprints:
+          - name: api_endpoint
+            type: string
+            configurable: true
+            optional: false
           - name: api_key
             type: secret
             configurable: true
@@ -176,32 +193,8 @@ property_blueprints:
     default: 8
 
   #
-  # Service broker configuration
+  # Service broker limits
   #
-  - name: broker_username
-    type: string
-    configurable: true
-    default: "openclaw-broker"
-
-  - name: broker_password
-    type: secret
-    configurable: true
-
-  - name: enable_developer_plan
-    type: boolean
-    configurable: true
-    default: true
-
-  - name: enable_developer_plus_plan
-    type: boolean
-    configurable: true
-    default: true
-
-  - name: enable_team_plan
-    type: boolean
-    configurable: true
-    default: false
-
   - name: max_instances
     type: integer
     configurable: true
@@ -213,7 +206,7 @@ property_blueprints:
     default: 10
 
   #
-  # Networking
+  # Agent Networking
   #
   - name: apps_domain
     type: string
@@ -254,14 +247,12 @@ form_types:
           - reference: .properties.genai_provider.tanzu_genai
             label: Tanzu GenAI Service
             property_inputs:
-              - reference: .properties.genai_provider.tanzu_genai.endpoint
-                label: GenAI Proxy Endpoint
-                description: URL of the Tanzu GenAI proxy
-              - reference: .properties.genai_provider.tanzu_genai.api_key
-                label: GenAI API Key
-              - reference: .properties.genai_provider.tanzu_genai.default_model
-                label: Default Model
-                description: Model alias (default "auto")
+              - reference: .properties.genai_provider.tanzu_genai.offering_name
+                label: GenAI Offering Name
+                description: Name of the GenAI service offering in the marketplace
+              - reference: .properties.genai_provider.tanzu_genai.plan_name
+                label: GenAI Plan Name
+                description: Plan name for the GenAI service instance
           - reference: .properties.genai_provider.anthropic_direct
             label: Anthropic (Direct)
             property_inputs:
@@ -275,6 +266,16 @@ form_types:
               - reference: .properties.genai_provider.openai_direct.api_key
                 label: OpenAI API Key
               - reference: .properties.genai_provider.openai_direct.model
+                label: Model
+          - reference: .properties.genai_provider.external_openai
+            label: External OpenAI API
+            property_inputs:
+              - reference: .properties.genai_provider.external_openai.api_endpoint
+                label: API Endpoint URL
+                description: Base URL of the OpenAI-compatible API (e.g., https://api.openai.com)
+              - reference: .properties.genai_provider.external_openai.api_key
+                label: API Key
+              - reference: .properties.genai_provider.external_openai.model
                 label: Model
 
   - name: security-config
@@ -326,26 +327,16 @@ form_types:
 
   - name: broker-config
     label: Service Broker
-    description: Configure the OpenClaw service broker
+    description: Configure agent instance limits
     property_inputs:
-      - reference: .properties.broker_username
-        label: Broker Username
-      - reference: .properties.broker_password
-        label: Broker Password
-      - reference: .properties.enable_developer_plan
-        label: Enable Developer Plan
-      - reference: .properties.enable_developer_plus_plan
-        label: Enable Developer Plus Plan
-      - reference: .properties.enable_team_plan
-        label: Enable Team Plan
       - reference: .properties.max_instances
         label: Maximum Total Instances
       - reference: .properties.max_instances_per_org
         label: Maximum Instances Per Org
 
   - name: networking-config
-    label: Networking
-    description: Route and network configuration
+    label: Agent Networking
+    description: Route and network configuration for agent instances
     property_inputs:
       - reference: .properties.apps_domain
         label: Apps Domain
@@ -356,6 +347,60 @@ form_types:
         label: Broker Route Hostname
       - reference: .properties.dashboard_route
         label: Admin Dashboard Route Hostname
+
+# ---------------------------------------------------------------------------
+# Service Plan Forms (On-Demand Plans)
+# ---------------------------------------------------------------------------
+
+service_plan_forms:
+  - name: on_demand_agent_plans
+    label: On-Demand Agent Plans
+    description: |
+      Configure on-demand OpenClaw agent plans available in the marketplace.
+      Each plan defines the resources allocated to agent VM instances.
+    optional: false
+    properties:
+      - name: plan_description
+        type: string
+        label: Plan Description
+        description: Description shown to developers in the marketplace
+        configurable: true
+        default: "Dedicated OpenClaw AI agent"
+      - name: vm_type
+        type: vm_type_dropdown
+        label: VM Type
+        description: VM size for the agent instance
+        configurable: true
+      - name: disk_type
+        type: disk_type_dropdown
+        label: Persistent Disk Type
+        description: Persistent disk for agent state and memory
+        configurable: true
+      - name: agent_sandbox_mode
+        type: dropdown_select
+        label: Sandbox Mode
+        description: Security sandbox for this plan
+        configurable: true
+        default: "strict"
+        options:
+          - name: "strict"
+            label: "Strict - All commands require explicit approval"
+          - name: "moderate"
+            label: "Moderate - Common commands allowed, destructive blocked"
+          - name: "loose"
+            label: "Loose - Most commands allowed (not recommended)"
+      - name: browser_enabled
+        type: boolean
+        label: Enable Browser Automation
+        description: Allow agents on this plan to use headless Chromium
+        configurable: true
+        default: false
+      - name: multi_user
+        type: boolean
+        label: Multi-User Support
+        description: Allow multiple users to share a single agent instance
+        configurable: true
+        default: false
 
 # ---------------------------------------------------------------------------
 # Job Types
@@ -399,21 +444,14 @@ job_types:
         broker:
           port: 8080
           auth:
-            username: (( .properties.broker_username.value ))
-            password: (( .properties.broker_password.value ))
+            username: (( .properties.generated_broker_credentials.identity ))
+            password: (( .properties.generated_broker_credentials.password ))
           genai: (( .properties.genai_provider.selected_option.parsed_manifest(genai_fragment) ))
           security:
             sandbox_mode: (( .properties.sandbox_mode.value ))
             control_ui_enabled: (( .properties.control_ui_enabled.value ))
             blocked_commands: (( .properties.blocked_commands.value ))
             min_openclaw_version: (( .properties.min_openclaw_version.value ))
-          plans:
-            developer:
-              enabled: (( .properties.enable_developer_plan.value ))
-            developer_plus:
-              enabled: (( .properties.enable_developer_plus_plan.value ))
-            team:
-              enabled: (( .properties.enable_team_plan.value ))
           limits:
             max_instances: (( .properties.max_instances.value ))
             max_instances_per_org: (( .properties.max_instances_per_org.value ))
@@ -567,8 +605,8 @@ job_types:
         name: openclaw
         url: https://(( .properties.broker_route.value )).(( .properties.apps_domain.value ))
         auth:
-          username: (( .properties.broker_username.value ))
-          password: (( .properties.broker_password.value ))
+          username: (( .properties.generated_broker_credentials.identity ))
+          password: (( .properties.generated_broker_credentials.password ))
         enable_service_access: true
     templates:
       - name: register-broker

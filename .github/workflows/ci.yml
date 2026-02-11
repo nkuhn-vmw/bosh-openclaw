@@ -107,11 +107,11 @@ jobs:
               f.write(content)
           " <<< "${ICON_B64}"
 
-          # A .pivotal file is a zip with metadata + releases
-          mkdir -p "${TILE_DIR}/metadata" "${TILE_DIR}/releases"
+          # A .pivotal file is a zip with metadata + releases + migrations
+          mkdir -p "${TILE_DIR}/metadata" "${TILE_DIR}/releases" "${TILE_DIR}/migrations"
+          touch "${TILE_DIR}/migrations/.keep"
           cp metadata-stamped.yml "${TILE_DIR}/metadata/openclaw.yml"
           cp "${RELEASE_FILE}" "${TILE_DIR}/releases/"
-          cp resources/icon.png "${TILE_DIR}/metadata/" 2>/dev/null || true
 
           mkdir -p product
           cd "${TILE_DIR}"

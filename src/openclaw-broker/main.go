@@ -26,7 +26,13 @@ func main() {
 	}
 
 	director := bosh.NewClient(cfg.BOSH.DirectorURL, cfg.BOSH.ClientID, cfg.BOSH.ClientSecret, cfg.BOSH.CACert)
-	b := broker.New(cfg, director)
+	brokerCfg := broker.BrokerConfig{
+		MinOpenClawVersion: cfg.Security.MinOpenClawVersion,
+		ControlUIEnabled:   cfg.Security.ControlUIEnabled,
+		SandboxMode:        cfg.Security.SandboxMode,
+		OpenClawVersion:    cfg.AgentDefaults.OpenClawVersion,
+	}
+	b := broker.New(brokerCfg, director)
 
 	r := mux.NewRouter()
 	r.Use(basicAuthMiddleware(cfg.Auth.Username, cfg.Auth.Password))
@@ -84,6 +90,11 @@ type Config struct {
 		Network         string `json:"network"`
 		AZ              string `json:"az"`
 	} `json:"agent_defaults"`
+	Security struct {
+		MinOpenClawVersion string `json:"min_openclaw_version"`
+		ControlUIEnabled   bool   `json:"control_ui_enabled"`
+		SandboxMode        string `json:"sandbox_mode"`
+	} `json:"security"`
 	GenAI struct {
 		Endpoint string `json:"endpoint"`
 		APIKey   string `json:"api_key"`

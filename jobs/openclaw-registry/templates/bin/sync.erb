@@ -8,9 +8,15 @@ JOB_NAME="openclaw-registry"
 LOG_DIR="/var/vcap/sys/log/${JOB_NAME}"
 STORAGE_DIR="<%= p('openclaw.registry.storage_dir') %>"
 ALLOWLIST="/var/vcap/jobs/${JOB_NAME}/config/allowlist.yml"
+QUARANTINE_DIR="${STORAGE_DIR}/quarantine"
+SCAN_RESULTS="${STORAGE_DIR}/scan-results"
+
+mkdir -p "${QUARANTINE_DIR}" "${SCAN_RESULTS}"
+chown vcap:vcap "${QUARANTINE_DIR}" "${SCAN_RESULTS}"
 
 echo "$(date -u '+%Y-%m-%dT%H:%M:%SZ') Starting ClawHub sync..."
 
+# Phase 1: Fetch skills from ClawHub (respecting allowlist)
 chpst -u vcap:vcap \
   openclaw registry sync \
     --storage-dir "${STORAGE_DIR}" \
@@ -19,3 +25,68 @@ chpst -u vcap:vcap \
     <% if p('openclaw.registry.block_network_calls') %>--block-network<% end %>
 
 echo "$(date -u '+%Y-%m-%dT%H:%M:%SZ') ClawHub sync complete."
+
+<% if p('openclaw.registry.scan_on_sync') %>
+# Phase 2: Security scanning of synced skills
+echo "$(date -u '+%Y-%m-%dT%H:%M:%SZ') Starting security scan..."
+
+SCAN_FAILED=0
+
+for skill_dir in "${STORAGE_DIR}/skills"/*/; do
+  [ -d "${skill_dir}" ] || continue
+  skill_name=$(basename "${skill_dir}")
+  scan_report="${SCAN_RESULTS}/${skill_name}.json"
+
+  echo "  Scanning skill: ${skill_name}"
+
+  # Check 1: Verify skill manifest exists
+  if [ ! -f "${skill_dir}/manifest.json" ]; then
+    echo "    FAIL: Missing manifest.json"
+    echo "{\"skill\":\"${skill_name}\",\"status\":\"quarantined\",\"reason\":\"missing_manifest\"}" > "${scan_report}"
+    mv "${skill_dir}" "${QUARANTINE_DIR}/${skill_name}" 2>/dev/null || true
+    SCAN_FAILED=$((SCAN_FAILED + 1))
+    continue
+  fi
+
+  # Check 2: Verify signature if present
+  if [ -f "${skill_dir}/signature.sig" ]; then
+    if ! chpst -u vcap:vcap openclaw registry verify-signature \
+        --skill-dir "${skill_dir}" 2>>"${LOG_DIR}/scan.stderr.log"; then
+      echo "    FAIL: Invalid signature"
+      echo "{\"skill\":\"${skill_name}\",\"status\":\"quarantined\",\"reason\":\"invalid_signature\"}" > "${scan_report}"
+      mv "${skill_dir}" "${QUARANTINE_DIR}/${skill_name}" 2>/dev/null || true
+      SCAN_FAILED=$((SCAN_FAILED + 1))
+      continue
+    fi
+  fi
+
+  <% if p('openclaw.registry.block_network_calls') %>
+  # Check 3: Scan for unauthorized network calls
+  if grep -rqE '(http\.get|http\.post|fetch\(|XMLHttpRequest|net\.connect|dgram\.)' \
+      "${skill_dir}"/*.js "${skill_dir}"/**/*.js 2>/dev/null; then
+    echo "    FAIL: Contains unauthorized network calls"
+    echo "{\"skill\":\"${skill_name}\",\"status\":\"quarantined\",\"reason\":\"unauthorized_network\"}" > "${scan_report}"
+    mv "${skill_dir}" "${QUARANTINE_DIR}/${skill_name}" 2>/dev/null || true
+    SCAN_FAILED=$((SCAN_FAILED + 1))
+    continue
+  fi
+  <% end %>
+
+  # Check 4: Scan for dangerous patterns
+  if grep -rqE '(child_process|eval\(|Function\(|exec\(|spawn\(|\.exec\()' \
+      "${skill_dir}"/*.js "${skill_dir}"/**/*.js 2>/dev/null; then
+    echo "    WARN: Contains potentially dangerous patterns (child_process, eval)"
+    echo "{\"skill\":\"${skill_name}\",\"status\":\"flagged\",\"reason\":\"dangerous_patterns\"}" > "${scan_report}"
+    # Flag but don't quarantine - operator should review
+  else
+    echo "    PASS"
+    echo "{\"skill\":\"${skill_name}\",\"status\":\"approved\"}" > "${scan_report}"
+  fi
+done
+
+if [ ${SCAN_FAILED} -gt 0 ]; then
+  echo "$(date -u '+%Y-%m-%dT%H:%M:%SZ') Security scan complete. ${SCAN_FAILED} skill(s) quarantined."
+else
+  echo "$(date -u '+%Y-%m-%dT%H:%M:%SZ') Security scan complete. All skills passed."
+fi
+<% end %>

@@ -1,0 +1,700 @@
+---
+name: openclaw
+product_version: "0.1.0"
+metadata_version: "2.0"
+label: OpenClaw AI Agent Platform
+description: Deploy dedicated OpenClaw AI agents for developers and teams
+icon_image: aWNvbi1wbGFjZWhvbGRlcg==
+
+minimum_version_for_upgrade: "0.0.1"
+
+stemcell_criteria:
+  os: ubuntu-jammy
+  version: "1.*"
+
+releases:
+  - name: openclaw
+    version: "0.1.0"
+    file: openclaw-0.1.0.tgz
+    sha1: placeholder
+
+# ---------------------------------------------------------------------------
+# Property Blueprints
+# ---------------------------------------------------------------------------
+
+property_blueprints:
+
+  #
+  # GenAI / LLM provider selector
+  #
+  - name: .properties.genai_provider
+    type: selector
+    configurable: true
+    default: "Tanzu GenAI Service"
+    option_templates:
+      - name: tanzu_genai
+        select_value: "Tanzu GenAI Service"
+        property_blueprints:
+          - name: endpoint
+            type: string
+            configurable: true
+            optional: false
+          - name: api_key
+            type: secret
+            configurable: true
+            optional: false
+          - name: default_model
+            type: string
+            configurable: true
+            default: "auto"
+            optional: true
+      - name: anthropic_direct
+        select_value: "Anthropic (Direct)"
+        property_blueprints:
+          - name: api_key
+            type: secret
+            configurable: true
+            optional: false
+          - name: model
+            type: dropdown_select
+            configurable: true
+            default: "claude-sonnet-4-5-20250929"
+            options:
+              - name: "claude-opus-4-6"
+                label: "Claude Opus 4.6"
+              - name: "claude-sonnet-4-5-20250929"
+                label: "Claude Sonnet 4.5"
+              - name: "claude-haiku-4-5-20251001"
+                label: "Claude Haiku 4.5"
+      - name: openai_direct
+        select_value: "OpenAI (Direct)"
+        property_blueprints:
+          - name: api_key
+            type: secret
+            configurable: true
+            optional: false
+          - name: model
+            type: string
+            configurable: true
+            default: "gpt-4o"
+            optional: true
+
+  #
+  # Security controls
+  #
+  - name: .properties.sandbox_mode
+    type: dropdown_select
+    configurable: true
+    default: "strict"
+    options:
+      - name: "strict"
+        label: "Strict - All commands require explicit approval"
+      - name: "moderate"
+        label: "Moderate - Common commands allowed, destructive blocked"
+      - name: "loose"
+        label: "Loose - Most commands allowed (not recommended)"
+
+  - name: .properties.control_ui_enabled
+    type: boolean
+    configurable: true
+    default: false
+
+  - name: .properties.blocked_commands
+    type: text
+    configurable: true
+    default: "rm -rf /\ndd if=/dev/zero\nmkfs\ncurl\nwget"
+    optional: true
+
+  - name: .properties.min_openclaw_version
+    type: string
+    configurable: true
+    default: "2026.1.29"
+    optional: true
+
+  #
+  # Skills management
+  #
+  - name: .properties.skills_mode
+    type: dropdown_select
+    configurable: true
+    default: "allowlist"
+    options:
+      - name: "allowlist"
+        label: "Allowlist - Only approved skills"
+      - name: "blocklist"
+        label: "Blocklist - All except blocked"
+      - name: "disabled"
+        label: "Disabled - Built-in tools only"
+
+  - name: .properties.approved_skills
+    type: text
+    configurable: true
+    default: |
+      weather
+      calendar-google
+      email-gmail
+      github
+      jira
+      slack-actions
+      notion
+    optional: true
+
+  - name: .properties.auto_sync_from_clawhub
+    type: boolean
+    configurable: true
+    default: true
+
+  - name: .properties.scan_skills_on_sync
+    type: boolean
+    configurable: true
+    default: true
+
+  #
+  # SSO / Authentication
+  #
+  - name: .properties.sso_enabled
+    type: boolean
+    configurable: true
+    default: true
+
+  - name: .properties.sso_plan
+    type: string
+    configurable: true
+    default: "uaa"
+    optional: true
+
+  - name: .properties.sso_allowed_email_domains
+    type: text
+    configurable: true
+    optional: true
+
+  - name: .properties.sso_session_timeout_hours
+    type: integer
+    configurable: true
+    default: 8
+
+  #
+  # Service broker configuration
+  #
+  - name: .properties.broker_username
+    type: string
+    configurable: true
+    default: "openclaw-broker"
+
+  - name: .properties.broker_password
+    type: secret
+    configurable: true
+
+  - name: .properties.enable_developer_plan
+    type: boolean
+    configurable: true
+    default: true
+
+  - name: .properties.enable_developer_plus_plan
+    type: boolean
+    configurable: true
+    default: true
+
+  - name: .properties.enable_team_plan
+    type: boolean
+    configurable: true
+    default: false
+
+  - name: .properties.max_instances
+    type: integer
+    configurable: true
+    default: 50
+
+  - name: .properties.max_instances_per_org
+    type: integer
+    configurable: true
+    default: 10
+
+  #
+  # Networking
+  #
+  - name: .properties.apps_domain
+    type: string
+    configurable: true
+    optional: false
+
+  - name: .properties.route_prefix
+    type: string
+    configurable: true
+    default: "openclaw"
+    optional: true
+
+  - name: .properties.broker_route
+    type: string
+    configurable: true
+    default: "openclaw-broker"
+    optional: true
+
+  - name: .properties.dashboard_route
+    type: string
+    configurable: true
+    default: "openclaw-admin"
+    optional: true
+
+# ---------------------------------------------------------------------------
+# Form Types
+# ---------------------------------------------------------------------------
+
+form_types:
+
+  - name: genai-config
+    label: GenAI / LLM Configuration
+    description: Configure the LLM provider for all OpenClaw agents
+    property_inputs:
+      - reference: .properties.genai_provider
+        label: LLM Provider
+        selector_property_inputs:
+          - reference: .properties.genai_provider.tanzu_genai
+            label: Tanzu GenAI Service
+            property_inputs:
+              - reference: .properties.genai_provider.tanzu_genai.endpoint
+                label: GenAI Proxy Endpoint
+                description: URL of the Tanzu GenAI proxy
+              - reference: .properties.genai_provider.tanzu_genai.api_key
+                label: GenAI API Key
+              - reference: .properties.genai_provider.tanzu_genai.default_model
+                label: Default Model
+                description: Model alias (default "auto")
+          - reference: .properties.genai_provider.anthropic_direct
+            label: Anthropic (Direct)
+            property_inputs:
+              - reference: .properties.genai_provider.anthropic_direct.api_key
+                label: Anthropic API Key
+              - reference: .properties.genai_provider.anthropic_direct.model
+                label: Model
+          - reference: .properties.genai_provider.openai_direct
+            label: OpenAI (Direct)
+            property_inputs:
+              - reference: .properties.genai_provider.openai_direct.api_key
+                label: OpenAI API Key
+              - reference: .properties.genai_provider.openai_direct.model
+                label: Model
+
+  - name: security-config
+    label: Security & Compliance
+    description: Enterprise security controls for all agent instances
+    property_inputs:
+      - reference: .properties.sandbox_mode
+        label: Sandbox Mode
+      - reference: .properties.control_ui_enabled
+        label: Enable Control UI
+        description: >
+          WARNING: The Control UI was the attack vector for CVE-2026-25253.
+          Enable only on patched versions with auth required.
+      - reference: .properties.blocked_commands
+        label: Blocked Shell Commands
+        description: One command per line
+      - reference: .properties.min_openclaw_version
+        label: Minimum OpenClaw Version
+        description: Refuse to deploy agents below this version
+
+  - name: skills-config
+    label: Skills Management
+    description: Control which skills are available to agents
+    property_inputs:
+      - reference: .properties.skills_mode
+        label: Skills Policy
+      - reference: .properties.approved_skills
+        label: Approved Skills
+        description: One skill name per line
+      - reference: .properties.auto_sync_from_clawhub
+        label: Auto-sync from ClawHub
+      - reference: .properties.scan_skills_on_sync
+        label: Security Scan Skills on Sync
+
+  - name: sso-config
+    label: SSO / Authentication
+    description: Configure Single Sign-On for agent WebChat instances
+    property_inputs:
+      - reference: .properties.sso_enabled
+        label: Enable SSO for Agent Instances
+        description: Each agent WebChat UI is protected by SSO via p-identity
+      - reference: .properties.sso_plan
+        label: p-identity Service Plan
+      - reference: .properties.sso_allowed_email_domains
+        label: Allowed Email Domains
+        description: One per line (e.g., example.com). Empty = all authenticated users
+      - reference: .properties.sso_session_timeout_hours
+        label: Session Timeout (hours)
+
+  - name: broker-config
+    label: Service Broker
+    description: Configure the OpenClaw service broker
+    property_inputs:
+      - reference: .properties.broker_username
+        label: Broker Username
+      - reference: .properties.broker_password
+        label: Broker Password
+      - reference: .properties.enable_developer_plan
+        label: Enable Developer Plan
+      - reference: .properties.enable_developer_plus_plan
+        label: Enable Developer Plus Plan
+      - reference: .properties.enable_team_plan
+        label: Enable Team Plan
+      - reference: .properties.max_instances
+        label: Maximum Total Instances
+      - reference: .properties.max_instances_per_org
+        label: Maximum Instances Per Org
+
+  - name: networking-config
+    label: Networking
+    description: Route and network configuration
+    property_inputs:
+      - reference: .properties.apps_domain
+        label: Apps Domain
+        description: Each agent gets a route like openclaw-<owner>.apps.example.com
+      - reference: .properties.route_prefix
+        label: Agent Route Prefix
+      - reference: .properties.broker_route
+        label: Broker Route Hostname
+      - reference: .properties.dashboard_route
+        label: Admin Dashboard Route Hostname
+
+# ---------------------------------------------------------------------------
+# Job Types
+# ---------------------------------------------------------------------------
+
+job_types:
+
+  #
+  # openclaw-broker
+  #
+  - name: openclaw-broker
+    resource_label: OpenClaw Service Broker
+    resource_definitions:
+      - name: ram
+        type: integer
+        configurable: false
+        default: 1024
+      - name: ephemeral_disk
+        type: integer
+        configurable: false
+        default: 4096
+      - name: persistent_disk
+        type: integer
+        configurable: false
+        default: 0
+      - name: cpu
+        type: integer
+        configurable: false
+        default: 1
+    static_ip: 0
+    dynamic_ip: 1
+    max_in_flight: 1
+    single_az_only: true
+    instance_definition:
+      name: instances
+      type: integer
+      configurable: false
+      default: 1
+    property_blueprints:
+      - name: vm_credentials
+        type: salted_credentials
+        default:
+          identity: vcap
+    manifest: |
+      openclaw:
+        broker:
+          port: 8080
+          auth:
+            username: (( .properties.broker_username.value ))
+            password: (( .properties.broker_password.value ))
+          genai: (( .properties.genai_provider.selected_option.parsed_manifest(genai_fragment) ))
+          security:
+            sandbox_mode: (( .properties.sandbox_mode.value ))
+            control_ui_enabled: (( .properties.control_ui_enabled.value ))
+            blocked_commands: (( .properties.blocked_commands.value ))
+            min_openclaw_version: (( .properties.min_openclaw_version.value ))
+          plans:
+            developer:
+              enabled: (( .properties.enable_developer_plan.value ))
+            developer_plus:
+              enabled: (( .properties.enable_developer_plus_plan.value ))
+            team:
+              enabled: (( .properties.enable_team_plan.value ))
+          limits:
+            max_instances: (( .properties.max_instances.value ))
+            max_instances_per_org: (( .properties.max_instances_per_org.value ))
+          route:
+            hostname: (( .properties.broker_route.value ))
+            domain: (( .properties.apps_domain.value ))
+      route_registrar:
+        routes:
+          - name: openclaw-broker
+            port: 8080
+            registration_interval: 20s
+            uris:
+              - (( .properties.broker_route.value )).(( .properties.apps_domain.value ))
+    templates:
+      - name: openclaw-broker
+        release: openclaw
+      - name: route-registrar
+        release: openclaw
+
+  #
+  # openclaw-registry
+  #
+  - name: openclaw-registry
+    resource_label: OpenClaw Skills Registry
+    resource_definitions:
+      - name: ram
+        type: integer
+        configurable: false
+        default: 1024
+      - name: ephemeral_disk
+        type: integer
+        configurable: false
+        default: 4096
+      - name: persistent_disk
+        type: integer
+        configurable: true
+        default: 10240
+        constraints:
+          min: 5120
+      - name: cpu
+        type: integer
+        configurable: false
+        default: 1
+    static_ip: 0
+    dynamic_ip: 1
+    max_in_flight: 1
+    single_az_only: true
+    instance_definition:
+      name: instances
+      type: integer
+      configurable: false
+      default: 1
+    property_blueprints:
+      - name: vm_credentials
+        type: salted_credentials
+        default:
+          identity: vcap
+    manifest: |
+      openclaw:
+        registry:
+          port: 8081
+          skills_mode: (( .properties.skills_mode.value ))
+          approved_skills: (( .properties.approved_skills.value ))
+          auto_sync: (( .properties.auto_sync_from_clawhub.value ))
+          scan_on_sync: (( .properties.scan_skills_on_sync.value ))
+    templates:
+      - name: openclaw-registry
+        release: openclaw
+
+  #
+  # openclaw-admin-dashboard
+  #
+  - name: openclaw-admin-dashboard
+    resource_label: OpenClaw Admin Dashboard
+    resource_definitions:
+      - name: ram
+        type: integer
+        configurable: false
+        default: 1024
+      - name: ephemeral_disk
+        type: integer
+        configurable: false
+        default: 4096
+      - name: persistent_disk
+        type: integer
+        configurable: false
+        default: 0
+      - name: cpu
+        type: integer
+        configurable: false
+        default: 1
+    static_ip: 0
+    dynamic_ip: 1
+    max_in_flight: 1
+    single_az_only: true
+    instance_definition:
+      name: instances
+      type: integer
+      configurable: false
+      default: 1
+    property_blueprints:
+      - name: vm_credentials
+        type: salted_credentials
+        default:
+          identity: vcap
+    manifest: |
+      openclaw:
+        admin_dashboard:
+          port: 8083
+          broker_endpoint: http://openclaw-broker.default.openclaw.bosh:8080
+          route:
+            hostname: (( .properties.dashboard_route.value ))
+            domain: (( .properties.apps_domain.value ))
+      route_registrar:
+        routes:
+          - name: openclaw-admin
+            port: 8083
+            registration_interval: 20s
+            uris:
+              - (( .properties.dashboard_route.value )).(( .properties.apps_domain.value ))
+    templates:
+      - name: openclaw-admin-dashboard
+        release: openclaw
+      - name: route-registrar
+        release: openclaw
+
+  #
+  # register-broker errand
+  #
+  - name: register-broker
+    resource_label: Register Service Broker
+    errand: true
+    resource_definitions:
+      - name: ram
+        type: integer
+        configurable: false
+        default: 1024
+      - name: ephemeral_disk
+        type: integer
+        configurable: false
+        default: 2048
+      - name: persistent_disk
+        type: integer
+        configurable: false
+        default: 0
+      - name: cpu
+        type: integer
+        configurable: false
+        default: 1
+    static_ip: 0
+    dynamic_ip: 1
+    max_in_flight: 1
+    single_az_only: true
+    instance_definition:
+      name: instances
+      type: integer
+      configurable: false
+      default: 1
+    property_blueprints:
+      - name: vm_credentials
+        type: salted_credentials
+        default:
+          identity: vcap
+    manifest: |
+      broker:
+        name: openclaw
+        url: https://(( .properties.broker_route.value )).(( .properties.apps_domain.value ))
+        auth:
+          username: (( .properties.broker_username.value ))
+          password: (( .properties.broker_password.value ))
+        enable_service_access: true
+    templates:
+      - name: register-broker
+        release: openclaw
+
+  #
+  # deregister-broker errand
+  #
+  - name: deregister-broker
+    resource_label: Deregister Service Broker
+    errand: true
+    resource_definitions:
+      - name: ram
+        type: integer
+        configurable: false
+        default: 1024
+      - name: ephemeral_disk
+        type: integer
+        configurable: false
+        default: 2048
+      - name: persistent_disk
+        type: integer
+        configurable: false
+        default: 0
+      - name: cpu
+        type: integer
+        configurable: false
+        default: 1
+    static_ip: 0
+    dynamic_ip: 1
+    max_in_flight: 1
+    single_az_only: true
+    instance_definition:
+      name: instances
+      type: integer
+      configurable: false
+      default: 1
+    property_blueprints:
+      - name: vm_credentials
+        type: salted_credentials
+        default:
+          identity: vcap
+    manifest: |
+      broker:
+        name: openclaw
+    templates:
+      - name: deregister-broker
+        release: openclaw
+
+  #
+  # smoke-tests errand
+  #
+  - name: smoke-tests
+    resource_label: Smoke Tests
+    errand: true
+    resource_definitions:
+      - name: ram
+        type: integer
+        configurable: false
+        default: 1024
+      - name: ephemeral_disk
+        type: integer
+        configurable: false
+        default: 2048
+      - name: persistent_disk
+        type: integer
+        configurable: false
+        default: 0
+      - name: cpu
+        type: integer
+        configurable: false
+        default: 1
+    static_ip: 0
+    dynamic_ip: 1
+    max_in_flight: 1
+    single_az_only: true
+    instance_definition:
+      name: instances
+      type: integer
+      configurable: false
+      default: 1
+    property_blueprints:
+      - name: vm_credentials
+        type: salted_credentials
+        default:
+          identity: vcap
+    manifest: |
+      smoke_tests:
+        plan: developer
+        timeout_seconds: 300
+        verify_webchat_route: true
+        test_prompt: "What is 2 + 2? Reply with just the number."
+        apps_domain: (( .properties.apps_domain.value ))
+    templates:
+      - name: smoke-tests
+        release: openclaw
+
+# ---------------------------------------------------------------------------
+# Post-Deploy Errands
+# ---------------------------------------------------------------------------
+
+post_deploy_errands:
+  - name: register-broker
+  - name: smoke-tests
+
+# ---------------------------------------------------------------------------
+# Pre-Delete Errands
+# ---------------------------------------------------------------------------
+
+pre_delete_errands:
+  - name: deregister-broker

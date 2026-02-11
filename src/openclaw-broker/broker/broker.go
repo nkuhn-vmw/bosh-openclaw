@@ -6,8 +6,15 @@ import (
 	"github.com/nkuhn-vmw/bosh-openclaw/src/openclaw-broker/bosh"
 )
 
+type BrokerConfig struct {
+	MinOpenClawVersion string `json:"min_openclaw_version"`
+	ControlUIEnabled   bool   `json:"control_ui_enabled"`
+	SandboxMode        string `json:"sandbox_mode"`
+	OpenClawVersion    string `json:"openclaw_version"`
+}
+
 type Broker struct {
-	config    interface{}
+	config    BrokerConfig
 	director  *bosh.Client
 	mu        sync.RWMutex
 	instances map[string]*Instance
@@ -25,9 +32,11 @@ type Instance struct {
 	NodeSeed       string `json:"node_seed"`
 	RouteHostname  string `json:"route_hostname"`
 	AppsDomain     string `json:"apps_domain"`
-	State          string `json:"state"` // provisioning, ready, deprovisioning, failed
-	BoshTaskID     int    `json:"bosh_task_id"`
-	SSOEnabled     bool   `json:"sso_enabled"`
+	State            string `json:"state"` // provisioning, ready, deprovisioning, failed
+	BoshTaskID       int    `json:"bosh_task_id"`
+	SSOEnabled       bool   `json:"sso_enabled"`
+	ControlUIEnabled bool   `json:"control_ui_enabled"`
+	OpenClawVersion  string `json:"openclaw_version"`
 }
 
 type Plan struct {
@@ -41,7 +50,7 @@ type Plan struct {
 	Metadata    map[string]interface{} `json:"metadata,omitempty"`
 }
 
-func New(config interface{}, director *bosh.Client) *Broker {
+func New(config BrokerConfig, director *bosh.Client) *Broker {
 	return &Broker{
 		config:    config,
 		director:  director,

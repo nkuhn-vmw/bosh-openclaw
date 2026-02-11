@@ -44,6 +44,31 @@ func (b *Broker) Provision(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Enforce minimum OpenClaw version (CVE-2026-25253)
+	openclawVersion := b.config.OpenClawVersion
+	if v, ok := req.Parameters["openclaw_version"]; ok {
+		openclawVersion = fmt.Sprintf("%v", v)
+	}
+	if b.config.MinOpenClawVersion != "" {
+		if err := security.ValidateVersion(openclawVersion); err != nil {
+			log.Printf("Version gate rejected %s for %s: %v", openclawVersion, instanceID, err)
+			w.WriteHeader(http.StatusUnprocessableEntity)
+			json.NewEncoder(w).Encode(map[string]string{
+				"error":       "Version below minimum safe version",
+				"description": err.Error(),
+			})
+			return
+		}
+	}
+
+	// Enforce Control UI disabled by default (CVE-2026-25253 mitigation)
+	controlUIEnabled := b.config.ControlUIEnabled
+	if cui, ok := req.Parameters["control_ui_enabled"]; ok {
+		if v, ok := cui.(bool); ok {
+			controlUIEnabled = v
+		}
+	}
+
 	// Find plan
 	planName := planNameFromID(req.PlanID)
 	if planName == "" {
@@ -65,17 +90,19 @@ func (b *Broker) Provision(w http.ResponseWriter, r *http.Request) {
 	deploymentName := fmt.Sprintf("openclaw-agent-%s", instanceID)
 
 	instance := &Instance{
-		ID:             instanceID,
-		PlanID:         req.PlanID,
-		PlanName:       planName,
-		Owner:          owner,
-		OrgGUID:        req.OrganizationGUID,
-		SpaceGUID:      req.SpaceGUID,
-		DeploymentName: deploymentName,
-		GatewayToken:   gatewayToken,
-		NodeSeed:       nodeSeed,
-		RouteHostname:  routeHostname,
-		State:          "provisioning",
+		ID:               instanceID,
+		PlanID:           req.PlanID,
+		PlanName:         planName,
+		Owner:            owner,
+		OrgGUID:          req.OrganizationGUID,
+		SpaceGUID:        req.SpaceGUID,
+		DeploymentName:   deploymentName,
+		GatewayToken:     gatewayToken,
+		NodeSeed:         nodeSeed,
+		RouteHostname:    routeHostname,
+		State:            "provisioning",
+		ControlUIEnabled: controlUIEnabled,
+		OpenClawVersion:  openclawVersion,
 	}
 
 	// Deploy via BOSH

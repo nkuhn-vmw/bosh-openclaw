@@ -16,15 +16,16 @@ instance_groups:
         release: openclaw
         properties:
           openclaw:
-            version: "2026.2.10"
+            version: "{{ .OpenClawVersion }}"
             gateway:
               token: "{{ .GatewayToken }}"
               port: 18789
+              websocket_origin_check: true
             webchat:
               enabled: true
               port: 8080
             control_ui:
-              enabled: false
+              enabled: {{ .ControlUIEnabled }}
               require_auth: true
             security:
               sandbox_mode: strict

@@ -10,3 +10,17 @@ skills:
 security:
   scan_on_sync: <%= p('openclaw.registry.scan_on_sync') %>
   block_network_calls: <%= p('openclaw.registry.block_network_calls') %>
+  require_signature: false
+  quarantine_on_fail: true
+  scan_checks:
+    - manifest_present
+    - signature_valid
+    - no_unauthorized_network
+    - no_dangerous_patterns
+  dangerous_patterns:
+    - child_process
+    - eval(
+    - Function(
+    - exec(
+    - spawn(
+  allowed_network_modules: []

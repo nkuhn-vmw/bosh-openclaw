@@ -1,20 +1,100 @@
-<%= JSON.pretty_generate({
-  "sandbox_mode" => p('openclaw.security.sandbox_mode'),
-  "block_outbound_network" => p('openclaw.security.block_outbound_network'),
-  "max_shell_timeout_seconds" => p('openclaw.security.max_shell_timeout_seconds'),
-  "readonly_paths" => p('openclaw.security.readonly_paths'),
-  "blocked_commands" => p('openclaw.security.blocked_commands'),
-  "allowed_executables" => [
+<%
+  sandbox_mode = p('openclaw.security.sandbox_mode')
+
+  # Sandbox-mode-dependent settings
+  case sandbox_mode
+  when 'strict'
+    shell_approval_required = true
+    allow_write_outside_state = false
+    allow_network_tools = false
+    allow_package_install = false
+    max_concurrent_shells = 1
+    blocked_patterns = p('openclaw.security.blocked_commands') + [
+      "curl", "wget", "nc", "ncat", "socat",
+      "pip install", "npm install -g", "apt-get", "yum",
+      "chmod +s", "chown root", "sudo",
+      "ssh", "scp", "rsync",
+      "mount", "umount", "fdisk", "parted"
+    ]
+  when 'moderate'
+    shell_approval_required = false
+    allow_write_outside_state = false
+    allow_network_tools = false
+    allow_package_install = false
+    max_concurrent_shells = 3
+    blocked_patterns = p('openclaw.security.blocked_commands') + [
+      "chmod +s", "chown root", "sudo",
+      "mount", "umount", "fdisk", "parted",
+      ":(){ :|:& };:"
+    ]
+  when 'loose'
+    shell_approval_required = false
+    allow_write_outside_state = true
+    allow_network_tools = true
+    allow_package_install = false
+    max_concurrent_shells = 5
+    blocked_patterns = p('openclaw.security.blocked_commands')
+  else
+    raise "Unknown sandbox_mode: #{sandbox_mode}. Must be strict, moderate, or loose."
+  end
+
+  # Always-allowed executables regardless of sandbox mode
+  allowed_executables = [
     "/var/vcap/packages/node22/bin/node",
     "/var/vcap/packages/openclaw/bin/openclaw",
     "/bin/bash",
     "/bin/sh",
     "/usr/bin/env"
-  ],
-  "allowed_network_destinations" => [
+  ]
+
+  # In strict mode, restrict to known-safe executables only
+  if sandbox_mode == 'strict'
+    allowed_executables += [
+      "/usr/bin/git",
+      "/usr/bin/grep",
+      "/usr/bin/find",
+      "/usr/bin/cat",
+      "/usr/bin/ls",
+      "/usr/bin/head",
+      "/usr/bin/tail",
+      "/usr/bin/wc",
+      "/usr/bin/sort",
+      "/usr/bin/uniq",
+      "/usr/bin/diff",
+      "/usr/bin/sed",
+      "/usr/bin/awk"
+    ]
+  end
+
+  # Network destinations allowed (LLM endpoint + registry always permitted)
+  allowed_network = [
     p('openclaw.llm.genai.endpoint', ''),
     p('openclaw.registry.endpoint', '')
-  ].reject { |e| e.nil? || e.empty? },
+  ].reject { |e| e.nil? || e.empty? }
+
+  # Browser sandbox enforcement
+  browser_sandbox = p('openclaw.browser.sandbox')
+  browser_enabled = p('openclaw.browser.enabled')
+%>
+<%= JSON.pretty_generate({
+  "sandbox_mode" => sandbox_mode,
+  "enforcement" => {
+    "shell_approval_required" => shell_approval_required,
+    "allow_write_outside_state" => allow_write_outside_state,
+    "allow_network_tools" => allow_network_tools,
+    "allow_package_install" => allow_package_install,
+    "max_concurrent_shells" => max_concurrent_shells,
+    "max_shell_timeout_seconds" => p('openclaw.security.max_shell_timeout_seconds'),
+    "kill_on_timeout" => true
+  },
+  "blocked_commands" => blocked_patterns.uniq,
+  "allowed_executables" => (sandbox_mode == 'strict') ? allowed_executables : nil,
+  "network" => {
+    "block_outbound" => p('openclaw.security.block_outbound_network'),
+    "allowed_destinations" => allowed_network,
+    "allow_dns" => true,
+    "allow_localhost" => true
+  },
   "filesystem" => {
     "writable_paths" => [
       p('openclaw.state_dir'),
@@ -26,6 +106,29 @@
     "readonly_paths" => p('openclaw.security.readonly_paths') + [
       "/var/vcap/packages",
       "/var/vcap/jobs/openclaw-agent"
+    ],
+    "denied_paths" => [
+      "/var/vcap/bosh",
+      "/var/vcap/micro_bosh",
+      "/etc/shadow",
+      "/etc/sudoers",
+      "/root"
     ]
+  },
+  "browser" => {
+    "enabled" => browser_enabled,
+    "sandbox" => browser_sandbox,
+    "max_pages" => (sandbox_mode == 'strict') ? 1 : 5,
+    "blocked_domains" => [],
+    "disable_downloads" => (sandbox_mode == 'strict')
+  },
+  "control_ui" => {
+    "enabled" => p('openclaw.control_ui.enabled'),
+    "require_auth" => p('openclaw.control_ui.require_auth')
+  },
+  "websocket" => {
+    "origin_check" => true,
+    "max_message_size_bytes" => 1048576,
+    "token_required" => true
   }
 }) %>

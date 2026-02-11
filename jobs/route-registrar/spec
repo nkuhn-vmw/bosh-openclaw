@@ -2,8 +2,8 @@
 name: route-registrar
 
 templates:
-  ctl.erb: bin/ctl
-  registrar.json.erb: config/registrar.json
+  bin/ctl.erb: bin/ctl
+  config/registrar.json.erb: config/registrar.json
 
 packages: []
 

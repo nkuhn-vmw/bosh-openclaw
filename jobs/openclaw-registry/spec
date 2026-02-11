@@ -2,10 +2,10 @@
 name: openclaw-registry
 
 templates:
-  ctl.erb: bin/ctl
-  allowlist.yml.erb: config/allowlist.yml
-  sync.erb: bin/sync
-  bpm.yml.erb: config/bpm.yml
+  bin/ctl.erb: bin/ctl
+  config/allowlist.yml.erb: config/allowlist.yml
+  bin/sync.erb: bin/sync
+  config/bpm.yml.erb: config/bpm.yml
 
 packages:
   - node22

@@ -2,8 +2,8 @@
 name: openclaw-sso-proxy
 
 templates:
-  ctl.erb: bin/ctl
-  oauth2-proxy.cfg.erb: config/oauth2-proxy.cfg
+  bin/ctl.erb: bin/ctl
+  config/oauth2-proxy.cfg.erb: config/oauth2-proxy.cfg
 
 packages:
   - oauth2-proxy

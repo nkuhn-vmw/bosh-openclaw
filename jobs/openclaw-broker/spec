@@ -2,10 +2,10 @@
 name: openclaw-broker
 
 templates:
-  ctl.erb: bin/ctl
-  config.json.erb: config/config.json
-  bpm.yml.erb: config/bpm.yml
-  catalog.json.erb: config/catalog.json
+  bin/ctl.erb: bin/ctl
+  config/config.json.erb: config/config.json
+  config/bpm.yml.erb: config/bpm.yml
+  config/catalog.json.erb: config/catalog.json
 
 packages:
   - openclaw-broker

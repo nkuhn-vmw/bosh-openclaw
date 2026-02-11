@@ -2,7 +2,7 @@
 name: upgrade-agents
 
 templates:
-  run.erb: bin/run
+  bin/run.erb: bin/run
 
 packages: []
 

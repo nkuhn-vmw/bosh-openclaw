@@ -2,7 +2,7 @@
 name: deregister-broker
 
 templates:
-  run.erb: bin/run
+  bin/run.erb: bin/run
 
 packages: []
 

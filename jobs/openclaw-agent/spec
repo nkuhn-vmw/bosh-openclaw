@@ -2,13 +2,13 @@
 name: openclaw-agent
 
 templates:
-  ctl.erb: bin/ctl
-  pre-start.erb: bin/pre-start
-  drain.erb: bin/drain
-  bpm.yml.erb: config/bpm.yml
-  openclaw.json.erb: config/openclaw.json
-  skills-allowlist.yml.erb: config/skills-allowlist.yml
-  security-policy.json.erb: config/security-policy.json
+  bin/ctl.erb: bin/ctl
+  bin/pre-start.erb: bin/pre-start
+  bin/drain.erb: bin/drain
+  config/bpm.yml.erb: config/bpm.yml
+  config/openclaw.json.erb: config/openclaw.json
+  config/skills-allowlist.yml.erb: config/skills-allowlist.yml
+  config/security-policy.json.erb: config/security-policy.json
 
 packages:
   - node22

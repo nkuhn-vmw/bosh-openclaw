@@ -2,8 +2,8 @@
 name: openclaw-admin-dashboard
 
 templates:
-  ctl.erb: bin/ctl
-  config.json.erb: config/config.json
+  bin/ctl.erb: bin/ctl
+  config/config.json.erb: config/config.json
 
 packages:
   - node22

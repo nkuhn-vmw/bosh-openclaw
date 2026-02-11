@@ -7,6 +7,8 @@ description: Deploy dedicated OpenClaw AI agents for developers and teams
 icon_image: ICON_BASE64_PLACEHOLDER
 
 minimum_version_for_upgrade: "0.0.1"
+serial: true
+rank: 1
 
 stemcell_criteria:
   os: ubuntu-jammy
@@ -392,11 +394,6 @@ job_types:
       type: integer
       configurable: false
       default: 1
-    property_blueprints:
-      - name: vm_credentials
-        type: salted_credentials
-        default:
-          identity: vcap
     manifest: |
       openclaw:
         broker:
@@ -469,11 +466,6 @@ job_types:
       type: integer
       configurable: false
       default: 1
-    property_blueprints:
-      - name: vm_credentials
-        type: salted_credentials
-        default:
-          identity: vcap
     manifest: |
       openclaw:
         registry:
@@ -517,11 +509,6 @@ job_types:
       type: integer
       configurable: false
       default: 1
-    property_blueprints:
-      - name: vm_credentials
-        type: salted_credentials
-        default:
-          identity: vcap
     manifest: |
       openclaw:
         admin_dashboard:
@@ -575,11 +562,6 @@ job_types:
       type: integer
       configurable: false
       default: 1
-    property_blueprints:
-      - name: vm_credentials
-        type: salted_credentials
-        default:
-          identity: vcap
     manifest: |
       broker:
         name: openclaw
@@ -624,11 +606,6 @@ job_types:
       type: integer
       configurable: false
       default: 1
-    property_blueprints:
-      - name: vm_credentials
-        type: salted_credentials
-        default:
-          identity: vcap
     manifest: |
       broker:
         name: openclaw
@@ -668,11 +645,6 @@ job_types:
       type: integer
       configurable: false
       default: 1
-    property_blueprints:
-      - name: vm_credentials
-        type: salted_credentials
-        default:
-          identity: vcap
     manifest: |
       smoke_tests:
         plan: developer

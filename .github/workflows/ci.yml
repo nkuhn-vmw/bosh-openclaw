@@ -93,14 +93,19 @@ jobs:
           cp openclaw-release.tgz "${RELEASE_FILE}"
           RELEASE_SHA1=$(sha1sum "${RELEASE_FILE}" | awk '{print $1}')
 
-          # Base64-encode the icon PNG for metadata
-          ICON_B64=$(base64 -w0 resources/icon.png)
-
           # Stamp version, sha1, and icon into metadata
-          sed -e "s/VERSION_PLACEHOLDER/${VERSION}/g" \
-              -e "s/SHA1_PLACEHOLDER/${RELEASE_SHA1}/g" \
-              -e "s|ICON_BASE64_PLACEHOLDER|${ICON_B64}|g" \
-              tile/metadata/openclaw.yml > metadata-stamped.yml
+          # Use python for icon substitution since base64 PNG is too large for sed
+          ICON_B64=$(base64 -w0 resources/icon.png)
+          python3 -c "
+          import sys
+          with open('tile/metadata/openclaw.yml') as f:
+              content = f.read()
+          content = content.replace('VERSION_PLACEHOLDER', '${VERSION}')
+          content = content.replace('SHA1_PLACEHOLDER', '${RELEASE_SHA1}')
+          content = content.replace('ICON_BASE64_PLACEHOLDER', sys.stdin.read().strip())
+          with open('metadata-stamped.yml', 'w') as f:
+              f.write(content)
+          " <<< "${ICON_B64}"
 
           # A .pivotal file is a zip with metadata + releases
           mkdir -p "${TILE_DIR}/metadata" "${TILE_DIR}/releases"

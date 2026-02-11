@@ -1,6 +1,6 @@
 ---
 name: openclaw
-product_version: "0.1.0"
+product_version: "VERSION_PLACEHOLDER"
 metadata_version: "2.0"
 label: OpenClaw AI Agent Platform
 description: Deploy dedicated OpenClaw AI agents for developers and teams
@@ -14,9 +14,9 @@ stemcell_criteria:
 
 releases:
   - name: openclaw
-    version: "0.1.0"
-    file: openclaw-0.1.0.tgz
-    sha1: placeholder
+    version: "VERSION_PLACEHOLDER"
+    file: openclaw-release-VERSION_PLACEHOLDER.tgz
+    sha1: SHA1_PLACEHOLDER
 
 # ---------------------------------------------------------------------------
 # Property Blueprints

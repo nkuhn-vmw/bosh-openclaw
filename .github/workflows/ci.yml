@@ -86,12 +86,22 @@ jobs:
       - name: Build .pivotal tile
         run: |
           VERSION="${GITHUB_REF_NAME#v}"
+          RELEASE_FILE="openclaw-release-${VERSION}.tgz"
           TILE_DIR=$(mktemp -d)
+
+          # Rename release to versioned filename expected by metadata
+          cp openclaw-release.tgz "${RELEASE_FILE}"
+          RELEASE_SHA1=$(sha1sum "${RELEASE_FILE}" | awk '{print $1}')
+
+          # Stamp version and sha1 into metadata
+          sed -e "s/VERSION_PLACEHOLDER/${VERSION}/g" \
+              -e "s/SHA1_PLACEHOLDER/${RELEASE_SHA1}/g" \
+              tile/metadata/openclaw.yml > metadata-stamped.yml
 
           # A .pivotal file is a zip with metadata + releases
           mkdir -p "${TILE_DIR}/metadata" "${TILE_DIR}/releases"
-          cp tile/metadata/openclaw.yml "${TILE_DIR}/metadata/openclaw.yml"
-          cp openclaw-release.tgz "${TILE_DIR}/releases/"
+          cp metadata-stamped.yml "${TILE_DIR}/metadata/openclaw.yml"
+          cp "${RELEASE_FILE}" "${TILE_DIR}/releases/"
           cp resources/icon.png "${TILE_DIR}/metadata/" 2>/dev/null || true
 
           mkdir -p product

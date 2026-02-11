@@ -1,0 +1,120 @@
+#!/bin/bash
+
+set -eu
+
+TARGET_VERSION="<%= p('upgrade_agents.target_version') %>"
+CANARY_PCT="<%= p('upgrade_agents.canary_percentage') %>"
+MAX_PARALLEL="<%= p('upgrade_agents.max_parallel') %>"
+BROKER_ENDPOINT="<%= p('upgrade_agents.broker_endpoint') %>"
+BROKER_USER="<%= p('upgrade_agents.broker_auth.username') %>"
+BROKER_PASSWORD="<%= p('upgrade_agents.broker_auth.password') %>"
+HEALTH_TIMEOUT="<%= p('upgrade_agents.health_check_timeout') %>"
+
+echo "=== OpenClaw Agent Upgrade Errand ==="
+echo "Target version: ${TARGET_VERSION}"
+echo "Canary percentage: ${CANARY_PCT}%"
+echo "Max parallel: ${MAX_PARALLEL}"
+echo ""
+
+# Get list of all agent instances from broker
+echo "Fetching agent instances from broker..."
+INSTANCES=$(curl -s -u "${BROKER_USER}:${BROKER_PASSWORD}" \
+  "${BROKER_ENDPOINT}/admin/instances" \
+  --max-time 30)
+
+TOTAL=$(echo "${INSTANCES}" | python3 -c "import sys,json; print(len(json.load(sys.stdin)['instances']))" 2>/dev/null || echo "0")
+
+if [ "${TOTAL}" = "0" ]; then
+  echo "No agent instances found. Nothing to upgrade."
+  exit 0
+fi
+
+echo "Found ${TOTAL} agent instance(s)"
+
+# Calculate canary count
+CANARY_COUNT=$(( (TOTAL * CANARY_PCT + 99) / 100 ))
+if [ "${CANARY_COUNT}" -lt 1 ]; then
+  CANARY_COUNT=1
+fi
+
+echo "Canary count: ${CANARY_COUNT}"
+echo ""
+
+# Phase 1: Canary upgrades
+echo "--- Phase 1: Canary Upgrade (${CANARY_COUNT} instances) ---"
+curl -s -X POST -u "${BROKER_USER}:${BROKER_PASSWORD}" \
+  "${BROKER_ENDPOINT}/admin/upgrade" \
+  -H "Content-Type: application/json" \
+  -d "{\"target_version\": \"${TARGET_VERSION}\", \"count\": ${CANARY_COUNT}, \"max_parallel\": ${MAX_PARALLEL}}" \
+  --max-time 60
+
+echo ""
+echo "Waiting for canary instances to become healthy..."
+
+ELAPSED=0
+while [ ${ELAPSED} -lt ${HEALTH_TIMEOUT} ]; do
+  HEALTHY=$(curl -s -u "${BROKER_USER}:${BROKER_PASSWORD}" \
+    "${BROKER_ENDPOINT}/admin/upgrade/status" \
+    --max-time 10 | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('healthy',0))" 2>/dev/null || echo "0")
+
+  if [ "${HEALTHY}" -ge "${CANARY_COUNT}" ]; then
+    echo "All canary instances are healthy."
+    break
+  fi
+
+  sleep 5
+  ELAPSED=$((ELAPSED + 5))
+done
+
+if [ ${ELAPSED} -ge ${HEALTH_TIMEOUT} ]; then
+  echo "FAIL: Canary instances did not become healthy within ${HEALTH_TIMEOUT}s"
+  echo "Aborting upgrade. Manual intervention required."
+  exit 1
+fi
+
+<% if p('upgrade_agents.pause_after_canary') %>
+echo ""
+echo "Canary phase complete. Pausing before rolling out to remaining instances."
+echo "In a production deployment, an operator would verify canary health here."
+echo "Continuing automatically after 10 second pause..."
+sleep 10
+<% end %>
+
+# Phase 2: Rolling upgrade of remaining instances
+REMAINING=$((TOTAL - CANARY_COUNT))
+if [ ${REMAINING} -gt 0 ]; then
+  echo ""
+  echo "--- Phase 2: Rolling Upgrade (${REMAINING} remaining instances) ---"
+  curl -s -X POST -u "${BROKER_USER}:${BROKER_PASSWORD}" \
+    "${BROKER_ENDPOINT}/admin/upgrade" \
+    -H "Content-Type: application/json" \
+    -d "{\"target_version\": \"${TARGET_VERSION}\", \"count\": ${REMAINING}, \"max_parallel\": ${MAX_PARALLEL}}" \
+    --max-time 60
+
+  echo ""
+  echo "Waiting for all instances to become healthy..."
+
+  ELAPSED=0
+  while [ ${ELAPSED} -lt ${HEALTH_TIMEOUT} ]; do
+    HEALTHY=$(curl -s -u "${BROKER_USER}:${BROKER_PASSWORD}" \
+      "${BROKER_ENDPOINT}/admin/upgrade/status" \
+      --max-time 10 | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('healthy',0))" 2>/dev/null || echo "0")
+
+    if [ "${HEALTHY}" -ge "${TOTAL}" ]; then
+      echo "All instances upgraded and healthy."
+      break
+    fi
+
+    sleep 5
+    ELAPSED=$((ELAPSED + 5))
+  done
+
+  if [ ${ELAPSED} -ge ${HEALTH_TIMEOUT} ]; then
+    echo "WARN: Not all instances healthy within timeout. ${HEALTHY}/${TOTAL} healthy."
+    echo "Manual verification recommended."
+    exit 1
+  fi
+fi
+
+echo ""
+echo "=== Upgrade complete: ${TOTAL} instances upgraded to ${TARGET_VERSION} ==="

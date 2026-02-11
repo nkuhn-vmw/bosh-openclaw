@@ -1,0 +1,150 @@
+---
+name: openclaw
+
+releases:
+  - name: openclaw
+    version: latest
+
+stemcells:
+  - alias: default
+    os: ubuntu-jammy
+    version: latest
+
+update:
+  canaries: 1
+  max_in_flight: 1
+  canary_watch_time: 30000-120000
+  update_watch_time: 30000-120000
+
+instance_groups:
+  - name: openclaw-broker
+    instances: 1
+    jobs:
+      - name: openclaw-broker
+        release: openclaw
+        properties:
+          openclaw:
+            broker:
+              port: 8080
+              auth:
+                username: ((broker_username))
+                password: ((broker_password))
+              bosh:
+                director_url: ((bosh_director_url))
+                client_id: ((bosh_client_id))
+                client_secret: ((bosh_client_secret))
+                ca_cert: ((bosh_ca_cert))
+              agent_defaults:
+                openclaw_version: "2026.2.10"
+                stemcell: ubuntu-jammy
+                network: openclaw-agents
+                az: z1
+              genai:
+                endpoint: ((genai_endpoint))
+                api_key: ((genai_api_key))
+                model: auto
+              limits:
+                max_instances: 50
+                max_instances_per_org: 10
+      - name: route-registrar
+        release: openclaw
+        properties:
+          route_registrar:
+            routes:
+              - name: openclaw-broker
+                registration_interval: 20s
+                port: 8080
+                uris:
+                  - openclaw-broker.((apps_domain))
+            nats:
+              machines: ((nats_machines))
+              port: ((nats_port))
+              user: ((nats_user))
+              password: ((nats_password))
+    vm_type: small
+    stemcell: default
+    azs: [z1]
+    networks:
+      - name: default
+
+  - name: openclaw-registry
+    instances: 1
+    jobs:
+      - name: openclaw-registry
+        release: openclaw
+        properties:
+          openclaw:
+            registry:
+              port: 8081
+              auto_sync: true
+              sync_interval_hours: 24
+              scan_on_sync: true
+              block_network_calls: true
+              skills_allowlist:
+                - weather
+                - calendar-google
+                - calendar-apple
+                - email-gmail
+                - email-outlook
+                - github
+                - jira
+                - confluence
+                - slack-actions
+                - notion
+                - obsidian
+                - trello
+                - linear
+    vm_type: small
+    stemcell: default
+    azs: [z1]
+    persistent_disk_type: 10GB
+    networks:
+      - name: default
+
+  - name: openclaw-admin-dashboard
+    instances: 1
+    jobs:
+      - name: openclaw-admin-dashboard
+        release: openclaw
+        properties:
+          openclaw:
+            dashboard:
+              port: 8080
+              broker_endpoint: "http://openclaw-broker.default.openclaw.bosh:8080"
+              auth:
+                username: ((dashboard_username))
+                password: ((dashboard_password))
+      - name: route-registrar
+        release: openclaw
+        properties:
+          route_registrar:
+            routes:
+              - name: openclaw-admin
+                registration_interval: 20s
+                port: 8080
+                uris:
+                  - openclaw-admin.((apps_domain))
+            nats:
+              machines: ((nats_machines))
+              port: ((nats_port))
+              user: ((nats_user))
+              password: ((nats_password))
+    vm_type: small
+    stemcell: default
+    azs: [z1]
+    networks:
+      - name: default
+
+variables:
+  - name: broker_username
+    type: value
+    options:
+      default: openclaw-broker
+  - name: broker_password
+    type: password
+  - name: dashboard_username
+    type: value
+    options:
+      default: admin
+  - name: dashboard_password
+    type: password

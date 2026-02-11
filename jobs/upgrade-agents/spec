@@ -1,0 +1,30 @@
+---
+name: upgrade-agents
+
+templates:
+  run.erb: bin/run
+
+packages: []
+
+properties:
+  upgrade_agents.target_version:
+    description: "Target OpenClaw version to upgrade agents to"
+  upgrade_agents.canary_percentage:
+    description: "Percentage of agents to upgrade first as canaries"
+    default: 10
+  upgrade_agents.pause_after_canary:
+    description: "Pause and wait for confirmation after canary upgrades"
+    default: true
+  upgrade_agents.max_parallel:
+    description: "Maximum number of agents to upgrade in parallel"
+    default: 5
+  upgrade_agents.broker_endpoint:
+    description: "URL of the OpenClaw service broker API"
+    default: "http://localhost:8080"
+  upgrade_agents.broker_auth.username:
+    description: "Broker API auth username"
+  upgrade_agents.broker_auth.password:
+    description: "Broker API auth password"
+  upgrade_agents.health_check_timeout:
+    description: "Seconds to wait for agent health after upgrade"
+    default: 120

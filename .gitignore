@@ -1,0 +1,30 @@
+# BOSH release artifacts
+dev_releases/
+.dev_builds/
+blobs/
+.blobs/
+.final_builds/
+releases/*.tgz
+
+# Tile artifacts
+*.pivotal
+product/
+
+# Dependencies
+node_modules/
+vendor/
+
+# Build artifacts
+*.tar.gz
+*.tgz
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~

@@ -1,0 +1,5 @@
+check process openclaw-broker
+  with pidfile /var/vcap/sys/run/openclaw-broker/openclaw-broker.pid
+  start program "/var/vcap/jobs/openclaw-broker/bin/ctl start"
+  stop program "/var/vcap/jobs/openclaw-broker/bin/ctl stop"
+  group vcap

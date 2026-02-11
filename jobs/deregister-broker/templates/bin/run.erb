@@ -1,0 +1,34 @@
+#!/bin/bash
+
+set -eu
+
+CF_API="<%= p('cf.api_url') %>"
+CF_USER="<%= p('cf.admin_username') %>"
+CF_PASSWORD="<%= p('cf.admin_password') %>"
+BROKER_NAME="<%= p('broker.name') %>"
+
+SSL_FLAG=""
+<% if p('cf.skip_ssl_validation') %>
+SSL_FLAG="--skip-ssl-validation"
+<% end %>
+
+echo "Logging in to Cloud Foundry at ${CF_API}..."
+cf api "${CF_API}" ${SSL_FLAG}
+cf auth "${CF_USER}" "${CF_PASSWORD}"
+
+echo "Deregistering service broker '${BROKER_NAME}'..."
+
+if cf service-brokers | grep -q "^${BROKER_NAME} "; then
+  echo "Disabling service access..."
+  cf disable-service-access openclaw || true
+
+  echo "Purging service offerings..."
+  cf purge-service-offering openclaw -f || true
+
+  echo "Deleting service broker..."
+  cf delete-service-broker "${BROKER_NAME}" -f
+
+  echo "Service broker '${BROKER_NAME}' deregistered successfully."
+else
+  echo "Broker '${BROKER_NAME}' not found, nothing to deregister."
+fi

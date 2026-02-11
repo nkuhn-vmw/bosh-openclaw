@@ -1,0 +1,55 @@
+#!/bin/bash
+
+set -eu
+
+export PATH="/var/vcap/packages/node22/bin:/var/vcap/packages/openclaw/bin:$PATH"
+export HOME="/var/vcap/data/openclaw-agent"
+
+JOB_NAME="openclaw-agent"
+RUN_DIR="/var/vcap/sys/run/${JOB_NAME}"
+LOG_DIR="/var/vcap/sys/log/${JOB_NAME}"
+PIDFILE="${RUN_DIR}/${JOB_NAME}.pid"
+CONFIG_FILE="/var/vcap/jobs/${JOB_NAME}/config/openclaw.json"
+
+case $1 in
+  start)
+    mkdir -p "${RUN_DIR}" "${LOG_DIR}" "${HOME}"
+    chown -R vcap:vcap "${RUN_DIR}" "${LOG_DIR}" "${HOME}"
+
+    echo $$ > "${PIDFILE}"
+
+    exec chpst -u vcap:vcap \
+      openclaw gateway \
+        --config "${CONFIG_FILE}" \
+      >> "${LOG_DIR}/${JOB_NAME}.stdout.log" \
+      2>> "${LOG_DIR}/${JOB_NAME}.stderr.log"
+    ;;
+
+  stop)
+    if [ -f "${PIDFILE}" ]; then
+      PID=$(cat "${PIDFILE}")
+      if kill -0 "${PID}" 2>/dev/null; then
+        # Send SIGTERM for graceful shutdown
+        kill -TERM "${PID}"
+
+        # Wait up to 30 seconds for the process to exit
+        TIMEOUT=30
+        while [ ${TIMEOUT} -gt 0 ] && kill -0 "${PID}" 2>/dev/null; do
+          sleep 1
+          TIMEOUT=$((TIMEOUT - 1))
+        done
+
+        # Force kill if still running
+        if kill -0 "${PID}" 2>/dev/null; then
+          kill -9 "${PID}"
+        fi
+      fi
+      rm -f "${PIDFILE}"
+    fi
+    ;;
+
+  *)
+    echo "Usage: ctl {start|stop}"
+    exit 1
+    ;;
+esac

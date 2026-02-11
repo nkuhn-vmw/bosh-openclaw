@@ -1,0 +1,39 @@
+---
+name: route-registrar
+
+templates:
+  ctl.erb: bin/ctl
+  registrar.json.erb: config/registrar.json
+
+packages: []
+
+properties:
+  nats.machines:
+    description: "List of NATS server IPs"
+  nats.port:
+    description: "NATS server port"
+    default: 4222
+  nats.user:
+    description: "NATS username"
+  nats.password:
+    description: "NATS password"
+  route_registrar.routes:
+    description: "Array of routes to register"
+  route_registrar.host:
+    description: "Backend IP address for the route"
+  route_registrar.route.hostname:
+    description: "Route hostname (e.g., openclaw-broker)"
+  route_registrar.route.domain:
+    description: "Route domain (e.g., apps.example.com)"
+  route_registrar.route.port:
+    description: "Backend port to route traffic to"
+    default: 8080
+  route_registrar.health_check.name:
+    description: "Health check name"
+    default: "openclaw-health"
+  route_registrar.health_check.script_path:
+    description: "Path to the health check script"
+    default: "/var/vcap/jobs/route-registrar/bin/health-check"
+  route_registrar.health_check.timeout:
+    description: "Health check timeout in seconds"
+    default: 5

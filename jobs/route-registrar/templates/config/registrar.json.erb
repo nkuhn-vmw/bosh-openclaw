@@ -1,0 +1,27 @@
+{
+  "message_bus_servers": [
+    <% p('nats.machines').each_with_index do |ip, index| %>
+    {
+      "host": "<%= ip %>:<%= p('nats.port') %>",
+      "user": "<%= p('nats.user') %>",
+      "password": "<%= p('nats.password') %>"
+    }<%= index < p('nats.machines').length - 1 ? ',' : '' %>
+    <% end %>
+  ],
+  "host": "<%= p('route_registrar.host') %>",
+  "routes": [
+    {
+      "name": "<%= p('route_registrar.route.hostname') %>",
+      "registration_interval": "10s",
+      "uris": [
+        "<%= p('route_registrar.route.hostname') %>.<%= p('route_registrar.route.domain') %>"
+      ],
+      "port": <%= p('route_registrar.route.port') %>,
+      "health_check": {
+        "name": "<%= p('route_registrar.health_check.name') %>",
+        "script_path": "<%= p('route_registrar.health_check.script_path') %>",
+        "timeout": "<%= p('route_registrar.health_check.timeout') %>s"
+      }
+    }
+  ]
+}

@@ -1,0 +1,34 @@
+#!/bin/bash
+
+set -eu
+
+export PATH="/var/vcap/packages/node22/bin:/var/vcap/packages/openclaw/bin:$PATH"
+
+STATE_DIR="<%= p('openclaw.state_dir') %>"
+
+# Create state directory on persistent disk
+mkdir -p "${STATE_DIR}"
+mkdir -p "${STATE_DIR}/memory"
+mkdir -p "${STATE_DIR}/skills"
+mkdir -p "${STATE_DIR}/sessions"
+
+# Set ownership and permissions
+chown -R vcap:vcap "${STATE_DIR}"
+chmod 0750 "${STATE_DIR}"
+
+# Create log and run directories
+mkdir -p /var/vcap/sys/log/openclaw-agent
+mkdir -p /var/vcap/sys/run/openclaw-agent
+chown -R vcap:vcap /var/vcap/sys/log/openclaw-agent
+chown -R vcap:vcap /var/vcap/sys/run/openclaw-agent
+
+<% if_p('openclaw.registry.endpoint') do |endpoint| %>
+# Sync skills from the curated registry
+echo "Syncing skills from registry: <%= endpoint %>"
+chpst -u vcap:vcap \
+  openclaw registry sync \
+    --endpoint "<%= endpoint %>" \
+    --allowlist /var/vcap/jobs/openclaw-agent/config/skills-allowlist.yml \
+    --dest "${STATE_DIR}/skills" \
+  || echo "WARNING: Skills sync failed, continuing with existing skills"
+<% end %>

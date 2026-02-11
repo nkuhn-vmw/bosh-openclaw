@@ -1,0 +1,97 @@
+<%= JSON.pretty_generate({
+  "version" => p('openclaw.version'),
+  "gateway" => {
+    "port" => p('openclaw.gateway.port'),
+    "token" => p('openclaw.gateway.token'),
+    "bind_address" => p('openclaw.gateway.bind_address')
+  },
+  "webchat" => {
+    "enabled" => p('openclaw.webchat.enabled'),
+    "port" => p('openclaw.webchat.port')
+  },
+  "control_ui" => {
+    "enabled" => p('openclaw.control_ui.enabled'),
+    "require_auth" => p('openclaw.control_ui.require_auth')
+  },
+  "llm" => {
+    "provider" => p('openclaw.llm.provider'),
+    "genai" => {
+      "endpoint" => p('openclaw.llm.genai.endpoint', nil),
+      "api_key" => p('openclaw.llm.genai.api_key', nil),
+      "model" => p('openclaw.llm.genai.model')
+    },
+    "anthropic" => {
+      "api_key" => p('openclaw.llm.anthropic.api_key', nil)
+    },
+    "openai" => {
+      "api_key" => p('openclaw.llm.openai.api_key', nil)
+    },
+    "model_override" => p('openclaw.llm.model_override', nil)
+  },
+  "security" => {
+    "sandbox_mode" => p('openclaw.security.sandbox_mode'),
+    "skills_allowlist" => p('openclaw.security.skills_allowlist'),
+    "block_outbound_network" => p('openclaw.security.block_outbound_network'),
+    "max_shell_timeout_seconds" => p('openclaw.security.max_shell_timeout_seconds'),
+    "readonly_paths" => p('openclaw.security.readonly_paths'),
+    "blocked_commands" => p('openclaw.security.blocked_commands'),
+    "policy_file" => "/var/vcap/jobs/openclaw-agent/config/security-policy.json"
+  },
+  "state_dir" => p('openclaw.state_dir'),
+  "memory" => {
+    "enabled" => p('openclaw.memory.enabled')
+  },
+  "node" => {
+    "enabled" => p('openclaw.node.enabled'),
+    "seed" => p('openclaw.node.seed', nil)
+  },
+  "browser" => {
+    "enabled" => p('openclaw.browser.enabled'),
+    "sandbox" => p('openclaw.browser.sandbox')
+  },
+  "registry" => {
+    "endpoint" => p('openclaw.registry.endpoint', nil),
+    "sync_interval_hours" => p('openclaw.registry.sync_interval_hours')
+  },
+  "channels" => {
+    "webchat" => {
+      "enabled" => p('openclaw.channels.webchat.enabled')
+    },
+    "slack" => {
+      "enabled" => p('openclaw.channels.slack.enabled'),
+      "bot_token" => p('openclaw.channels.slack.bot_token', nil)
+    },
+    "teams" => {
+      "enabled" => p('openclaw.channels.teams.enabled'),
+      "webhook_url" => p('openclaw.channels.teams.webhook_url', nil)
+    }
+  },
+  "metrics" => {
+    "enabled" => p('openclaw.metrics.enabled'),
+    "port" => p('openclaw.metrics.port')
+  },
+  "logging" => {
+    "level" => p('openclaw.logging.level')
+  },
+  "instance" => {
+    "id" => p('openclaw.instance.id', nil),
+    "owner" => p('openclaw.instance.owner', nil),
+    "plan" => p('openclaw.instance.plan', nil)
+  },
+  "route" => {
+    "hostname" => p('openclaw.route.hostname', nil),
+    "domain" => p('openclaw.route.domain', nil),
+    "tls" => {
+      "enabled" => p('openclaw.route.tls.enabled')
+    }
+  },
+  "sso" => {
+    "enabled" => p('openclaw.sso.enabled'),
+    "provider" => p('openclaw.sso.provider'),
+    "client_id" => p('openclaw.sso.client_id', nil),
+    "client_secret" => p('openclaw.sso.client_secret', nil),
+    "issuer_url" => p('openclaw.sso.issuer_url', nil),
+    "cookie_secret" => p('openclaw.sso.cookie_secret', nil),
+    "allowed_emails" => p('openclaw.sso.allowed_emails')
+  }
+}) %>

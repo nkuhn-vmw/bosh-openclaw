@@ -1,0 +1,6 @@
+---
+name: openclaw
+blobstore:
+  provider: local
+  options:
+    blobstore_path: /tmp/openclaw-blobs

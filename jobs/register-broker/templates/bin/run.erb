@@ -1,0 +1,47 @@
+#!/bin/bash
+
+set -eu
+
+CF_API="<%= p('cf.api_url') %>"
+CF_USER="<%= p('cf.admin_username') %>"
+CF_PASSWORD="<%= p('cf.admin_password') %>"
+BROKER_NAME="<%= p('broker.name') %>"
+BROKER_URL="<%= p('broker.url') %>"
+BROKER_USER="<%= p('broker.auth.username') %>"
+BROKER_PASSWORD="<%= p('broker.auth.password') %>"
+
+SSL_FLAG=""
+<% if p('cf.skip_ssl_validation') %>
+SSL_FLAG="--skip-ssl-validation"
+<% end %>
+
+echo "Logging in to Cloud Foundry at ${CF_API}..."
+cf api "${CF_API}" ${SSL_FLAG}
+cf auth "${CF_USER}" "${CF_PASSWORD}"
+
+echo "Registering service broker '${BROKER_NAME}'..."
+
+# Check if broker already exists
+if cf service-brokers | grep -q "^${BROKER_NAME} "; then
+  echo "Broker '${BROKER_NAME}' already exists, updating..."
+  cf update-service-broker \
+    "${BROKER_NAME}" \
+    "${BROKER_USER}" \
+    "${BROKER_PASSWORD}" \
+    "${BROKER_URL}"
+else
+  echo "Creating new service broker '${BROKER_NAME}'..."
+  cf create-service-broker \
+    "${BROKER_NAME}" \
+    "${BROKER_USER}" \
+    "${BROKER_PASSWORD}" \
+    "${BROKER_URL}"
+fi
+
+<% if p('broker.enable_service_access') %>
+echo "Enabling service access for all plans..."
+cf enable-service-access openclaw
+<% end %>
+
+echo "Service broker '${BROKER_NAME}' registered successfully."
+cf service-brokers

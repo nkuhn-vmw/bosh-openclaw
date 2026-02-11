@@ -1,0 +1,37 @@
+<%= JSON.pretty_generate({
+  "port" => p("openclaw.broker.port"),
+  "auth" => {
+    "username" => p("openclaw.broker.auth.username"),
+    "password" => p("openclaw.broker.auth.password")
+  },
+  "tls" => {
+    "enabled" => p("openclaw.broker.tls.enabled"),
+    "certificate" => p("openclaw.broker.tls.certificate", ""),
+    "private_key" => p("openclaw.broker.tls.private_key", "")
+  },
+  "bosh" => {
+    "director_url" => p("openclaw.broker.bosh.director_url"),
+    "client_id" => p("openclaw.broker.bosh.client_id"),
+    "client_secret" => p("openclaw.broker.bosh.client_secret"),
+    "ca_cert" => p("openclaw.broker.bosh.ca_cert", "")
+  },
+  "agent_defaults" => {
+    "openclaw_version" => p("openclaw.broker.agent_defaults.openclaw_version"),
+    "stemcell" => p("openclaw.broker.agent_defaults.stemcell"),
+    "network" => p("openclaw.broker.agent_defaults.network"),
+    "az" => p("openclaw.broker.agent_defaults.az", "")
+  },
+  "genai" => {
+    "endpoint" => p("openclaw.broker.genai.endpoint", ""),
+    "api_key" => p("openclaw.broker.genai.api_key", ""),
+    "model" => p("openclaw.broker.genai.model", "")
+  },
+  "metering" => {
+    "enabled" => p("openclaw.broker.metering.enabled"),
+    "export_interval_minutes" => p("openclaw.broker.metering.export_interval_minutes")
+  },
+  "limits" => {
+    "max_instances" => p("openclaw.broker.limits.max_instances"),
+    "max_instances_per_org" => p("openclaw.broker.limits.max_instances_per_org")
+  }
+}) %>

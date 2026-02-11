@@ -1,0 +1,26 @@
+#!/bin/bash
+
+set -eu
+
+export PATH="/var/vcap/packages/node22/bin:/var/vcap/packages/openclaw/bin:$PATH"
+
+PIDFILE="/var/vcap/sys/run/openclaw-agent/openclaw-agent.pid"
+
+if [ -f "${PIDFILE}" ]; then
+  PID=$(cat "${PIDFILE}")
+  if kill -0 "${PID}" 2>/dev/null; then
+    # Signal the gateway to begin graceful shutdown
+    # This allows in-flight conversations to complete
+    kill -TERM "${PID}"
+
+    # Wait up to 15 seconds for graceful drain
+    TIMEOUT=15
+    while [ ${TIMEOUT} -gt 0 ] && kill -0 "${PID}" 2>/dev/null; do
+      sleep 1
+      TIMEOUT=$((TIMEOUT - 1))
+    done
+  fi
+fi
+
+# Return 0 to indicate drain is complete
+echo 0

@@ -1,0 +1,8 @@
+set -eu
+
+export PATH="/var/vcap/packages/node22/bin:${PATH}"
+
+cp -a openclaw-admin-dashboard "${BOSH_INSTALL_TARGET}/"
+cd "${BOSH_INSTALL_TARGET}/openclaw-admin-dashboard"
+
+npm install --production

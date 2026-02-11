@@ -1,0 +1,40 @@
+---
+name: openclaw-sso-proxy
+
+templates:
+  ctl.erb: bin/ctl
+  oauth2-proxy.cfg.erb: config/oauth2-proxy.cfg
+
+packages:
+  - oauth2-proxy
+
+properties:
+  openclaw.sso_proxy.listen_port:
+    description: "Port the SSO proxy listens on"
+    default: 8080
+  openclaw.sso_proxy.upstream_port:
+    description: "Port of the upstream service to proxy to"
+    default: 8081
+  openclaw.sso_proxy.provider:
+    description: "OAuth2 provider: google, oidc, azure, github"
+    default: "oidc"
+  openclaw.sso_proxy.client_id:
+    description: "OAuth2 client ID"
+  openclaw.sso_proxy.client_secret:
+    description: "OAuth2 client secret"
+  openclaw.sso_proxy.cookie_secret:
+    description: "Base64-encoded secret for encrypting session cookies (32 bytes)"
+  openclaw.sso_proxy.cookie_name:
+    description: "Name of the session cookie"
+    default: "_openclaw_session"
+  openclaw.sso_proxy.session_timeout:
+    description: "Session timeout duration"
+    default: "8h"
+  openclaw.sso_proxy.oidc_issuer_url:
+    description: "OIDC issuer URL for token validation"
+  openclaw.sso_proxy.allowed_domains:
+    description: "Email domains allowed to authenticate"
+    default: []
+  openclaw.sso_proxy.allowed_emails:
+    description: "Specific email addresses allowed to authenticate"
+    default: []

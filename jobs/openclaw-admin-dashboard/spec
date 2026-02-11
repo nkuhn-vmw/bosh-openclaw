@@ -1,0 +1,27 @@
+---
+name: openclaw-admin-dashboard
+
+templates:
+  ctl.erb: bin/ctl
+  config.json.erb: config/config.json
+
+packages:
+  - node22
+  - openclaw-admin-dashboard
+
+properties:
+  openclaw.admin_dashboard.port:
+    description: "Admin dashboard listen port"
+    default: 8083
+  openclaw.admin_dashboard.broker_endpoint:
+    description: "URL of the OpenClaw service broker"
+    default: "http://localhost:8080"
+  openclaw.admin_dashboard.auth.username:
+    description: "Admin dashboard HTTP basic auth username"
+    default: "admin"
+  openclaw.admin_dashboard.auth.password:
+    description: "Admin dashboard HTTP basic auth password"
+  openclaw.admin_dashboard.route.hostname:
+    description: "Route hostname for the dashboard (e.g., openclaw-admin)"
+  openclaw.admin_dashboard.route.domain:
+    description: "Apps domain (e.g., apps.example.com)"

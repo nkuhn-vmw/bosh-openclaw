@@ -1,0 +1,19 @@
+---
+processes:
+  - name: openclaw-agent
+    executable: /var/vcap/packages/openclaw/bin/openclaw
+    args:
+      - gateway
+      - --config
+      - /var/vcap/jobs/openclaw-agent/config/openclaw.json
+    env:
+      PATH: "/var/vcap/packages/node22/bin:/var/vcap/packages/openclaw/bin:/usr/bin:/bin"
+      HOME: "/var/vcap/data/openclaw-agent"
+    limits:
+      open_files: 65536
+    persistent_disk: true
+    additional_volumes:
+      - path: /var/vcap/store/openclaw
+        writable: true
+      - path: /var/vcap/data/openclaw-agent
+        writable: true

@@ -1,0 +1,61 @@
+---
+name: openclaw-lite
+
+releases:
+  - name: openclaw
+    version: latest
+
+stemcells:
+  - alias: default
+    os: ubuntu-jammy
+    version: latest
+
+update:
+  canaries: 1
+  max_in_flight: 1
+  canary_watch_time: 30000-120000
+  update_watch_time: 30000-120000
+
+instance_groups:
+  - name: openclaw-broker
+    instances: 1
+    jobs:
+      - name: openclaw-broker
+        release: openclaw
+        properties:
+          openclaw:
+            broker:
+              port: 8080
+              auth:
+                username: ((broker_username))
+                password: ((broker_password))
+              bosh:
+                director_url: ((bosh_director_url))
+                client_id: ((bosh_client_id))
+                client_secret: ((bosh_client_secret))
+                ca_cert: ((bosh_ca_cert))
+              agent_defaults:
+                openclaw_version: "2026.2.10"
+                stemcell: ubuntu-jammy
+                network: openclaw-agents
+                az: z1
+              genai:
+                endpoint: ((genai_endpoint))
+                api_key: ((genai_api_key))
+                model: auto
+              limits:
+                max_instances: 50
+                max_instances_per_org: 10
+    vm_type: small
+    stemcell: default
+    azs: [z1]
+    networks:
+      - name: default
+
+variables:
+  - name: broker_username
+    type: value
+    options:
+      default: openclaw-broker
+  - name: broker_password
+    type: password

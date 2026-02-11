@@ -1,0 +1,49 @@
+#!/bin/bash
+
+set -eu
+
+JOB_NAME="openclaw-sso-proxy"
+RUN_DIR="/var/vcap/sys/run/${JOB_NAME}"
+LOG_DIR="/var/vcap/sys/log/${JOB_NAME}"
+PIDFILE="${RUN_DIR}/${JOB_NAME}.pid"
+CONFIG_FILE="/var/vcap/jobs/${JOB_NAME}/config/oauth2-proxy.cfg"
+
+case $1 in
+  start)
+    mkdir -p "${RUN_DIR}" "${LOG_DIR}"
+    chown -R vcap:vcap "${RUN_DIR}" "${LOG_DIR}"
+
+    echo $$ > "${PIDFILE}"
+
+    exec chpst -u vcap:vcap \
+      /var/vcap/packages/oauth2-proxy/bin/oauth2-proxy \
+        --config="${CONFIG_FILE}" \
+      >> "${LOG_DIR}/${JOB_NAME}.stdout.log" \
+      2>> "${LOG_DIR}/${JOB_NAME}.stderr.log"
+    ;;
+
+  stop)
+    if [ -f "${PIDFILE}" ]; then
+      PID=$(cat "${PIDFILE}")
+      if kill -0 "${PID}" 2>/dev/null; then
+        kill -TERM "${PID}"
+
+        TIMEOUT=15
+        while [ ${TIMEOUT} -gt 0 ] && kill -0 "${PID}" 2>/dev/null; do
+          sleep 1
+          TIMEOUT=$((TIMEOUT - 1))
+        done
+
+        if kill -0 "${PID}" 2>/dev/null; then
+          kill -9 "${PID}"
+        fi
+      fi
+      rm -f "${PIDFILE}"
+    fi
+    ;;
+
+  *)
+    echo "Usage: ctl {start|stop}"
+    exit 1
+    ;;
+esac

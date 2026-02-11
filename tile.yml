@@ -1,0 +1,304 @@
+---
+name: openclaw
+icon_file: resources/icon.png
+label: OpenClaw AI Agent Platform
+description: |
+  Deploy dedicated OpenClaw AI agents for developers and teams.
+  Each agent runs on an isolated VM with its own WebChat UI,
+  enterprise security controls, centralized LLM integration,
+  and curated skills management.
+metadata_version: '2.0'
+
+stemcell_criteria:
+  os: ubuntu-jammy
+  requires_cpi: false
+  version: '1.*'
+
+releases:
+  - name: openclaw
+    file: openclaw-release.tgz
+    version: '0.1.0'
+
+forms:
+  - name: genai-config
+    label: GenAI / LLM Configuration
+    description: Configure the LLM provider for all OpenClaw agents
+    properties:
+      - name: genai_provider
+        type: selector
+        label: LLM Provider
+        configurable: true
+        default: "Tanzu GenAI Service"
+        option_templates:
+          - name: tanzu_genai
+            select_value: "Tanzu GenAI Service"
+            property_blueprints:
+              - name: endpoint
+                type: string
+                label: GenAI Proxy Endpoint
+                configurable: true
+              - name: api_key
+                type: secret
+                label: GenAI API Key
+                configurable: true
+              - name: default_model
+                type: string
+                label: Default Model
+                configurable: true
+                default: "auto"
+          - name: anthropic_direct
+            select_value: "Anthropic (Direct)"
+            property_blueprints:
+              - name: api_key
+                type: secret
+                label: Anthropic API Key
+                configurable: true
+              - name: model
+                type: dropdown_select
+                label: Model
+                configurable: true
+                default: "claude-sonnet-4-5-20250929"
+                options:
+                  - name: "claude-opus-4-6"
+                    label: "Claude Opus 4.6"
+                  - name: "claude-sonnet-4-5-20250929"
+                    label: "Claude Sonnet 4.5"
+                  - name: "claude-haiku-4-5-20251001"
+                    label: "Claude Haiku 4.5"
+          - name: openai_direct
+            select_value: "OpenAI (Direct)"
+            property_blueprints:
+              - name: api_key
+                type: secret
+                label: OpenAI API Key
+                configurable: true
+              - name: model
+                type: string
+                label: Model
+                configurable: true
+                default: "gpt-4o"
+
+  - name: security-config
+    label: Security & Compliance
+    description: Enterprise security controls for all agent instances
+    properties:
+      - name: sandbox_mode
+        type: dropdown_select
+        label: Sandbox Mode
+        configurable: true
+        default: "strict"
+        options:
+          - name: strict
+            label: "Strict - All commands require explicit approval"
+          - name: moderate
+            label: "Moderate - Common commands allowed, destructive blocked"
+          - name: loose
+            label: "Loose - Most commands allowed (not recommended)"
+      - name: control_ui_enabled
+        type: boolean
+        label: Enable Control UI
+        configurable: true
+        default: false
+        description: "WARNING: The Control UI was the attack vector for CVE-2026-25253. Enable only on patched versions with auth required."
+      - name: browser_automation_default
+        type: boolean
+        label: Enable Browser Automation by Default
+        configurable: true
+        default: false
+      - name: block_outbound_network
+        type: boolean
+        label: Block Outbound Network (except LLM)
+        configurable: true
+        default: false
+      - name: blocked_commands
+        type: text
+        label: Blocked Shell Commands
+        configurable: true
+        default: "rm -rf /\ndd if=/dev/zero\nmkfs\ncurl\nwget"
+        description: "One command per line."
+      - name: min_openclaw_version
+        type: string
+        label: Minimum OpenClaw Version
+        configurable: true
+        default: "2026.1.29"
+        description: "Refuse to deploy agents below this version"
+
+  - name: skills-config
+    label: Skills Management
+    description: Control which skills are available to agents
+    properties:
+      - name: skills_mode
+        type: dropdown_select
+        label: Skills Policy
+        configurable: true
+        default: "allowlist"
+        options:
+          - name: allowlist
+            label: "Allowlist - Only approved skills"
+          - name: blocklist
+            label: "Blocklist - All except blocked"
+          - name: disabled
+            label: "Disabled - Built-in tools only"
+      - name: approved_skills
+        type: text
+        label: Approved Skills (one per line)
+        configurable: true
+        default: |
+          weather
+          calendar-google
+          email-gmail
+          github
+          jira
+          slack-actions
+          notion
+      - name: auto_sync_from_clawhub
+        type: boolean
+        label: Auto-sync from ClawHub
+        configurable: true
+        default: true
+      - name: scan_skills_on_sync
+        type: boolean
+        label: Security Scan Skills on Sync
+        configurable: true
+        default: true
+
+  - name: sso-config
+    label: SSO / Authentication
+    description: Configure Single Sign-On for agent WebChat instances
+    properties:
+      - name: sso_enabled
+        type: boolean
+        label: Enable SSO for Agent Instances
+        configurable: true
+        default: true
+        description: "Each agent's WebChat UI is protected by SSO via p-identity."
+      - name: sso_plan
+        type: string
+        label: p-identity Service Plan
+        configurable: true
+        default: "uaa"
+      - name: sso_allowed_email_domains
+        type: text
+        label: Allowed Email Domains
+        configurable: true
+        description: "One per line (e.g., example.com). Empty = all authenticated users."
+      - name: sso_session_timeout_hours
+        type: integer
+        label: Session Timeout (hours)
+        configurable: true
+        default: 8
+
+  - name: broker-config
+    label: Service Broker
+    description: Configure the OpenClaw service broker
+    properties:
+      - name: broker_username
+        type: string
+        label: Broker Username
+        configurable: true
+        default: "openclaw-broker"
+      - name: broker_password
+        type: secret
+        label: Broker Password
+        configurable: true
+      - name: enable_developer_plan
+        type: boolean
+        label: Enable Developer Plan
+        configurable: true
+        default: true
+      - name: enable_developer_plus_plan
+        type: boolean
+        label: Enable Developer Plus Plan
+        configurable: true
+        default: true
+      - name: enable_team_plan
+        type: boolean
+        label: Enable Team Plan
+        configurable: true
+        default: false
+      - name: max_instances
+        type: integer
+        label: Maximum Total Instances
+        configurable: true
+        default: 50
+      - name: max_instances_per_org
+        type: integer
+        label: Maximum Instances Per Org
+        configurable: true
+        default: 10
+
+  - name: networking-config
+    label: Networking
+    description: Route and network configuration
+    properties:
+      - name: apps_domain
+        type: string
+        label: Apps Domain
+        configurable: true
+        description: "Each agent gets a route like openclaw-<owner>.apps.example.com"
+      - name: route_prefix
+        type: string
+        label: Agent Route Prefix
+        configurable: true
+        default: "openclaw"
+      - name: broker_route
+        type: string
+        label: Broker Route Hostname
+        configurable: true
+        default: "openclaw-broker"
+      - name: dashboard_route
+        type: string
+        label: Admin Dashboard Route Hostname
+        configurable: true
+        default: "openclaw-admin"
+      - name: agent_network
+        type: string
+        label: Agent VM Network
+        configurable: true
+        default: "openclaw-agents"
+
+instance_groups:
+  - name: openclaw-broker
+    instances: 1
+    jobs:
+      - name: openclaw-broker
+        release: openclaw
+      - name: route-registrar
+        release: openclaw
+    vm_type: small
+    stemcell: default
+    azs: [z1]
+    networks:
+      - name: default
+
+  - name: openclaw-registry
+    instances: 1
+    jobs:
+      - name: openclaw-registry
+        release: openclaw
+    vm_type: small
+    stemcell: default
+    azs: [z1]
+    persistent_disk_type: "10GB"
+    networks:
+      - name: default
+
+  - name: openclaw-admin-dashboard
+    instances: 1
+    jobs:
+      - name: openclaw-admin-dashboard
+        release: openclaw
+      - name: route-registrar
+        release: openclaw
+    vm_type: small
+    stemcell: default
+    azs: [z1]
+    networks:
+      - name: default
+
+post_deploy_errands:
+  - name: register-broker
+  - name: smoke-tests
+
+pre_delete_errands:
+  - name: deregister-broker

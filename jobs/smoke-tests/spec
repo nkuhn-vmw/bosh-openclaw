@@ -1,0 +1,39 @@
+---
+name: smoke-tests
+
+templates:
+  run.erb: bin/run
+
+packages: []
+
+properties:
+  cf.api_url:
+    description: "Cloud Foundry API URL"
+  cf.admin_username:
+    description: "CF admin username"
+    default: "admin"
+  cf.admin_password:
+    description: "CF admin password"
+  cf.skip_ssl_validation:
+    description: "Skip SSL validation when connecting to CF API"
+    default: false
+  smoke_tests.org:
+    description: "CF org to use for smoke tests"
+    default: "openclaw-smoke-tests"
+  smoke_tests.space:
+    description: "CF space to use for smoke tests"
+    default: "smoke-tests"
+  smoke_tests.plan:
+    description: "Service plan to test"
+    default: "developer"
+  smoke_tests.timeout_seconds:
+    description: "Maximum time to wait for smoke tests to complete"
+    default: 300
+  smoke_tests.verify_webchat_route:
+    description: "Verify that the WebChat UI is accessible via its route"
+    default: true
+  smoke_tests.test_prompt:
+    description: "Prompt to send to the agent during testing"
+    default: "What is 2 + 2? Reply with just the number."
+  smoke_tests.apps_domain:
+    description: "Apps domain for verifying routes"

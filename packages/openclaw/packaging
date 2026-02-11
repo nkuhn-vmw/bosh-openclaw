@@ -1,0 +1,20 @@
+set -e
+export PATH=${BOSH_PACKAGES_DIR}/node22/bin:$PATH
+export HOME=/var/vcap
+
+mkdir -p ${BOSH_INSTALL_TARGET}/lib
+cd ${BOSH_INSTALL_TARGET}/lib
+
+npm install --global-style --no-optional ${BOSH_COMPILE_TARGET}/openclaw/openclaw-*.tgz
+
+mkdir -p ${BOSH_INSTALL_TARGET}/lib/skills
+tar xzf ${BOSH_COMPILE_TARGET}/openclaw/skills-bundle-*.tgz \
+  -C ${BOSH_INSTALL_TARGET}/lib/skills/
+
+mkdir -p ${BOSH_INSTALL_TARGET}/bin
+cat > ${BOSH_INSTALL_TARGET}/bin/openclaw <<'WRAPPER'
+#!/bin/bash
+export PATH=/var/vcap/packages/node22/bin:$PATH
+exec node /var/vcap/packages/openclaw/lib/node_modules/openclaw/dist/cli.js "$@"
+WRAPPER
+chmod +x ${BOSH_INSTALL_TARGET}/bin/openclaw

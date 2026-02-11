@@ -1,0 +1,12 @@
+---
+# Approved skills from ClawHub
+# Only skills on this list will be synced and served by the registry
+
+skills:
+<% p('openclaw.registry.skills_allowlist').each do |skill| %>
+  - <%= skill %>
+<% end %>
+
+security:
+  scan_on_sync: <%= p('openclaw.registry.scan_on_sync') %>
+  block_network_calls: <%= p('openclaw.registry.block_network_calls') %>

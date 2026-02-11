@@ -1,0 +1,11 @@
+set -e
+export GOROOT=${BOSH_PACKAGES_DIR}/golang-1.22
+export PATH=${GOROOT}/bin:$PATH
+export GOPATH=${BOSH_COMPILE_TARGET}/go
+
+mkdir -p ${GOPATH}/src/github.com/nkuhn-vmw/bosh-openclaw
+cp -a ${BOSH_COMPILE_TARGET}/openclaw-broker/* \
+  ${GOPATH}/src/github.com/nkuhn-vmw/bosh-openclaw/
+
+cd ${GOPATH}/src/github.com/nkuhn-vmw/bosh-openclaw
+go build -o ${BOSH_INSTALL_TARGET}/bin/openclaw-broker .

@@ -1,0 +1,5 @@
+check process openclaw-agent
+  with pidfile /var/vcap/sys/run/openclaw-agent/openclaw-agent.pid
+  start program "/var/vcap/jobs/openclaw-agent/bin/ctl start"
+  stop program "/var/vcap/jobs/openclaw-agent/bin/ctl stop"
+  group vcap

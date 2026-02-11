@@ -1,0 +1,152 @@
+---
+name: openclaw-agent
+
+templates:
+  ctl.erb: bin/ctl
+  pre-start.erb: bin/pre-start
+  drain.erb: bin/drain
+  bpm.yml.erb: config/bpm.yml
+  openclaw.json.erb: config/openclaw.json
+  skills-allowlist.yml.erb: config/skills-allowlist.yml
+  security-policy.json.erb: config/security-policy.json
+
+packages:
+  - node22
+  - openclaw
+
+properties:
+  openclaw.version:
+    description: "Pinned OpenClaw version (must be >= 2026.1.29 for CVE-2026-25253 patch)"
+    default: "2026.2.10"
+  openclaw.gateway.port:
+    description: "Gateway WebSocket port"
+    default: 18789
+  openclaw.gateway.token:
+    description: "Authentication token for gateway access"
+  openclaw.gateway.bind_address:
+    description: "Address to bind the gateway"
+    default: "0.0.0.0"
+  openclaw.webchat.enabled:
+    description: "Enable the WebChat UI"
+    default: true
+  openclaw.webchat.port:
+    description: "WebChat HTTP port"
+    default: 8080
+  openclaw.control_ui.enabled:
+    description: "Enable the Control UI"
+    default: false
+  openclaw.control_ui.require_auth:
+    description: "Require authentication for Control UI"
+    default: true
+  openclaw.llm.provider:
+    description: "LLM provider type: genai, anthropic, openai, ollama, custom"
+    default: "genai"
+  openclaw.llm.genai.endpoint:
+    description: "GenAI proxy endpoint URL"
+  openclaw.llm.genai.api_key:
+    description: "GenAI proxy API key"
+  openclaw.llm.genai.model:
+    description: "Model to use from GenAI service"
+    default: "auto"
+  openclaw.llm.anthropic.api_key:
+    description: "Anthropic API key (alternative to GenAI)"
+  openclaw.llm.openai.api_key:
+    description: "OpenAI API key (alternative to GenAI)"
+  openclaw.llm.model_override:
+    description: "Force a specific model regardless of provider"
+  openclaw.security.sandbox_mode:
+    description: "Sandbox enforcement: strict, moderate, loose"
+    default: "strict"
+  openclaw.security.skills_allowlist:
+    description: "List of approved skill names from the registry"
+    default: []
+  openclaw.security.block_outbound_network:
+    description: "Block outbound internet from the agent VM (except LLM endpoint)"
+    default: false
+  openclaw.security.max_shell_timeout_seconds:
+    description: "Maximum execution time for shell commands"
+    default: 300
+  openclaw.security.readonly_paths:
+    description: "Paths the agent can read but not modify"
+    default: []
+  openclaw.security.blocked_commands:
+    description: "Shell commands the agent is forbidden from running"
+    default:
+      - "rm -rf /"
+      - "dd if=/dev/zero"
+      - "mkfs"
+      - ":(){ :|:& };:"
+  openclaw.state_dir:
+    description: "Directory for persistent state (on persistent disk)"
+    default: "/var/vcap/store/openclaw"
+  openclaw.memory.enabled:
+    description: "Enable persistent memory across sessions"
+    default: true
+  openclaw.node.enabled:
+    description: "Enable the execution node (colocated on same VM)"
+    default: true
+  openclaw.node.seed:
+    description: "Shared seed for gateway-node keypair derivation"
+  openclaw.browser.enabled:
+    description: "Enable headless Chromium"
+    default: false
+  openclaw.browser.sandbox:
+    description: "Run browser in strict sandbox mode"
+    default: true
+  openclaw.registry.endpoint:
+    description: "URL of the curated skills registry"
+  openclaw.registry.sync_interval_hours:
+    description: "How often to sync skills from registry"
+    default: 24
+  openclaw.channels.webchat.enabled:
+    description: "Enable WebChat channel"
+    default: true
+  openclaw.channels.slack.enabled:
+    description: "Enable Slack channel"
+    default: false
+  openclaw.channels.slack.bot_token:
+    description: "Slack bot token"
+  openclaw.channels.teams.enabled:
+    description: "Enable Microsoft Teams channel"
+    default: false
+  openclaw.channels.teams.webhook_url:
+    description: "Teams incoming webhook URL"
+  openclaw.metrics.enabled:
+    description: "Enable Prometheus metrics endpoint"
+    default: true
+  openclaw.metrics.port:
+    description: "Metrics port"
+    default: 9400
+  openclaw.logging.level:
+    description: "Log level: debug, info, warn, error"
+    default: "info"
+  openclaw.instance.id:
+    description: "Unique instance ID"
+  openclaw.instance.owner:
+    description: "Developer/team who owns this instance"
+  openclaw.instance.plan:
+    description: "Service plan used to provision"
+  openclaw.route.hostname:
+    description: "Route hostname (e.g., openclaw-alice)"
+  openclaw.route.domain:
+    description: "Apps domain (e.g., apps.example.com)"
+  openclaw.route.tls.enabled:
+    description: "TLS termination at Go Router"
+    default: true
+  openclaw.sso.enabled:
+    description: "Enable SSO for this instance's WebChat UI"
+    default: false
+  openclaw.sso.provider:
+    description: "SSO provider: p-identity, uaa, generic-oidc"
+    default: "p-identity"
+  openclaw.sso.client_id:
+    description: "OAuth2 client ID"
+  openclaw.sso.client_secret:
+    description: "OAuth2 client secret"
+  openclaw.sso.issuer_url:
+    description: "OIDC issuer URL"
+  openclaw.sso.cookie_secret:
+    description: "Base64-encoded secret for session cookies"
+  openclaw.sso.allowed_emails:
+    description: "Emails allowed to access this instance (empty = all org members)"
+    default: []

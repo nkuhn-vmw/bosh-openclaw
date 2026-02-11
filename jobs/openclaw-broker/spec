@@ -1,0 +1,113 @@
+---
+name: openclaw-broker
+
+templates:
+  ctl.erb: bin/ctl
+  config.json.erb: config/config.json
+  bpm.yml.erb: config/bpm.yml
+  catalog.json.erb: config/catalog.json
+
+packages:
+  - openclaw-broker
+  - golang-1.22
+
+properties:
+  openclaw.broker.port:
+    description: "Broker API port"
+    default: 8080
+  openclaw.broker.auth.username:
+    description: "Basic auth username"
+    default: "openclaw-broker"
+  openclaw.broker.auth.password:
+    description: "Basic auth password"
+  openclaw.broker.tls.enabled:
+    description: "Enable TLS"
+    default: false
+  openclaw.broker.tls.certificate:
+    description: "TLS certificate PEM"
+  openclaw.broker.tls.private_key:
+    description: "TLS private key PEM"
+  openclaw.broker.bosh.director_url:
+    description: "BOSH Director API URL"
+  openclaw.broker.bosh.client_id:
+    description: "BOSH UAA client ID"
+  openclaw.broker.bosh.client_secret:
+    description: "BOSH UAA client secret"
+  openclaw.broker.bosh.ca_cert:
+    description: "BOSH Director CA certificate"
+  openclaw.broker.agent_defaults.openclaw_version:
+    description: "Default OpenClaw version for new instances"
+    default: "2026.2.10"
+  openclaw.broker.agent_defaults.stemcell:
+    description: "Stemcell for agent VMs"
+    default: "ubuntu-jammy"
+  openclaw.broker.agent_defaults.network:
+    description: "BOSH network for agent VMs"
+    default: "openclaw-agents"
+  openclaw.broker.agent_defaults.az:
+    description: "Availability zone for agent VMs"
+  openclaw.broker.genai.endpoint:
+    description: "Default GenAI proxy endpoint"
+  openclaw.broker.genai.api_key:
+    description: "Default GenAI API key"
+  openclaw.broker.genai.model:
+    description: "Default model"
+  openclaw.broker.catalog.plans:
+    description: "Service plan configurations"
+    default:
+      - name: developer
+        id: "openclaw-developer-plan"
+        description: "Dedicated OpenClaw agent for individual developers"
+        vm_type: small
+        disk_type: "10GB"
+        memory: 2048
+        metadata:
+          displayName: "Developer"
+          bullets:
+            - "Dedicated VM with isolated WebChat UI"
+            - "2GB RAM, 10GB persistent disk"
+            - "Cloud LLM integration"
+            - "Per-instance SSO"
+      - name: developer-plus
+        id: "openclaw-developer-plus-plan"
+        description: "Enhanced agent with browser automation"
+        vm_type: medium
+        disk_type: "20GB"
+        memory: 4096
+        features:
+          browser: true
+        metadata:
+          displayName: "Developer Plus"
+          bullets:
+            - "Dedicated VM with isolated WebChat UI"
+            - "4GB RAM, 20GB persistent disk"
+            - "Browser automation enabled"
+            - "All messaging channels"
+      - name: team
+        id: "openclaw-team-plan"
+        description: "Shared agent for teams"
+        vm_type: large
+        disk_type: "50GB"
+        memory: 8192
+        features:
+          browser: true
+          multi_user: true
+        metadata:
+          displayName: "Team"
+          bullets:
+            - "Dedicated VM with isolated WebChat UI"
+            - "8GB RAM, 50GB persistent disk"
+            - "Multi-user with Slack/Teams"
+            - "Full browser automation"
+  openclaw.broker.metering.enabled:
+    description: "Enable token usage metering per instance"
+    default: true
+  openclaw.broker.metering.export_interval_minutes:
+    description: "Usage metrics export interval"
+    default: 60
+  openclaw.broker.limits.max_instances:
+    description: "Maximum total agent instances"
+    default: 50
+  openclaw.broker.limits.max_instances_per_org:
+    description: "Maximum instances per CF org"
+    default: 10

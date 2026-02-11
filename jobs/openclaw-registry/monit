@@ -1,0 +1,5 @@
+check process openclaw-registry
+  with pidfile /var/vcap/sys/run/openclaw-registry/openclaw-registry.pid
+  start program "/var/vcap/jobs/openclaw-registry/bin/ctl start"
+  stop program "/var/vcap/jobs/openclaw-registry/bin/ctl stop"
+  group vcap

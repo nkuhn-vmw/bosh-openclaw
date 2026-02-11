@@ -1,0 +1,31 @@
+<%= JSON.pretty_generate({
+  "sandbox_mode" => p('openclaw.security.sandbox_mode'),
+  "block_outbound_network" => p('openclaw.security.block_outbound_network'),
+  "max_shell_timeout_seconds" => p('openclaw.security.max_shell_timeout_seconds'),
+  "readonly_paths" => p('openclaw.security.readonly_paths'),
+  "blocked_commands" => p('openclaw.security.blocked_commands'),
+  "allowed_executables" => [
+    "/var/vcap/packages/node22/bin/node",
+    "/var/vcap/packages/openclaw/bin/openclaw",
+    "/bin/bash",
+    "/bin/sh",
+    "/usr/bin/env"
+  ],
+  "allowed_network_destinations" => [
+    p('openclaw.llm.genai.endpoint', ''),
+    p('openclaw.registry.endpoint', '')
+  ].reject { |e| e.nil? || e.empty? },
+  "filesystem" => {
+    "writable_paths" => [
+      p('openclaw.state_dir'),
+      "/var/vcap/sys/log/openclaw-agent",
+      "/var/vcap/sys/run/openclaw-agent",
+      "/var/vcap/data/openclaw-agent",
+      "/tmp"
+    ],
+    "readonly_paths" => p('openclaw.security.readonly_paths') + [
+      "/var/vcap/packages",
+      "/var/vcap/jobs/openclaw-agent"
+    ]
+  }
+}) %>

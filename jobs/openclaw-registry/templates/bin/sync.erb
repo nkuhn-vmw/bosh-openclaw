@@ -1,0 +1,21 @@
+#!/bin/bash
+
+set -eu
+
+export PATH="/var/vcap/packages/node22/bin:/var/vcap/packages/openclaw/bin:$PATH"
+
+JOB_NAME="openclaw-registry"
+LOG_DIR="/var/vcap/sys/log/${JOB_NAME}"
+STORAGE_DIR="<%= p('openclaw.registry.storage_dir') %>"
+ALLOWLIST="/var/vcap/jobs/${JOB_NAME}/config/allowlist.yml"
+
+echo "$(date -u '+%Y-%m-%dT%H:%M:%SZ') Starting ClawHub sync..."
+
+chpst -u vcap:vcap \
+  openclaw registry sync \
+    --storage-dir "${STORAGE_DIR}" \
+    --allowlist "${ALLOWLIST}" \
+    <% if p('openclaw.registry.scan_on_sync') %>--scan<% end %> \
+    <% if p('openclaw.registry.block_network_calls') %>--block-network<% end %>
+
+echo "$(date -u '+%Y-%m-%dT%H:%M:%SZ') ClawHub sync complete."

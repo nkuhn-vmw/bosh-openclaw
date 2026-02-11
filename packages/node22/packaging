@@ -1,0 +1,4 @@
+set -e
+tar xzf node/node-v22.*.tar.gz
+NODE_DIR=$(ls -d node-v22.*)
+cp -a ${NODE_DIR}/* ${BOSH_INSTALL_TARGET}/

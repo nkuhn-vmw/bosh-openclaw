@@ -1,0 +1,5 @@
+---
+name: node22
+dependencies: []
+files:
+- node/node-v22.*.tar.gz

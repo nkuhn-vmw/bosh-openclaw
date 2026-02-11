@@ -1,0 +1,22 @@
+---
+name: deregister-broker
+
+templates:
+  run.erb: bin/run
+
+packages: []
+
+properties:
+  cf.api_url:
+    description: "Cloud Foundry API URL"
+  cf.admin_username:
+    description: "CF admin username"
+    default: "admin"
+  cf.admin_password:
+    description: "CF admin password"
+  cf.skip_ssl_validation:
+    description: "Skip SSL validation when connecting to CF API"
+    default: false
+  broker.name:
+    description: "Service broker name to deregister"
+    default: "openclaw"

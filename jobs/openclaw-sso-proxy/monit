@@ -1,0 +1,5 @@
+check process openclaw-sso-proxy
+  with pidfile /var/vcap/sys/run/openclaw-sso-proxy/openclaw-sso-proxy.pid
+  start program "/var/vcap/jobs/openclaw-sso-proxy/bin/ctl start"
+  stop program "/var/vcap/jobs/openclaw-sso-proxy/bin/ctl stop"
+  group vcap

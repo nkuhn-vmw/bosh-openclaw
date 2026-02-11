@@ -1,0 +1,7 @@
+---
+name: openclaw
+dependencies:
+  - node22
+files:
+  - openclaw/openclaw-*.tgz
+  - openclaw/skills-bundle-*.tgz

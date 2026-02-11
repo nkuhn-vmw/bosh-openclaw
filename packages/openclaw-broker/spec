@@ -1,0 +1,6 @@
+---
+name: openclaw-broker
+dependencies:
+- golang-1.22
+files:
+- openclaw-broker/**/*

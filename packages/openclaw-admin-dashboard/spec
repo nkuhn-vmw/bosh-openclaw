@@ -1,0 +1,6 @@
+---
+name: openclaw-admin-dashboard
+dependencies:
+- node22
+files:
+- openclaw-admin-dashboard/**/*

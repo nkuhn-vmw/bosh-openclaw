@@ -1,0 +1,122 @@
+<%
+  plans = p("openclaw.broker.catalog.plans")
+
+  catalog_plans = plans.map do |plan|
+    catalog_plan = {
+      "id" => plan["id"],
+      "name" => plan["name"],
+      "description" => plan["description"],
+      "free" => false,
+      "bindable" => true,
+      "plan_updateable" => true,
+      "metadata" => {
+        "displayName" => plan.dig("metadata", "displayName") || plan["name"],
+        "bullets" => plan.dig("metadata", "bullets") || []
+      },
+      "schemas" => {
+        "service_instance" => {
+          "create" => {
+            "parameters" => {
+              "$schema" => "http://json-schema.org/draft-04/schema#",
+              "type" => "object",
+              "properties" => {
+                "owner" => {
+                  "type" => "string",
+                  "description" => "Developer or team who owns this instance"
+                },
+                "genai_endpoint" => {
+                  "type" => "string",
+                  "description" => "Override GenAI proxy endpoint"
+                },
+                "genai_api_key" => {
+                  "type" => "string",
+                  "description" => "Override GenAI API key"
+                },
+                "genai_model" => {
+                  "type" => "string",
+                  "description" => "Override model selection"
+                }
+              }
+            }
+          },
+          "update" => {
+            "parameters" => {
+              "$schema" => "http://json-schema.org/draft-04/schema#",
+              "type" => "object",
+              "properties" => {
+                "genai_endpoint" => {
+                  "type" => "string",
+                  "description" => "Override GenAI proxy endpoint"
+                },
+                "genai_api_key" => {
+                  "type" => "string",
+                  "description" => "Override GenAI API key"
+                },
+                "genai_model" => {
+                  "type" => "string",
+                  "description" => "Override model selection"
+                }
+              }
+            }
+          }
+        },
+        "service_binding" => {
+          "create" => {
+            "parameters" => {
+              "$schema" => "http://json-schema.org/draft-04/schema#",
+              "type" => "object",
+              "properties" => {
+                "allowed_emails" => {
+                  "type" => "array",
+                  "description" => "Emails allowed to access this instance",
+                  "items" => { "type" => "string" }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+
+    if plan["vm_type"]
+      catalog_plan["metadata"]["vm_type"] = plan["vm_type"]
+    end
+
+    if plan["disk_type"]
+      catalog_plan["metadata"]["disk_type"] = plan["disk_type"]
+    end
+
+    if plan["memory"]
+      catalog_plan["metadata"]["memory"] = plan["memory"]
+    end
+
+    if plan["features"]
+      catalog_plan["metadata"]["features"] = plan["features"]
+    end
+
+    catalog_plan
+  end
+
+  catalog = {
+    "services" => [
+      {
+        "id" => "openclaw-service",
+        "name" => "openclaw",
+        "description" => "Dedicated AI coding agent powered by OpenClaw",
+        "bindable" => true,
+        "instances_retrievable" => true,
+        "bindings_retrievable" => true,
+        "plan_updateable" => true,
+        "tags" => ["ai", "coding-agent", "developer-tools", "openclaw"],
+        "metadata" => {
+          "displayName" => "OpenClaw AI Agent",
+          "longDescription" => "Provision dedicated OpenClaw AI coding agent instances with isolated VMs, WebChat UI, and configurable LLM backends.",
+          "providerDisplayName" => "OpenClaw",
+          "documentationUrl" => "https://docs.openclaw.dev/service-broker",
+          "supportUrl" => "https://github.com/openclaw/bosh-openclaw/issues"
+        },
+        "plans" => catalog_plans
+      }
+    ]
+  }
+%><%= JSON.pretty_generate(catalog) %>

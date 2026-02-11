@@ -1,0 +1,6 @@
+set -eu
+
+mkdir -p "${BOSH_INSTALL_TARGET}/bin"
+tar xzf oauth2-proxy/oauth2-proxy-*.linux-amd64.tar.gz --strip-components=1
+cp oauth2-proxy "${BOSH_INSTALL_TARGET}/bin/"
+chmod +x "${BOSH_INSTALL_TARGET}/bin/oauth2-proxy"

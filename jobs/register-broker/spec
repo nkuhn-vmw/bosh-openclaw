@@ -1,0 +1,31 @@
+---
+name: register-broker
+
+templates:
+  run.erb: bin/run
+
+packages: []
+
+properties:
+  cf.api_url:
+    description: "Cloud Foundry API URL"
+  cf.admin_username:
+    description: "CF admin username"
+    default: "admin"
+  cf.admin_password:
+    description: "CF admin password"
+  cf.skip_ssl_validation:
+    description: "Skip SSL validation when connecting to CF API"
+    default: false
+  broker.name:
+    description: "Service broker name to register"
+    default: "openclaw"
+  broker.url:
+    description: "Service broker URL (e.g., https://openclaw-broker.apps.example.com)"
+  broker.auth.username:
+    description: "Service broker basic auth username"
+  broker.auth.password:
+    description: "Service broker basic auth password"
+  broker.enable_service_access:
+    description: "Enable access to all plans in all orgs after registration"
+    default: true

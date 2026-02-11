@@ -1,0 +1,18 @@
+---
+processes:
+  - name: openclaw-broker
+    executable: /var/vcap/packages/openclaw-broker/bin/openclaw-broker
+    args:
+      - --config
+      - /var/vcap/jobs/openclaw-broker/config/config.json
+      - --catalog
+      - /var/vcap/jobs/openclaw-broker/config/catalog.json
+    env:
+      GOPATH: /var/vcap/packages/golang-1.22
+    limits:
+      open_files: 65536
+    additional_volumes:
+      - path: /var/vcap/sys/log/openclaw-broker
+        writable: true
+      - path: /var/vcap/data/openclaw-broker
+        writable: true

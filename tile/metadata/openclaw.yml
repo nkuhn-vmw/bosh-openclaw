@@ -42,6 +42,12 @@ property_blueprints:
     option_templates:
       - name: tanzu_genai
         select_value: "Tanzu GenAI Service"
+        named_manifests:
+          - name: genai_fragment
+            manifest: |
+              provider: tanzu_genai
+              offering_name: (( .properties.genai_provider.tanzu_genai.offering_name.value ))
+              plan_name: (( .properties.genai_provider.tanzu_genai.plan_name.value ))
         property_blueprints:
           - name: offering_name
             type: string
@@ -53,6 +59,12 @@ property_blueprints:
             optional: false
       - name: anthropic_direct
         select_value: "Anthropic (Direct)"
+        named_manifests:
+          - name: genai_fragment
+            manifest: |
+              provider: anthropic
+              api_key: (( .properties.genai_provider.anthropic_direct.api_key.value ))
+              model: (( .properties.genai_provider.anthropic_direct.model.value ))
         property_blueprints:
           - name: api_key
             type: secret
@@ -71,6 +83,12 @@ property_blueprints:
                 label: "Claude Haiku 4.5"
       - name: openai_direct
         select_value: "OpenAI (Direct)"
+        named_manifests:
+          - name: genai_fragment
+            manifest: |
+              provider: openai
+              api_key: (( .properties.genai_provider.openai_direct.api_key.value ))
+              model: (( .properties.genai_provider.openai_direct.model.value ))
         property_blueprints:
           - name: api_key
             type: secret
@@ -83,6 +101,13 @@ property_blueprints:
             optional: true
       - name: external_openai
         select_value: "External OpenAI API"
+        named_manifests:
+          - name: genai_fragment
+            manifest: |
+              provider: external_openai
+              api_endpoint: (( .properties.genai_provider.external_openai.api_endpoint.value ))
+              api_key: (( .properties.genai_provider.external_openai.api_key.value ))
+              model: (( .properties.genai_provider.external_openai.model.value ))
         property_blueprints:
           - name: api_endpoint
             type: string

@@ -4,7 +4,7 @@ product_version: "VERSION_PLACEHOLDER"
 metadata_version: "2.0"
 label: OpenClaw AI Agent Platform
 description: Deploy dedicated OpenClaw AI agents for developers and teams
-icon_image: aWNvbi1wbGFjZWhvbGRlcg==
+icon_image: ICON_BASE64_PLACEHOLDER
 
 minimum_version_for_upgrade: "0.0.1"
 
@@ -27,7 +27,7 @@ property_blueprints:
   #
   # GenAI / LLM provider selector
   #
-  - name: .properties.genai_provider
+  - name: genai_provider
     type: selector
     configurable: true
     default: "Tanzu GenAI Service"
@@ -82,7 +82,7 @@ property_blueprints:
   #
   # Security controls
   #
-  - name: .properties.sandbox_mode
+  - name: sandbox_mode
     type: dropdown_select
     configurable: true
     default: "strict"
@@ -94,18 +94,18 @@ property_blueprints:
       - name: "loose"
         label: "Loose - Most commands allowed (not recommended)"
 
-  - name: .properties.control_ui_enabled
+  - name: control_ui_enabled
     type: boolean
     configurable: true
     default: false
 
-  - name: .properties.blocked_commands
+  - name: blocked_commands
     type: text
     configurable: true
     default: "rm -rf /\ndd if=/dev/zero\nmkfs\ncurl\nwget"
     optional: true
 
-  - name: .properties.min_openclaw_version
+  - name: min_openclaw_version
     type: string
     configurable: true
     default: "2026.1.29"
@@ -114,7 +114,7 @@ property_blueprints:
   #
   # Skills management
   #
-  - name: .properties.skills_mode
+  - name: skills_mode
     type: dropdown_select
     configurable: true
     default: "allowlist"
@@ -126,7 +126,7 @@ property_blueprints:
       - name: "disabled"
         label: "Disabled - Built-in tools only"
 
-  - name: .properties.approved_skills
+  - name: approved_skills
     type: text
     configurable: true
     default: |
@@ -139,12 +139,12 @@ property_blueprints:
       notion
     optional: true
 
-  - name: .properties.auto_sync_from_clawhub
+  - name: auto_sync_from_clawhub
     type: boolean
     configurable: true
     default: true
 
-  - name: .properties.scan_skills_on_sync
+  - name: scan_skills_on_sync
     type: boolean
     configurable: true
     default: true
@@ -152,23 +152,23 @@ property_blueprints:
   #
   # SSO / Authentication
   #
-  - name: .properties.sso_enabled
+  - name: sso_enabled
     type: boolean
     configurable: true
     default: true
 
-  - name: .properties.sso_plan
+  - name: sso_plan
     type: string
     configurable: true
     default: "uaa"
     optional: true
 
-  - name: .properties.sso_allowed_email_domains
+  - name: sso_allowed_email_domains
     type: text
     configurable: true
     optional: true
 
-  - name: .properties.sso_session_timeout_hours
+  - name: sso_session_timeout_hours
     type: integer
     configurable: true
     default: 8
@@ -176,36 +176,36 @@ property_blueprints:
   #
   # Service broker configuration
   #
-  - name: .properties.broker_username
+  - name: broker_username
     type: string
     configurable: true
     default: "openclaw-broker"
 
-  - name: .properties.broker_password
+  - name: broker_password
     type: secret
     configurable: true
 
-  - name: .properties.enable_developer_plan
+  - name: enable_developer_plan
     type: boolean
     configurable: true
     default: true
 
-  - name: .properties.enable_developer_plus_plan
+  - name: enable_developer_plus_plan
     type: boolean
     configurable: true
     default: true
 
-  - name: .properties.enable_team_plan
+  - name: enable_team_plan
     type: boolean
     configurable: true
     default: false
 
-  - name: .properties.max_instances
+  - name: max_instances
     type: integer
     configurable: true
     default: 50
 
-  - name: .properties.max_instances_per_org
+  - name: max_instances_per_org
     type: integer
     configurable: true
     default: 10
@@ -213,24 +213,24 @@ property_blueprints:
   #
   # Networking
   #
-  - name: .properties.apps_domain
+  - name: apps_domain
     type: string
     configurable: true
     optional: false
 
-  - name: .properties.route_prefix
+  - name: route_prefix
     type: string
     configurable: true
     default: "openclaw"
     optional: true
 
-  - name: .properties.broker_route
+  - name: broker_route
     type: string
     configurable: true
     default: "openclaw-broker"
     optional: true
 
-  - name: .properties.dashboard_route
+  - name: dashboard_route
     type: string
     configurable: true
     default: "openclaw-admin"

@@ -64,6 +64,15 @@ service_plan_forms:
         constraints:
           min: 1
           max: 10
+      - name: instance_quota
+        type: integer
+        label: Instance Quota
+        description: Maximum number of service instances allowed for this plan (across all orgs)
+        default: 10
+        configurable: true
+        constraints:
+          min: 1
+          max: 1000
 
 # ---------------------------------------------------------------------------
 # Packages (BOSH releases)
@@ -146,9 +155,6 @@ packages:
                   client_cert: (( ..cf.properties.nats_client_cert.cert_pem ))
                   client_key: (( ..cf.properties.nats_client_cert.private_key_pem ))
                   ca_cert: (( ..cf.properties.nats_tls_external_cert.cert_pem ))
-              limits:
-                max_instances: (( .properties.max_instances.value ))
-                max_instances_per_org: (( .properties.max_instances_per_org.value ))
 
       # --- Skills Registry --------------------------------------------------
       - name: openclaw-registry
@@ -213,7 +219,7 @@ packages:
           openclaw:
             admin_dashboard:
               port: 8083
-              broker_endpoint: http://(( ..openclaw-broker.first_ip )):8080
+              broker_endpoint: https://(( .properties.broker_route_prefix.value )).(( ..cf.cloud_controller.system_domain.value ))
               auth:
                 username: admin
                 password: (( .properties.generated_broker_credentials.password ))
@@ -512,22 +518,12 @@ forms:
 
   - name: broker-config
     label: Service Broker
-    description: Configure broker credentials, instance limits, and route prefixes
+    description: Configure broker credentials and route prefixes
     properties:
       - name: generated_broker_credentials
         type: simple_credentials
         label: Broker Credentials (Auto-generated)
         configurable: false
-      - name: max_instances
-        type: integer
-        label: Maximum Total Instances
-        configurable: true
-        default: 50
-      - name: max_instances_per_org
-        type: integer
-        label: Maximum Instances Per Org
-        configurable: true
-        default: 10
       - name: broker_route_prefix
         type: string
         label: Broker Route Prefix

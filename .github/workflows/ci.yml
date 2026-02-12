@@ -58,7 +58,9 @@ jobs:
           fi
 
       - name: Create BOSH release
-        run: bosh create-release --force --tarball=openclaw-release.tgz
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          bosh create-release --force --version="${VERSION}" --tarball=openclaw-release.tgz
 
       - name: Upload release artifact
         uses: actions/upload-artifact@v4

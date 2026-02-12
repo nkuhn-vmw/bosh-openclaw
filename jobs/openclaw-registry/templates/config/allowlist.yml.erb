@@ -3,7 +3,12 @@
 # Only skills on this list will be synced and served by the registry
 
 skills:
-<% p('openclaw.registry.skills_allowlist').each do |skill| %>
+<%
+  allowlist = p('openclaw.registry.skills_allowlist')
+  # OpsMan text fields produce a string; spec default is an array
+  skills = allowlist.is_a?(String) ? allowlist.strip.split(/\s*\n\s*/).reject(&:empty?) : allowlist
+  skills.each do |skill|
+%>
   - <%= skill %>
 <% end %>
 

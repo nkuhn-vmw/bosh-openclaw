@@ -1,7 +1,7 @@
 ---
 name: openclaw
 product_version: "VERSION_PLACEHOLDER"
-metadata_version: "2.0"
+metadata_version: "3.0"
 label: OpenClaw AI Agent Platform
 description: Deploy dedicated OpenClaw AI agents for developers and teams
 icon_image: ICON_BASE64_PLACEHOLDER
@@ -9,6 +9,12 @@ icon_image: ICON_BASE64_PLACEHOLDER
 minimum_version_for_upgrade: "0.0.1"
 serial: true
 rank: 1
+
+service_broker: true
+
+requires_product_versions:
+  - name: cf
+    version: "~> 4.0"
 
 stemcell_criteria:
   os: ubuntu-jammy
@@ -23,6 +29,10 @@ releases:
     version: "1.1.21"
     file: bpm-1.1.21.tgz
     sha1: BPM_SHA1_PLACEHOLDER
+  - name: routing
+    version: "0.283.0"
+    file: routing-0.283.0.tgz
+    sha1: ROUTING_SHA1_PLACEHOLDER
 
 # ---------------------------------------------------------------------------
 # Property Blueprints
@@ -255,6 +265,16 @@ property_blueprints:
   #
   # Agent Networking
   #
+  - name: broker_route_hostname
+    type: string
+    configurable: true
+    optional: true
+
+  - name: dashboard_route_hostname
+    type: string
+    configurable: true
+    optional: true
+
   - name: route_prefix
     type: string
     configurable: true
@@ -377,6 +397,12 @@ form_types:
     label: Agent Networking
     description: Route and network configuration for agent instances
     property_inputs:
+      - reference: .properties.broker_route_hostname
+        label: Broker Route Hostname
+        description: "Full hostname for broker route (e.g., openclaw-broker.apps.example.com)"
+      - reference: .properties.dashboard_route_hostname
+        label: Dashboard Route Hostname
+        description: "Full hostname for admin dashboard (e.g., openclaw-admin.apps.example.com)"
       - reference: .properties.route_prefix
         label: Agent Route Prefix
         description: "Each agent gets a route like <prefix>-<owner>.<apps-domain>"
@@ -447,12 +473,24 @@ job_types:
           limits:
             max_instances: (( .properties.max_instances.value ))
             max_instances_per_org: (( .properties.max_instances_per_org.value ))
-          apps_domain: (( $runtime.apps_domains.[0] ))
+      route_registrar:
+        routes:
+          - name: openclaw-broker
+            port: 8080
+            registration_interval: 20s
+            uris:
+              - (( .properties.broker_route_hostname.value ))
     templates:
       - name: openclaw-broker
         release: openclaw
       - name: bpm
         release: bpm
+      - name: route_registrar
+        release: routing
+        consumes:
+          nats:
+            from: nats
+            deployment: cf
 
   #
   # openclaw-registry
@@ -540,11 +578,24 @@ job_types:
           auth:
             username: admin
             password: (( .properties.generated_broker_credentials.password ))
+      route_registrar:
+        routes:
+          - name: openclaw-admin-dashboard
+            port: 8083
+            registration_interval: 20s
+            uris:
+              - (( .properties.dashboard_route_hostname.value ))
     templates:
       - name: openclaw-admin-dashboard
         release: openclaw
       - name: bpm
         release: bpm
+      - name: route_registrar
+        release: routing
+        consumes:
+          nats:
+            from: nats
+            deployment: cf
 
   #
   # register-broker errand
@@ -586,7 +637,7 @@ job_types:
         skip_ssl_validation: true
       broker:
         name: openclaw
-        url: http://(( ..openclaw-broker.first_ip )):8080
+        url: https://(( .properties.broker_route_hostname.value ))
         auth:
           username: (( .properties.generated_broker_credentials.identity ))
           password: (( .properties.generated_broker_credentials.password ))

@@ -263,8 +263,10 @@ instance_groups:
     jobs:
       - name: openclaw-broker
         release: openclaw
-      - name: route-registrar
-        release: openclaw
+      - name: bpm
+        release: bpm
+      - name: route_registrar
+        release: routing
     vm_type: small
     stemcell: default
     azs: [z1]
@@ -276,6 +278,8 @@ instance_groups:
     jobs:
       - name: openclaw-registry
         release: openclaw
+      - name: bpm
+        release: bpm
     vm_type: small
     stemcell: default
     azs: [z1]
@@ -288,8 +292,10 @@ instance_groups:
     jobs:
       - name: openclaw-admin-dashboard
         release: openclaw
-      - name: route-registrar
-        release: openclaw
+      - name: bpm
+        release: bpm
+      - name: route_registrar
+        release: routing
     vm_type: small
     stemcell: default
     azs: [z1]

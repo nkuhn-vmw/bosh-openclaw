@@ -265,17 +265,19 @@ property_blueprints:
   #
   # Agent Networking
   #
-  - name: broker_route_hostname
+  - name: broker_route_prefix
     type: string
     configurable: true
+    default: "openclaw-broker"
     optional: true
 
-  - name: dashboard_route_hostname
+  - name: dashboard_route_prefix
     type: string
     configurable: true
+    default: "openclaw-admin"
     optional: true
 
-  - name: route_prefix
+  - name: agent_route_prefix
     type: string
     configurable: true
     default: "openclaw"
@@ -397,15 +399,15 @@ form_types:
     label: Agent Networking
     description: Route and network configuration for agent instances
     property_inputs:
-      - reference: .properties.broker_route_hostname
-        label: Broker Route Hostname
-        description: "Full hostname for broker route (e.g., openclaw-broker.apps.example.com)"
-      - reference: .properties.dashboard_route_hostname
-        label: Dashboard Route Hostname
-        description: "Full hostname for admin dashboard (e.g., openclaw-admin.apps.example.com)"
-      - reference: .properties.route_prefix
+      - reference: .properties.broker_route_prefix
+        label: Broker Route Prefix
+        description: "Route prefix for the service broker (e.g., openclaw-broker → openclaw-broker.<apps-domain>)"
+      - reference: .properties.dashboard_route_prefix
+        label: Dashboard Route Prefix
+        description: "Route prefix for the admin dashboard (e.g., openclaw-admin → openclaw-admin.<apps-domain>)"
+      - reference: .properties.agent_route_prefix
         label: Agent Route Prefix
-        description: "Each agent gets a route like <prefix>-<owner>.<apps-domain>"
+        description: "Route prefix for agent instances (e.g., openclaw → openclaw-<owner>.<apps-domain>)"
 
 
 # ---------------------------------------------------------------------------
@@ -479,7 +481,7 @@ job_types:
             port: 8080
             registration_interval: 20s
             uris:
-              - (( .properties.broker_route_hostname.value ))
+              - (( .properties.broker_route_prefix.value )).(( $runtime.apps_domains.[0] ))
     templates:
       - name: openclaw-broker
         release: openclaw
@@ -584,7 +586,7 @@ job_types:
             port: 8083
             registration_interval: 20s
             uris:
-              - (( .properties.dashboard_route_hostname.value ))
+              - (( .properties.dashboard_route_prefix.value )).(( $runtime.apps_domains.[0] ))
     templates:
       - name: openclaw-admin-dashboard
         release: openclaw
@@ -637,7 +639,7 @@ job_types:
         skip_ssl_validation: true
       broker:
         name: openclaw
-        url: https://(( .properties.broker_route_hostname.value ))
+        url: https://(( .properties.broker_route_prefix.value )).(( $runtime.apps_domains.[0] ))
         auth:
           username: (( .properties.generated_broker_credentials.identity ))
           password: (( .properties.generated_broker_credentials.password ))

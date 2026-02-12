@@ -80,63 +80,41 @@ jobs:
         with:
           name: openclaw-release
 
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install tile-generator
+        run: pip install tile-generator
+
       - name: Generate icon PNG from SVG
         run: |
           sudo apt-get update -qq && sudo apt-get install -y -qq librsvg2-bin
           rsvg-convert -w 256 -h 256 resources/icon.svg -o resources/icon.png
 
+      - name: Prepare release tarballs
+        run: |
+          # Place BOSH release where tile.yml expects it
+          mkdir -p resources
+          cp openclaw-release.tgz resources/openclaw-release.tgz
+
+          # Download vendored dependency releases
+          BPM_VERSION="1.1.21"
+          echo "Downloading BPM release ${BPM_VERSION}..."
+          curl -sL "https://bosh.io/d/github.com/cloudfoundry/bpm-release?v=${BPM_VERSION}" -o resources/bpm-release.tgz
+
+          ROUTING_VERSION="0.283.0"
+          echo "Downloading Routing release ${ROUTING_VERSION}..."
+          curl -sL "https://bosh.io/d/github.com/cloudfoundry/routing-release?v=${ROUTING_VERSION}" -o resources/routing-release.tgz
+
+          ls -lh resources/
+
       - name: Build .pivotal tile
         run: |
           VERSION="${GITHUB_REF_NAME#v}"
-          RELEASE_FILE="openclaw-release-${VERSION}.tgz"
-          TILE_DIR=$(mktemp -d)
-
-          # Rename release to versioned filename expected by metadata
-          cp openclaw-release.tgz "${RELEASE_FILE}"
-          RELEASE_SHA1=$(sha1sum "${RELEASE_FILE}" | awk '{print $1}')
-
-          # Download vendored dependency releases for air-gap support
-          BPM_VERSION="1.1.21"
-          BPM_FILE="bpm-${BPM_VERSION}.tgz"
-          echo "Downloading BPM release ${BPM_VERSION}..."
-          curl -sL "https://bosh.io/d/github.com/cloudfoundry/bpm-release?v=${BPM_VERSION}" -o "${BPM_FILE}"
-          BPM_SHA1=$(sha1sum "${BPM_FILE}" | awk '{print $1}')
-
-          ROUTING_VERSION="0.283.0"
-          ROUTING_FILE="routing-${ROUTING_VERSION}.tgz"
-          echo "Downloading Routing release ${ROUTING_VERSION}..."
-          curl -sL "https://bosh.io/d/github.com/cloudfoundry/routing-release?v=${ROUTING_VERSION}" -o "${ROUTING_FILE}"
-          ROUTING_SHA1=$(sha1sum "${ROUTING_FILE}" | awk '{print $1}')
-
-          # Stamp version, sha1, and icon into metadata
-          # Use python for icon substitution since base64 PNG is too large for sed
-          ICON_B64=$(base64 -w0 resources/icon.png)
-          python3 -c "
-          import sys
-          with open('tile/metadata/openclaw.yml') as f:
-              content = f.read()
-          content = content.replace('VERSION_PLACEHOLDER', '${VERSION}')
-          content = content.replace('SHA1_PLACEHOLDER', '${RELEASE_SHA1}')
-          content = content.replace('BPM_SHA1_PLACEHOLDER', '${BPM_SHA1}')
-          content = content.replace('ROUTING_SHA1_PLACEHOLDER', '${ROUTING_SHA1}')
-          content = content.replace('ICON_BASE64_PLACEHOLDER', sys.stdin.read().strip())
-          with open('metadata-stamped.yml', 'w') as f:
-              f.write(content)
-          " <<< "${ICON_B64}"
-
-          # A .pivotal file is a zip with metadata + releases + migrations
-          mkdir -p "${TILE_DIR}/metadata" "${TILE_DIR}/releases" "${TILE_DIR}/migrations"
-          touch "${TILE_DIR}/migrations/.keep"
-          cp metadata-stamped.yml "${TILE_DIR}/metadata/openclaw.yml"
-          cp "${RELEASE_FILE}" "${TILE_DIR}/releases/"
-          cp "${BPM_FILE}" "${TILE_DIR}/releases/"
-          cp "${ROUTING_FILE}" "${TILE_DIR}/releases/"
-
-          mkdir -p product
-          cd "${TILE_DIR}"
-          zip -r "${GITHUB_WORKSPACE}/product/openclaw-${VERSION}.pivotal" .
-          echo "Built product/openclaw-${VERSION}.pivotal"
-          ls -lh "${GITHUB_WORKSPACE}/product/"
+          tile build "${VERSION}"
+          ls -lh product/
 
       - name: Upload tile artifact
         uses: actions/upload-artifact@v4

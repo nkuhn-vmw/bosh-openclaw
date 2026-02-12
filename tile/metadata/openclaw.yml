@@ -235,6 +235,24 @@ property_blueprints:
     default: 10
 
   #
+  # Service plans
+  #
+  - name: enable_developer_plan
+    type: boolean
+    configurable: true
+    default: true
+
+  - name: enable_developer_plus_plan
+    type: boolean
+    configurable: true
+    default: true
+
+  - name: enable_team_plan
+    type: boolean
+    configurable: true
+    default: false
+
+  #
   # Agent Networking
   #
   - name: apps_domain
@@ -356,8 +374,17 @@ form_types:
 
   - name: broker-config
     label: Service Broker
-    description: Configure agent instance limits
+    description: Configure service plans and agent instance limits
     property_inputs:
+      - reference: .properties.enable_developer_plan
+        label: Enable Developer Plan
+        description: "Basic single-user agent (small VM, 10GB disk)"
+      - reference: .properties.enable_developer_plus_plan
+        label: Enable Developer Plus Plan
+        description: "Enhanced agent with browser automation (medium VM, 20GB disk)"
+      - reference: .properties.enable_team_plan
+        label: Enable Team Plan
+        description: "Multi-user shared agent (large VM, 50GB disk)"
       - reference: .properties.max_instances
         label: Maximum Total Instances
       - reference: .properties.max_instances_per_org
@@ -377,59 +404,6 @@ form_types:
       - reference: .properties.dashboard_route
         label: Admin Dashboard Route Hostname
 
-# ---------------------------------------------------------------------------
-# Service Plan Forms (On-Demand Plans)
-# ---------------------------------------------------------------------------
-
-service_plan_forms:
-  - name: on_demand_agent_plans
-    label: On-Demand Agent Plans
-    description: |
-      Configure on-demand OpenClaw agent plans available in the marketplace.
-      Each plan defines the resources allocated to agent VM instances.
-    optional: false
-    properties:
-      - name: plan_description
-        type: string
-        label: Plan Description
-        description: Description shown to developers in the marketplace
-        configurable: true
-        default: "Dedicated OpenClaw AI agent"
-      - name: vm_type
-        type: vm_type_dropdown
-        label: VM Type
-        description: VM size for the agent instance
-        configurable: true
-      - name: disk_type
-        type: disk_type_dropdown
-        label: Persistent Disk Type
-        description: Persistent disk for agent state and memory
-        configurable: true
-      - name: agent_sandbox_mode
-        type: dropdown_select
-        label: Sandbox Mode
-        description: Security sandbox for this plan
-        configurable: true
-        default: "strict"
-        options:
-          - name: "strict"
-            label: "Strict - All commands require explicit approval"
-          - name: "moderate"
-            label: "Moderate - Common commands allowed, destructive blocked"
-          - name: "loose"
-            label: "Loose - Most commands allowed (not recommended)"
-      - name: browser_enabled
-        type: boolean
-        label: Enable Browser Automation
-        description: Allow agents on this plan to use headless Chromium
-        configurable: true
-        default: false
-      - name: multi_user
-        type: boolean
-        label: Multi-User Support
-        description: Allow multiple users to share a single agent instance
-        configurable: true
-        default: false
 
 # ---------------------------------------------------------------------------
 # Job Types
@@ -481,6 +455,13 @@ job_types:
             control_ui_enabled: (( .properties.control_ui_enabled.value ))
             blocked_commands: (( .properties.blocked_commands.value ))
             min_openclaw_version: (( .properties.min_openclaw_version.value ))
+          plans:
+            developer:
+              enabled: (( .properties.enable_developer_plan.value ))
+            developer_plus:
+              enabled: (( .properties.enable_developer_plus_plan.value ))
+            team:
+              enabled: (( .properties.enable_team_plan.value ))
           limits:
             max_instances: (( .properties.max_instances.value ))
             max_instances_per_org: (( .properties.max_instances_per_org.value ))

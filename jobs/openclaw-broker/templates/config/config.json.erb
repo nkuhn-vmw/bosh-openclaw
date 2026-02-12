@@ -11,6 +11,7 @@
   },
   "bosh" => {
     "director_url" => p("openclaw.broker.bosh.director_url"),
+    "uaa_url" => p("openclaw.broker.bosh.uaa_url", ""),
     "client_id" => p("openclaw.broker.bosh.client_id"),
     "client_secret" => p("openclaw.broker.bosh.client_secret"),
     "ca_cert" => p("openclaw.broker.bosh.ca_cert", "")
@@ -22,9 +23,31 @@
     "az" => p("openclaw.broker.agent_defaults.az", "")
   },
   "genai" => {
+    "provider" => p("openclaw.broker.genai.provider", ""),
     "endpoint" => p("openclaw.broker.genai.endpoint", ""),
     "api_key" => p("openclaw.broker.genai.api_key", ""),
-    "model" => p("openclaw.broker.genai.model", "")
+    "model" => p("openclaw.broker.genai.model", ""),
+    "api_endpoint" => p("openclaw.broker.genai.api_endpoint", ""),
+    "offering_name" => p("openclaw.broker.genai.offering_name", ""),
+    "plan_name" => p("openclaw.broker.genai.plan_name", "")
+  },
+  "on_demand" => {
+    "service_name" => p("openclaw.broker.on_demand.service_name"),
+    "plans" => p("openclaw.broker.on_demand.plans"),
+    "stemcell_os" => p("openclaw.broker.on_demand.stemcell_os"),
+    "stemcell_version" => p("openclaw.broker.on_demand.stemcell_version"),
+    "network" => p("openclaw.broker.on_demand.network", "")
+  },
+  "cf" => {
+    "system_domain" => p("openclaw.broker.cf.system_domain", ""),
+    "apps_domain" => p("openclaw.broker.cf.apps_domain", ""),
+    "deployment_name" => p("openclaw.broker.cf.deployment_name", "")
+  },
+  "security" => {
+    "sandbox_mode" => p("openclaw.broker.security.sandbox_mode"),
+    "control_ui_enabled" => p("openclaw.broker.security.control_ui_enabled"),
+    "blocked_commands" => p("openclaw.broker.security.blocked_commands", ""),
+    "min_openclaw_version" => p("openclaw.broker.security.min_openclaw_version", "")
   },
   "metering" => {
     "enabled" => p("openclaw.broker.metering.enabled"),

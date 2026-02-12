@@ -15,6 +15,9 @@ properties:
   openclaw.registry.port:
     description: "Registry API port"
     default: 8081
+  openclaw.registry.skills_mode:
+    description: "Skills policy (allowlist, blocklist, disabled)"
+    default: "allowlist"
   openclaw.registry.skills_allowlist:
     description: "Approved skills from ClawHub"
     default:

@@ -29,6 +29,8 @@ properties:
     description: "TLS private key PEM"
   openclaw.broker.bosh.director_url:
     description: "BOSH Director API URL"
+  openclaw.broker.bosh.uaa_url:
+    description: "BOSH UAA endpoint URL"
   openclaw.broker.bosh.client_id:
     description: "BOSH UAA client ID"
   openclaw.broker.bosh.client_secret:
@@ -46,12 +48,24 @@ properties:
     default: "openclaw-agents"
   openclaw.broker.agent_defaults.az:
     description: "Availability zone for agent VMs"
+  openclaw.broker.genai.provider:
+    description: "GenAI provider type (anthropic, openai, tanzu_genai, external_openai)"
+    default: ""
   openclaw.broker.genai.endpoint:
     description: "Default GenAI proxy endpoint"
   openclaw.broker.genai.api_key:
     description: "Default GenAI API key"
   openclaw.broker.genai.model:
     description: "Default model"
+  openclaw.broker.genai.api_endpoint:
+    description: "External OpenAI-compatible API endpoint"
+    default: ""
+  openclaw.broker.genai.offering_name:
+    description: "Tanzu GenAI service offering name"
+    default: ""
+  openclaw.broker.genai.plan_name:
+    description: "Tanzu GenAI service plan name"
+    default: ""
   openclaw.broker.catalog.plans:
     description: "Service plan configurations"
     default:
@@ -111,3 +125,59 @@ properties:
   openclaw.broker.limits.max_instances_per_org:
     description: "Maximum instances per CF org"
     default: 10
+
+  # On-demand service instance configuration
+  openclaw.broker.on_demand.service_name:
+    description: "Service name in the CF marketplace"
+    default: "openclaw"
+  openclaw.broker.on_demand.plans:
+    description: "On-demand service plans (from OpsMan service_plan_forms)"
+    default: []
+  openclaw.broker.on_demand.stemcell_os:
+    description: "Stemcell OS for agent VMs"
+    default: "ubuntu-jammy"
+  openclaw.broker.on_demand.stemcell_version:
+    description: "Stemcell version for agent VMs"
+    default: "latest"
+  openclaw.broker.on_demand.network:
+    description: "BOSH network for on-demand agent VMs"
+    default: ""
+
+  # Cloud Foundry platform configuration
+  openclaw.broker.cf.system_domain:
+    description: "CF system domain"
+    default: ""
+  openclaw.broker.cf.apps_domain:
+    description: "CF apps domain"
+    default: ""
+  openclaw.broker.cf.deployment_name:
+    description: "CF BOSH deployment name"
+    default: ""
+
+  # Security policy
+  openclaw.broker.security.sandbox_mode:
+    description: "Agent sandbox mode (strict, moderate, loose)"
+    default: "strict"
+  openclaw.broker.security.control_ui_enabled:
+    description: "Enable control UI for agent instances"
+    default: false
+  openclaw.broker.security.blocked_commands:
+    description: "Newline-separated list of blocked shell commands"
+    default: ""
+  openclaw.broker.security.min_openclaw_version:
+    description: "Minimum OpenClaw version to deploy"
+    default: ""
+
+  # NATS TLS configuration (for route registration)
+  openclaw.broker.nats.tls.enabled:
+    description: "Enable NATS TLS"
+    default: false
+  openclaw.broker.nats.tls.client_cert:
+    description: "NATS TLS client certificate"
+    default: ""
+  openclaw.broker.nats.tls.client_key:
+    description: "NATS TLS client private key"
+    default: ""
+  openclaw.broker.nats.tls.ca_cert:
+    description: "NATS TLS CA certificate"
+    default: ""

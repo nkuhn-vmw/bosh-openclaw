@@ -1,100 +1,93 @@
 <%
-  plans = p("openclaw.broker.catalog.plans")
+  # Use on-demand plans from OpsMan service_plan_forms if configured,
+  # otherwise fall back to static catalog.plans defaults
+  on_demand_plans = p("openclaw.broker.on_demand.plans")
+  static_plans = p("openclaw.broker.catalog.plans")
 
-  catalog_plans = plans.map do |plan|
-    catalog_plan = {
-      "id" => plan["id"],
-      "name" => plan["name"],
-      "description" => plan["description"],
-      "free" => false,
-      "bindable" => true,
-      "plan_updateable" => true,
-      "metadata" => {
-        "displayName" => plan.dig("metadata", "displayName") || plan["name"],
-        "bullets" => plan.dig("metadata", "bullets") || []
-      },
-      "schemas" => {
-        "service_instance" => {
-          "create" => {
-            "parameters" => {
-              "$schema" => "http://json-schema.org/draft-04/schema#",
-              "type" => "object",
-              "properties" => {
-                "owner" => {
-                  "type" => "string",
-                  "description" => "Developer or team who owns this instance"
-                },
-                "genai_endpoint" => {
-                  "type" => "string",
-                  "description" => "Override GenAI proxy endpoint"
-                },
-                "genai_api_key" => {
-                  "type" => "string",
-                  "description" => "Override GenAI API key"
-                },
-                "genai_model" => {
-                  "type" => "string",
-                  "description" => "Override model selection"
-                }
-              }
-            }
-          },
-          "update" => {
-            "parameters" => {
-              "$schema" => "http://json-schema.org/draft-04/schema#",
-              "type" => "object",
-              "properties" => {
-                "genai_endpoint" => {
-                  "type" => "string",
-                  "description" => "Override GenAI proxy endpoint"
-                },
-                "genai_api_key" => {
-                  "type" => "string",
-                  "description" => "Override GenAI API key"
-                },
-                "genai_model" => {
-                  "type" => "string",
-                  "description" => "Override model selection"
-                }
-              }
-            }
-          }
+  if on_demand_plans.is_a?(Array) && !on_demand_plans.empty?
+    # Plans from OpsMan service_plan_forms
+    catalog_plans = on_demand_plans.each_with_index.map do |plan, idx|
+      plan_name = plan["name"] || "plan-#{idx}"
+      {
+        "id" => "openclaw-#{plan_name}-plan",
+        "name" => plan_name,
+        "description" => plan["plan_description"] || "OpenClaw AI agent instance",
+        "free" => false,
+        "bindable" => true,
+        "plan_updateable" => true,
+        "metadata" => {
+          "displayName" => plan_name.split(/[-_]/).map(&:capitalize).join(" "),
+          "vm_type" => plan["vm_type"],
+          "disk_type" => plan["disk_type"],
+          "bullets" => [
+            "Dedicated VM with isolated WebChat UI",
+            "VM type: #{plan["vm_type"] || "default"}",
+            "Disk type: #{plan["disk_type"] || "default"}",
+            plan["browser_automation"] ? "Browser automation enabled" : nil,
+            "Max #{plan["max_sessions"] || 1} concurrent session(s)",
+            "Instance quota: #{plan["instance_quota"] || 10}"
+          ].compact
         },
-        "service_binding" => {
-          "create" => {
-            "parameters" => {
-              "$schema" => "http://json-schema.org/draft-04/schema#",
-              "type" => "object",
-              "properties" => {
-                "allowed_emails" => {
-                  "type" => "array",
-                  "description" => "Emails allowed to access this instance",
-                  "items" => { "type" => "string" }
+        "schemas" => {
+          "service_instance" => {
+            "create" => {
+              "parameters" => {
+                "$schema" => "http://json-schema.org/draft-04/schema#",
+                "type" => "object",
+                "properties" => {
+                  "owner" => {
+                    "type" => "string",
+                    "description" => "Developer or team who owns this instance"
+                  }
                 }
               }
             }
           }
         }
       }
-    }
-
-    if plan["vm_type"]
-      catalog_plan["metadata"]["vm_type"] = plan["vm_type"]
     end
+  else
+    # Static plans from spec defaults
+    catalog_plans = static_plans.map do |plan|
+      catalog_plan = {
+        "id" => plan["id"],
+        "name" => plan["name"],
+        "description" => plan["description"],
+        "free" => false,
+        "bindable" => true,
+        "plan_updateable" => true,
+        "metadata" => {
+          "displayName" => plan.dig("metadata", "displayName") || plan["name"],
+          "bullets" => plan.dig("metadata", "bullets") || []
+        },
+        "schemas" => {
+          "service_instance" => {
+            "create" => {
+              "parameters" => {
+                "$schema" => "http://json-schema.org/draft-04/schema#",
+                "type" => "object",
+                "properties" => {
+                  "owner" => {
+                    "type" => "string",
+                    "description" => "Developer or team who owns this instance"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
 
-    if plan["disk_type"]
-      catalog_plan["metadata"]["disk_type"] = plan["disk_type"]
+      if plan["vm_type"]
+        catalog_plan["metadata"]["vm_type"] = plan["vm_type"]
+      end
+
+      if plan["disk_type"]
+        catalog_plan["metadata"]["disk_type"] = plan["disk_type"]
+      end
+
+      catalog_plan
     end
-
-    if plan["memory"]
-      catalog_plan["metadata"]["memory"] = plan["memory"]
-    end
-
-    if plan["features"]
-      catalog_plan["metadata"]["features"] = plan["features"]
-    end
-
-    catalog_plan
   end
 
   catalog = {

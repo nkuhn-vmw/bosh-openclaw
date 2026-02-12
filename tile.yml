@@ -126,13 +126,11 @@ packages:
                 username: (( .properties.generated_broker_credentials.identity ))
                 password: (( .properties.generated_broker_credentials.password ))
               bosh:
-                url: https://(( $director.hostname )):25555
-                root_ca_cert: (( $director.ca_public_key ))
-                authentication:
-                  uaa:
-                    url: https://(( $director.hostname )):8443
-                    client_id: (( $self.uaa_client_name ))
-                    client_secret: (( $self.uaa_client_secret ))
+                director_url: https://(( $director.hostname )):25555
+                ca_cert: (( $director.ca_public_key ))
+                uaa_url: https://(( $director.hostname )):8443
+                client_id: (( $self.uaa_client_name ))
+                client_secret: (( $self.uaa_client_secret ))
               genai: (( .properties.genai_provider.selected_option.parsed_manifest(genai_fragment) ))
               security:
                 sandbox_mode: (( .properties.sandbox_mode.value ))
@@ -177,7 +175,7 @@ packages:
             registry:
               port: 8081
               skills_mode: (( .properties.skills_mode.value ))
-              approved_skills: (( .properties.approved_skills.value ))
+              skills_allowlist: (( .properties.approved_skills.value ))
               auto_sync: (( .properties.auto_sync_from_clawhub.value ))
               scan_on_sync: (( .properties.scan_skills_on_sync.value ))
 
@@ -223,6 +221,9 @@ packages:
               auth:
                 username: admin
                 password: (( .properties.generated_broker_credentials.password ))
+              route:
+                hostname: (( .properties.dashboard_route_prefix.value ))
+                domain: (( ..cf.cloud_controller.system_domain.value ))
 
       # --- Register Broker Errand -------------------------------------------
       - name: register-broker
@@ -247,8 +248,9 @@ packages:
           broker:
             name: openclaw
             url: https://(( .properties.broker_route_prefix.value )).(( ..cf.cloud_controller.system_domain.value ))
-            username: (( .properties.generated_broker_credentials.identity ))
-            password: (( .properties.generated_broker_credentials.password ))
+            auth:
+              username: (( .properties.generated_broker_credentials.identity ))
+              password: (( .properties.generated_broker_credentials.password ))
             enable_service_access: true
 
       # --- Deregister Broker Errand -----------------------------------------
@@ -295,12 +297,11 @@ packages:
             admin_password: (( ..cf.uaa.system_services_credentials.password ))
             skip_ssl_validation: true
           smoke_tests:
-            service_name: openclaw
-            plan_name: developer
+            plan: developer
             timeout_seconds: 300
             verify_webchat_route: true
             test_prompt: "What is 2 + 2? Reply with just the number."
-            app_domain: (( ..cf.cloud_controller.apps_domain.value ))
+            apps_domain: (( ..cf.cloud_controller.apps_domain.value ))
 
   - name: bpm
     type: bosh-release

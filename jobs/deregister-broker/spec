@@ -4,7 +4,8 @@ name: deregister-broker
 templates:
   bin/run.erb: bin/run
 
-packages: []
+packages:
+  - cf-cli
 
 properties:
   cf.api_url:

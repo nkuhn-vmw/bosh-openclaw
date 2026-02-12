@@ -1,6 +1,7 @@
 #!/bin/bash
 
 set -eu
+export PATH="/var/vcap/packages/cf-cli/bin:${PATH}"
 
 CF_API="<%= p('cf.api_url') %>"
 CF_USER="<%= p('cf.admin_username') %>"

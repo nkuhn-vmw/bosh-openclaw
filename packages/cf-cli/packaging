@@ -1,0 +1,5 @@
+set -eu
+
+mkdir -p "${BOSH_INSTALL_TARGET}/bin"
+tar xzf cf-cli/cf-cli_*.tgz -C "${BOSH_INSTALL_TARGET}/bin/"
+chmod +x "${BOSH_INSTALL_TARGET}/bin/cf"

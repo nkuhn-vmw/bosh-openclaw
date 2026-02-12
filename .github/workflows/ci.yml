@@ -41,7 +41,7 @@ jobs:
         run: |
           VERSION="${GITHUB_REF_NAME#v}"
           echo "Building release for version ${VERSION}"
-          mkdir -p src/node src/golang src/openclaw src/oauth2-proxy
+          mkdir -p src/node src/golang src/openclaw src/oauth2-proxy src/cf-cli
 
           # Download real Node.js binary (linux-x64)
           NODE_VERSION="22.13.1"
@@ -63,6 +63,14 @@ jobs:
           curl -sSL -L "https://github.com/oauth2-proxy/oauth2-proxy/releases/download/v${OAUTH2_PROXY_VERSION}/oauth2-proxy-v${OAUTH2_PROXY_VERSION}.linux-amd64.tar.gz" \
             -o src/oauth2-proxy/oauth2-proxy-${OAUTH2_PROXY_VERSION}.linux-amd64.tar.gz
           ls -lh src/oauth2-proxy/
+
+          # Download CF CLI v8 (linux-amd64)
+          echo "Downloading CF CLI v8..."
+          curl -sSL "https://packages.cloudfoundry.org/stable?release=linux64-binary&version=v8&source=github" \
+            -o /tmp/cf-cli.tgz
+          # Repackage to match spec glob: cf-cli/cf-cli_*.tgz
+          cp /tmp/cf-cli.tgz src/cf-cli/cf-cli_8.tgz
+          ls -lh src/cf-cli/
 
           # Create OpenClaw CLI placeholder npm package
           # (Real package will be published separately; this is a functional stub)

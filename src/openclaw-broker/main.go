@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"flag"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -45,15 +46,16 @@ func main() {
 	r.HandleFunc("/v2/service_instances/{instance_id}/service_bindings/{binding_id}", b.Unbind).Methods("DELETE")
 	r.HandleFunc("/v2/service_instances/{instance_id}/last_operation", b.LastOperation).Methods("GET")
 
+	addr := fmt.Sprintf(":%d", cfg.Port)
 	srv := &http.Server{
-		Addr:         ":" + cfg.Port,
+		Addr:         addr,
 		Handler:      r,
 		ReadTimeout:  30 * time.Second,
 		WriteTimeout: 30 * time.Second,
 	}
 
 	go func() {
-		log.Printf("OpenClaw broker starting on port %s", cfg.Port)
+		log.Printf("OpenClaw broker starting on port %d", cfg.Port)
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			log.Fatalf("Server error: %v", err)
 		}
@@ -73,7 +75,7 @@ func main() {
 }
 
 type Config struct {
-	Port string `json:"port"`
+	Port int `json:"port"`
 	Auth struct {
 		Username string `json:"username"`
 		Password string `json:"password"`
@@ -116,8 +118,8 @@ func loadConfig(path string) (*Config, error) {
 	if err := json.Unmarshal(data, &cfg); err != nil {
 		return nil, err
 	}
-	if cfg.Port == "" {
-		cfg.Port = "8080"
+	if cfg.Port == 0 {
+		cfg.Port = 8080
 	}
 	return &cfg, nil
 }

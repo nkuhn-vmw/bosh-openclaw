@@ -5,10 +5,8 @@ processes:
     args:
       - --config
       - /var/vcap/jobs/openclaw-broker/config/config.json
-      - --catalog
-      - /var/vcap/jobs/openclaw-broker/config/catalog.json
     env:
-      GOPATH: /var/vcap/packages/golang-1.22
+      HOME: /var/vcap/data/openclaw-broker
     limits:
       open_files: 65536
     additional_volumes:

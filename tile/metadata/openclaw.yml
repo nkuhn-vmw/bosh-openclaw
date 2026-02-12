@@ -23,10 +23,6 @@ releases:
     version: "1.1.21"
     file: bpm-1.1.21.tgz
     sha1: BPM_SHA1_PLACEHOLDER
-  - name: routing
-    version: "0.283.0"
-    file: routing-0.283.0.tgz
-    sha1: ROUTING_SHA1_PLACEHOLDER
 
 # ---------------------------------------------------------------------------
 # Property Blueprints
@@ -259,27 +255,10 @@ property_blueprints:
   #
   # Agent Networking
   #
-  - name: apps_domain
-    type: string
-    configurable: true
-    optional: false
-
   - name: route_prefix
     type: string
     configurable: true
     default: "openclaw"
-    optional: true
-
-  - name: broker_route
-    type: string
-    configurable: true
-    default: "openclaw-broker"
-    optional: true
-
-  - name: dashboard_route
-    type: string
-    configurable: true
-    default: "openclaw-admin"
     optional: true
 
 # ---------------------------------------------------------------------------
@@ -398,15 +377,9 @@ form_types:
     label: Agent Networking
     description: Route and network configuration for agent instances
     property_inputs:
-      - reference: .properties.apps_domain
-        label: Apps Domain
-        description: Each agent gets a route like openclaw-<owner>.apps.example.com
       - reference: .properties.route_prefix
         label: Agent Route Prefix
-      - reference: .properties.broker_route
-        label: Broker Route Hostname
-      - reference: .properties.dashboard_route
-        label: Admin Dashboard Route Hostname
+        description: "Each agent gets a route like <prefix>-<owner>.<apps-domain>"
 
 
 # ---------------------------------------------------------------------------
@@ -474,25 +447,10 @@ job_types:
           limits:
             max_instances: (( .properties.max_instances.value ))
             max_instances_per_org: (( .properties.max_instances_per_org.value ))
-          route:
-            hostname: (( .properties.broker_route.value ))
-            domain: (( .properties.apps_domain.value ))
-      route_registrar:
-        routes:
-          - name: openclaw-broker
-            port: 8080
-            registration_interval: 20s
-            uris:
-              - (( .properties.broker_route.value )).(( .properties.apps_domain.value ))
+          apps_domain: (( $runtime.apps_domains.[0] ))
     templates:
       - name: openclaw-broker
         release: openclaw
-      - name: route_registrar
-        release: routing
-        consumes:
-          nats:
-            from: nats
-            deployment: cf
       - name: bpm
         release: bpm
 
@@ -578,29 +536,13 @@ job_types:
       openclaw:
         admin_dashboard:
           port: 8083
-          broker_endpoint: http://openclaw-broker.default.openclaw.bosh:8080
+          broker_endpoint: http://(( ..openclaw-broker.first_ip )):8080
           auth:
             username: admin
             password: (( .properties.generated_broker_credentials.password ))
-          route:
-            hostname: (( .properties.dashboard_route.value ))
-            domain: (( .properties.apps_domain.value ))
-      route_registrar:
-        routes:
-          - name: openclaw-admin
-            port: 8083
-            registration_interval: 20s
-            uris:
-              - (( .properties.dashboard_route.value )).(( .properties.apps_domain.value ))
     templates:
       - name: openclaw-admin-dashboard
         release: openclaw
-      - name: route_registrar
-        release: routing
-        consumes:
-          nats:
-            from: nats
-            deployment: cf
       - name: bpm
         release: bpm
 
@@ -644,7 +586,7 @@ job_types:
         skip_ssl_validation: true
       broker:
         name: openclaw
-        url: https://(( .properties.broker_route.value )).(( .properties.apps_domain.value ))
+        url: http://(( ..openclaw-broker.first_ip )):8080
         auth:
           username: (( .properties.generated_broker_credentials.identity ))
           password: (( .properties.generated_broker_credentials.password ))
@@ -740,7 +682,7 @@ job_types:
         timeout_seconds: 300
         verify_webchat_route: true
         test_prompt: "What is 2 + 2? Reply with just the number."
-        apps_domain: (( .properties.apps_domain.value ))
+        apps_domain: (( $runtime.apps_domains.[0] ))
     templates:
       - name: smoke-tests
         release: openclaw

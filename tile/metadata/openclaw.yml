@@ -257,44 +257,6 @@ property_blueprints:
     default: false
 
   #
-  # Platform integration (CF + BOSH Director)
-  #
-  - name: cf_api_url
-    type: string
-    configurable: true
-    optional: false
-
-  - name: cf_admin_password
-    type: secret
-    configurable: true
-    optional: false
-
-  - name: cf_skip_ssl
-    type: boolean
-    configurable: true
-    default: true
-
-  - name: bosh_director_url
-    type: string
-    configurable: true
-    optional: false
-
-  - name: bosh_client_id
-    type: string
-    configurable: true
-    optional: false
-
-  - name: bosh_client_secret
-    type: secret
-    configurable: true
-    optional: false
-
-  - name: bosh_ca_cert
-    type: text
-    configurable: true
-    optional: true
-
-  #
   # Agent Networking
   #
   - name: apps_domain
@@ -432,31 +394,6 @@ form_types:
       - reference: .properties.max_instances_per_org
         label: Maximum Instances Per Org
 
-  - name: platform-config
-    label: Platform Integration
-    description: Cloud Foundry and BOSH Director credentials
-    property_inputs:
-      - reference: .properties.cf_api_url
-        label: CF API URL
-        description: "Cloud Foundry API endpoint (e.g., https://api.sys.example.com)"
-      - reference: .properties.cf_admin_password
-        label: CF Admin Password
-        description: "Cloud Foundry admin password for broker registration errands"
-      - reference: .properties.cf_skip_ssl
-        label: Skip SSL Validation
-        description: "Skip TLS certificate verification for CF API calls"
-      - reference: .properties.bosh_director_url
-        label: BOSH Director URL
-        description: "BOSH Director API endpoint (e.g., https://10.0.0.6:25555)"
-      - reference: .properties.bosh_client_id
-        label: BOSH UAA Client ID
-        description: "UAA client with BOSH Director deploy permissions for on-demand agent VMs"
-      - reference: .properties.bosh_client_secret
-        label: BOSH UAA Client Secret
-      - reference: .properties.bosh_ca_cert
-        label: BOSH Director CA Certificate
-        description: "PEM-encoded CA certificate (optional if using trusted CA)"
-
   - name: networking-config
     label: Agent Networking
     description: Route and network configuration for agent instances
@@ -517,10 +454,10 @@ job_types:
             username: (( .properties.generated_broker_credentials.identity ))
             password: (( .properties.generated_broker_credentials.password ))
           bosh:
-            director_url: (( .properties.bosh_director_url.value ))
-            client_id: (( .properties.bosh_client_id.value ))
-            client_secret: (( .properties.bosh_client_secret.value ))
-            ca_cert: (( .properties.bosh_ca_cert.value ))
+            director_url: https://(( $director.deployment_ip )):25555
+            client_id: (( $self.uaa_client_name ))
+            client_secret: (( $self.uaa_client_credentials ))
+            ca_cert: (( $director.ca_public_key ))
           genai: (( .properties.genai_provider.selected_option.parsed_manifest(genai_fragment) ))
           security:
             sandbox_mode: (( .properties.sandbox_mode.value ))
@@ -701,9 +638,10 @@ job_types:
       default: 1
     manifest: |
       cf:
-        api_url: (( .properties.cf_api_url.value ))
-        admin_password: (( .properties.cf_admin_password.value ))
-        skip_ssl_validation: (( .properties.cf_skip_ssl.value ))
+        api_url: https://api.(( $runtime.system_domain ))
+        admin_username: (( $cf.uaa_admin_client_credentials.identity ))
+        admin_password: (( $cf.uaa_admin_client_credentials.password ))
+        skip_ssl_validation: true
       broker:
         name: openclaw
         url: https://(( .properties.broker_route.value )).(( .properties.apps_domain.value ))
@@ -749,9 +687,10 @@ job_types:
       default: 1
     manifest: |
       cf:
-        api_url: (( .properties.cf_api_url.value ))
-        admin_password: (( .properties.cf_admin_password.value ))
-        skip_ssl_validation: (( .properties.cf_skip_ssl.value ))
+        api_url: https://api.(( $runtime.system_domain ))
+        admin_username: (( $cf.uaa_admin_client_credentials.identity ))
+        admin_password: (( $cf.uaa_admin_client_credentials.password ))
+        skip_ssl_validation: true
       broker:
         name: openclaw
     templates:
@@ -792,9 +731,10 @@ job_types:
       default: 1
     manifest: |
       cf:
-        api_url: (( .properties.cf_api_url.value ))
-        admin_password: (( .properties.cf_admin_password.value ))
-        skip_ssl_validation: (( .properties.cf_skip_ssl.value ))
+        api_url: https://api.(( $runtime.system_domain ))
+        admin_username: (( $cf.uaa_admin_client_credentials.identity ))
+        admin_password: (( $cf.uaa_admin_client_credentials.password ))
+        skip_ssl_validation: true
       smoke_tests:
         plan: developer
         timeout_seconds: 300

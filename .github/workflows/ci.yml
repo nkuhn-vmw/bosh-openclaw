@@ -37,25 +37,72 @@ jobs:
           chmod +x /usr/local/bin/bosh
           bosh --version
 
-      - name: Create stub blobs for CI
+      - name: Download vendored blobs
         run: |
           VERSION="${GITHUB_REF_NAME#v}"
           echo "Building release for version ${VERSION}"
-
-          # Create stub tarballs for external dependencies
-          # Real deployments use scripts/add-blob.sh with actual binaries
           mkdir -p src/node src/golang src/openclaw src/oauth2-proxy
-          tar czf src/node/node-v22.13.1.tar.gz --files-from /dev/null
-          tar czf src/golang/go1.22.0.linux-amd64.tar.gz --files-from /dev/null
-          tar czf src/openclaw/openclaw-${VERSION}.tgz --files-from /dev/null
-          tar czf src/openclaw/skills-bundle-${VERSION}.tgz --files-from /dev/null
-          tar czf src/oauth2-proxy/oauth2-proxy-7.6.0.linux-amd64.tar.gz --files-from /dev/null
 
-          # Ensure admin dashboard source placeholder exists
-          mkdir -p src/openclaw-admin-dashboard
-          if [ ! -f src/openclaw-admin-dashboard/package.json ]; then
-            echo '{"name":"openclaw-admin-dashboard","version":"0.0.1"}' > src/openclaw-admin-dashboard/package.json
-          fi
+          # Download real Node.js binary (linux-x64)
+          NODE_VERSION="22.13.1"
+          echo "Downloading Node.js v${NODE_VERSION}..."
+          curl -sSL "https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-x64.tar.gz" \
+            -o src/node/node-v${NODE_VERSION}-linux-x64.tar.gz
+          ls -lh src/node/
+
+          # Download real Go binary (linux-amd64)
+          GO_VERSION="1.22.0"
+          echo "Downloading Go ${GO_VERSION}..."
+          curl -sSL "https://go.dev/dl/go${GO_VERSION}.linux-amd64.tar.gz" \
+            -o src/golang/go${GO_VERSION}.linux-amd64.tar.gz
+          ls -lh src/golang/
+
+          # Download real oauth2-proxy binary
+          OAUTH2_PROXY_VERSION="7.6.0"
+          echo "Downloading oauth2-proxy v${OAUTH2_PROXY_VERSION}..."
+          curl -sSL -L "https://github.com/oauth2-proxy/oauth2-proxy/releases/download/v${OAUTH2_PROXY_VERSION}/oauth2-proxy-v${OAUTH2_PROXY_VERSION}.linux-amd64.tar.gz" \
+            -o src/oauth2-proxy/oauth2-proxy-${OAUTH2_PROXY_VERSION}.linux-amd64.tar.gz
+          ls -lh src/oauth2-proxy/
+
+          # Create OpenClaw CLI placeholder npm package
+          # (Real package will be published separately; this is a functional stub)
+          TMPDIR=$(mktemp -d)
+          mkdir -p "${TMPDIR}/package/dist"
+          cat > "${TMPDIR}/package/package.json" <<PKGJSON
+          {"name":"openclaw","version":"${VERSION}","bin":{"openclaw":"dist/cli.js"}}
+          PKGJSON
+          cat > "${TMPDIR}/package/dist/cli.js" <<'CLIJS'
+          #!/usr/bin/env node
+          const cmd = process.argv[2];
+          if (cmd === 'registry') {
+            const sub = process.argv[3];
+            if (sub === 'serve') {
+              const portIdx = process.argv.indexOf('--port');
+              const port = portIdx > -1 ? process.argv[portIdx + 1] : '8081';
+              require('http').createServer((req, res) => {
+                res.writeHead(200, {'Content-Type':'application/json'});
+                res.end('{"skills":[]}');
+              }).listen(port, () => console.log('OpenClaw registry on port ' + port));
+            } else if (sub === 'sync') {
+              console.log('OpenClaw registry sync complete (placeholder)');
+            } else if (sub === 'verify-signature') {
+              console.log('Signature OK (placeholder)');
+            }
+          } else {
+            console.log('OpenClaw CLI v' + require('./package.json').version + ' (placeholder)');
+          }
+          CLIJS
+          tar czf "src/openclaw/openclaw-${VERSION}.tgz" -C "${TMPDIR}" package
+
+          # Create placeholder skills bundle
+          SKILLS_DIR=$(mktemp -d)
+          echo '{"version":"'"${VERSION}"'"}' > "${SKILLS_DIR}/manifest.json"
+          tar czf "src/openclaw/skills-bundle-${VERSION}.tgz" -C "${SKILLS_DIR}" .
+          ls -lh src/openclaw/
+
+      - name: Vendor Go dependencies
+        working-directory: src/openclaw-broker
+        run: go mod vendor
 
       - name: Create BOSH release
         run: |

@@ -1,5 +1,5 @@
 set -e
-export PATH=${BOSH_PACKAGES_DIR}/node22/bin:$PATH
+export PATH=/var/vcap/packages/node22/bin:$PATH
 export HOME=/var/vcap
 
 mkdir -p ${BOSH_INSTALL_TARGET}/lib

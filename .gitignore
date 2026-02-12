@@ -13,6 +13,7 @@ product/
 # Dependencies
 node_modules/
 vendor/
+!src/openclaw-broker/vendor/
 
 # Build artifacts
 *.tar.gz

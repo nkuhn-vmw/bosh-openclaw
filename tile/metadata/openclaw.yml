@@ -16,6 +16,46 @@ requires_product_versions:
   - name: cf
     version: "~> 4.0"
 
+service_plan_forms:
+  - name: on_demand_agent_plans
+    label: On-Demand Agent Plans
+    description: |
+      Configure agent plans available in the CF marketplace.
+      Each plan defines the VM size, disk, and capabilities for agent instances.
+    optional: true
+    properties:
+      - name: plan_description
+        type: string
+        label: Plan Description
+        description: Description shown to developers in the marketplace
+        configurable: true
+        default: "OpenClaw AI agent instance"
+      - name: vm_type
+        type: vm_type_dropdown
+        label: VM Type
+        description: VM type for agent instances. Larger VMs provide more CPU and memory.
+        configurable: true
+      - name: disk_type
+        type: disk_type_dropdown
+        label: Persistent Disk Type
+        description: Persistent disk for agent workspace and project files.
+        configurable: true
+      - name: browser_automation
+        type: boolean
+        label: Enable Browser Automation
+        description: Allow agents on this plan to use browser automation tools
+        default: false
+        configurable: true
+      - name: max_sessions
+        type: integer
+        label: Max Concurrent Sessions
+        description: Maximum number of concurrent chat sessions per agent instance
+        default: 1
+        configurable: true
+        constraints:
+          min: 1
+          max: 10
+
 stemcell_criteria:
   os: ubuntu-jammy
   version: "1.0"
@@ -245,24 +285,6 @@ property_blueprints:
     default: 10
 
   #
-  # Service plans
-  #
-  - name: enable_developer_plan
-    type: boolean
-    configurable: true
-    default: true
-
-  - name: enable_developer_plus_plan
-    type: boolean
-    configurable: true
-    default: true
-
-  - name: enable_team_plan
-    type: boolean
-    configurable: true
-    default: false
-
-  #
   # Agent Networking
   #
   - name: broker_route_prefix
@@ -379,17 +401,8 @@ form_types:
 
   - name: broker-config
     label: Service Broker
-    description: Configure service plans and agent instance limits
+    description: Configure agent instance limits
     property_inputs:
-      - reference: .properties.enable_developer_plan
-        label: Enable Developer Plan
-        description: "Basic single-user agent (small VM, 10GB disk)"
-      - reference: .properties.enable_developer_plus_plan
-        label: Enable Developer Plus Plan
-        description: "Enhanced agent with browser automation (medium VM, 20GB disk)"
-      - reference: .properties.enable_team_plan
-        label: Enable Team Plan
-        description: "Multi-user shared agent (large VM, 50GB disk)"
       - reference: .properties.max_instances
         label: Maximum Total Instances
       - reference: .properties.max_instances_per_org
@@ -455,26 +468,44 @@ job_types:
             username: (( .properties.generated_broker_credentials.identity ))
             password: (( .properties.generated_broker_credentials.password ))
           bosh:
-            director_url: https://(( $director.deployment_ip )):25555
-            client_id: (( $self.uaa_client_name ))
-            client_secret: (( $self.uaa_client_credentials ))
-            ca_cert: (( $director.ca_public_key ))
+            url: https://(( $director.hostname )):25555
+            root_ca_cert: (( $director.ca_public_key ))
+            authentication:
+              uaa:
+                url: https://(( $director.hostname )):8443
+                client_id: (( $self.uaa_client_name ))
+                client_secret: (( $self.uaa_client_secret ))
           genai: (( .properties.genai_provider.selected_option.parsed_manifest(genai_fragment) ))
           security:
             sandbox_mode: (( .properties.sandbox_mode.value ))
             control_ui_enabled: (( .properties.control_ui_enabled.value ))
             blocked_commands: (( .properties.blocked_commands.value ))
             min_openclaw_version: (( .properties.min_openclaw_version.value ))
-          plans:
-            developer:
-              enabled: (( .properties.enable_developer_plan.value ))
-            developer_plus:
-              enabled: (( .properties.enable_developer_plus_plan.value ))
-            team:
-              enabled: (( .properties.enable_team_plan.value ))
+          on_demand:
+            service_name: openclaw
+            plans: (( .properties.on_demand_agent_plans.value ))
+            stemcell_os: ubuntu-jammy
+            stemcell_version: latest
+            network: (( $self.service_network ))
+          cf:
+            system_domain: (( ..cf.cloud_controller.system_domain.value ))
+            apps_domain: (( ..cf.cloud_controller.apps_domain.value ))
+            deployment_name: (( ..cf.deployment_name ))
+          nats:
+            tls:
+              enabled: true
+              client_cert: (( ..cf.properties.nats_client_cert.cert_pem ))
+              client_key: (( ..cf.properties.nats_client_cert.private_key_pem ))
+              ca_cert: (( ..cf.properties.nats_tls_external_cert.cert_pem ))
           limits:
             max_instances: (( .properties.max_instances.value ))
             max_instances_per_org: (( .properties.max_instances_per_org.value ))
+      nats:
+        tls:
+          enabled: true
+          client_cert: (( ..cf.properties.nats_client_cert.cert_pem ))
+          client_key: (( ..cf.properties.nats_client_cert.private_key_pem ))
+          ca_cert: (( ..cf.properties.nats_tls_external_cert.cert_pem ))
       route_registrar:
         routes:
           - name: openclaw-broker
@@ -489,10 +520,10 @@ job_types:
         release: bpm
       - name: route_registrar
         release: routing
-        consumes:
-          nats:
-            from: nats
-            deployment: cf
+        consumes: |
+          nats-tls:
+            from: nats-tls
+            deployment: (( ..cf.deployment_name ))
 
   #
   # openclaw-registry
@@ -580,6 +611,12 @@ job_types:
           auth:
             username: admin
             password: (( .properties.generated_broker_credentials.password ))
+      nats:
+        tls:
+          enabled: true
+          client_cert: (( ..cf.properties.nats_client_cert.cert_pem ))
+          client_key: (( ..cf.properties.nats_client_cert.private_key_pem ))
+          ca_cert: (( ..cf.properties.nats_tls_external_cert.cert_pem ))
       route_registrar:
         routes:
           - name: openclaw-admin-dashboard
@@ -594,10 +631,10 @@ job_types:
         release: bpm
       - name: route_registrar
         release: routing
-        consumes:
-          nats:
-            from: nats
-            deployment: cf
+        consumes: |
+          nats-tls:
+            from: nats-tls
+            deployment: (( ..cf.deployment_name ))
 
   #
   # register-broker errand
@@ -634,8 +671,8 @@ job_types:
     manifest: |
       cf:
         api_url: https://api.(( $runtime.system_domain ))
-        admin_username: (( $cf.uaa_admin_client_credentials.identity ))
-        admin_password: (( $cf.uaa_admin_client_credentials.password ))
+        admin_username: (( ..cf.uaa.system_services_credentials.identity ))
+        admin_password: (( ..cf.uaa.system_services_credentials.password ))
         skip_ssl_validation: true
       broker:
         name: openclaw
@@ -683,8 +720,8 @@ job_types:
     manifest: |
       cf:
         api_url: https://api.(( $runtime.system_domain ))
-        admin_username: (( $cf.uaa_admin_client_credentials.identity ))
-        admin_password: (( $cf.uaa_admin_client_credentials.password ))
+        admin_username: (( ..cf.uaa.system_services_credentials.identity ))
+        admin_password: (( ..cf.uaa.system_services_credentials.password ))
         skip_ssl_validation: true
       broker:
         name: openclaw
@@ -727,8 +764,8 @@ job_types:
     manifest: |
       cf:
         api_url: https://api.(( $runtime.system_domain ))
-        admin_username: (( $cf.uaa_admin_client_credentials.identity ))
-        admin_password: (( $cf.uaa_admin_client_credentials.password ))
+        admin_username: (( ..cf.uaa.system_services_credentials.identity ))
+        admin_password: (( ..cf.uaa.system_services_credentials.password ))
         skip_ssl_validation: true
       smoke_tests:
         plan: developer

@@ -19,6 +19,10 @@ releases:
     version: "VERSION_PLACEHOLDER"
     file: openclaw-release-VERSION_PLACEHOLDER.tgz
     sha1: SHA1_PLACEHOLDER
+  - name: bpm
+    version: "1.1.21"
+    file: bpm-1.1.21.tgz
+    sha1: BPM_SHA1_PLACEHOLDER
 
 # ---------------------------------------------------------------------------
 # Property Blueprints
@@ -495,6 +499,8 @@ job_types:
         release: openclaw
       - name: route-registrar
         release: openclaw
+      - name: bpm
+        release: bpm
 
   #
   # openclaw-registry
@@ -540,6 +546,8 @@ job_types:
     templates:
       - name: openclaw-registry
         release: openclaw
+      - name: bpm
+        release: bpm
 
   #
   # openclaw-admin-dashboard
@@ -592,6 +600,8 @@ job_types:
         release: openclaw
       - name: route-registrar
         release: openclaw
+      - name: bpm
+        release: bpm
 
   #
   # register-broker errand

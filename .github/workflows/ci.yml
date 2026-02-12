@@ -93,6 +93,13 @@ jobs:
           cp openclaw-release.tgz "${RELEASE_FILE}"
           RELEASE_SHA1=$(sha1sum "${RELEASE_FILE}" | awk '{print $1}')
 
+          # Download vendored dependency releases for air-gap support
+          BPM_VERSION="1.1.21"
+          BPM_FILE="bpm-${BPM_VERSION}.tgz"
+          echo "Downloading BPM release ${BPM_VERSION}..."
+          curl -sL "https://bosh.io/d/github.com/cloudfoundry/bpm-release?v=${BPM_VERSION}" -o "${BPM_FILE}"
+          BPM_SHA1=$(sha1sum "${BPM_FILE}" | awk '{print $1}')
+
           # Stamp version, sha1, and icon into metadata
           # Use python for icon substitution since base64 PNG is too large for sed
           ICON_B64=$(base64 -w0 resources/icon.png)
@@ -102,6 +109,7 @@ jobs:
               content = f.read()
           content = content.replace('VERSION_PLACEHOLDER', '${VERSION}')
           content = content.replace('SHA1_PLACEHOLDER', '${RELEASE_SHA1}')
+          content = content.replace('BPM_SHA1_PLACEHOLDER', '${BPM_SHA1}')
           content = content.replace('ICON_BASE64_PLACEHOLDER', sys.stdin.read().strip())
           with open('metadata-stamped.yml', 'w') as f:
               f.write(content)
@@ -112,6 +120,7 @@ jobs:
           touch "${TILE_DIR}/migrations/.keep"
           cp metadata-stamped.yml "${TILE_DIR}/metadata/openclaw.yml"
           cp "${RELEASE_FILE}" "${TILE_DIR}/releases/"
+          cp "${BPM_FILE}" "${TILE_DIR}/releases/"
 
           mkdir -p product
           cd "${TILE_DIR}"

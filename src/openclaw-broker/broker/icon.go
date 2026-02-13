@@ -1,0 +1,60 @@
+package broker
+
+import "encoding/base64"
+
+const iconSVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
+  <!-- Background circle -->
+  <circle cx="128" cy="128" r="120" fill="#1a1a2e"/>
+  <circle cx="128" cy="128" r="112" fill="#16213e"/>
+
+  <!-- Left claw arm -->
+  <path d="M88 180 L88 120 Q88 100 78 85 L60 58 Q55 50 62 46 Q69 42 74 50 L98 88 Q105 100 105 115 L105 180"
+        fill="#c0392b" stroke="#e74c3c" stroke-width="2" stroke-linejoin="round"/>
+
+  <!-- Right claw arm -->
+  <path d="M168 180 L168 120 Q168 100 178 85 L196 58 Q201 50 194 46 Q187 42 182 50 L158 88 Q151 100 151 115 L151 180"
+        fill="#c0392b" stroke="#e74c3c" stroke-width="2" stroke-linejoin="round"/>
+
+  <!-- Left pincer (upper jaw) -->
+  <path d="M60 58 Q50 42 38 38 Q28 35 30 45 Q32 55 45 60 L60 58 Z"
+        fill="#e74c3c" stroke="#ff6b6b" stroke-width="1.5"/>
+
+  <!-- Left pincer (lower jaw) -->
+  <path d="M60 58 Q48 62 40 72 Q34 80 44 78 Q54 76 60 66 L60 58 Z"
+        fill="#d63031" stroke="#ff6b6b" stroke-width="1.5"/>
+
+  <!-- Right pincer (upper jaw) -->
+  <path d="M196 58 Q206 42 218 38 Q228 35 226 45 Q224 55 211 60 L196 58 Z"
+        fill="#e74c3c" stroke="#ff6b6b" stroke-width="1.5"/>
+
+  <!-- Right pincer (lower jaw) -->
+  <path d="M196 58 Q208 62 216 72 Q222 80 212 78 Q202 76 196 66 L196 58 Z"
+        fill="#d63031" stroke="#ff6b6b" stroke-width="1.5"/>
+
+  <!-- Central body -->
+  <rect x="96" y="110" rx="8" ry="8" width="64" height="80" fill="#c0392b" stroke="#e74c3c" stroke-width="2"/>
+
+  <!-- AI "eye" / sensor -->
+  <circle cx="128" cy="140" r="18" fill="#1a1a2e" stroke="#e74c3c" stroke-width="2"/>
+  <circle cx="128" cy="140" r="10" fill="#00d2ff"/>
+  <circle cx="128" cy="140" r="5" fill="#ffffff" opacity="0.9"/>
+
+  <!-- Circuit lines on body -->
+  <line x1="108" y1="168" x2="118" y2="168" stroke="#ff6b6b" stroke-width="1.5" opacity="0.6"/>
+  <line x1="138" y1="168" x2="148" y2="168" stroke="#ff6b6b" stroke-width="1.5" opacity="0.6"/>
+  <line x1="108" y1="176" x2="148" y2="176" stroke="#ff6b6b" stroke-width="1.5" opacity="0.6"/>
+
+  <!-- Joint details -->
+  <circle cx="88" cy="120" r="5" fill="#e74c3c" stroke="#ff6b6b" stroke-width="1"/>
+  <circle cx="168" cy="120" r="5" fill="#e74c3c" stroke="#ff6b6b" stroke-width="1"/>
+
+  <!-- Base / platform feet -->
+  <rect x="82" y="188" rx="4" ry="4" width="92" height="16" fill="#922b21" stroke="#c0392b" stroke-width="1.5"/>
+  <rect x="90" y="202" rx="3" ry="3" width="76" height="10" fill="#7b241c" stroke="#922b21" stroke-width="1"/>
+</svg>`
+
+// IconDataURI returns the OpenClaw icon as a base64-encoded SVG data URI
+// suitable for use in the service broker catalog imageUrl field.
+func IconDataURI() string {
+	return "data:image/svg+xml;base64," + base64.StdEncoding.EncodeToString([]byte(iconSVG))
+}

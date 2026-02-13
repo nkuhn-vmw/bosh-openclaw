@@ -47,6 +47,7 @@ func (b *Broker) Catalog(w http.ResponseWriter, r *http.Request) {
 				Tags:                 []string{"ai", "agent", "openclaw", "llm"},
 				Metadata: map[string]interface{}{
 					"displayName":         "OpenClaw AI Agent",
+					"imageUrl":            IconDataURI(),
 					"longDescription":     "Deploy a dedicated OpenClaw AI agent with persistent memory, shell access, browser automation, and 50+ integrations. Each instance runs on its own isolated VM with a dedicated WebChat UI.",
 					"providerDisplayName": "OpenClaw Platform",
 					"documentationUrl":    "https://github.com/openclaw/openclaw",

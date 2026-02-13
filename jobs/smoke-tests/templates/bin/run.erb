@@ -6,45 +6,137 @@ export PATH="/var/vcap/packages/cf-cli/bin:${PATH}"
 CF_API="<%= p('cf.api_url') %>"
 CF_USER="<%= p('cf.admin_username') %>"
 CF_PASSWORD="<%= p('cf.admin_password') %>"
+SMOKE_ORG="<%= p('smoke_tests.org') %>"
+SMOKE_SPACE="<%= p('smoke_tests.space') %>"
+PLAN="<%= p('smoke_tests.plan') %>"
+TIMEOUT="<%= p('smoke_tests.timeout_seconds') %>"
+VERIFY_ROUTE="<%= p('smoke_tests.verify_webchat_route') %>"
 
 SSL_FLAG=""
 <% if p('cf.skip_ssl_validation') %>
 SSL_FLAG="--skip-ssl-validation"
 <% end %>
 
+SERVICE_INSTANCE="smoke-test-agent"
+SERVICE_KEY="smoke-key"
+
+cleanup() {
+  echo ""
+  echo "=== Cleanup ==="
+  cf delete-service-key "${SERVICE_INSTANCE}" "${SERVICE_KEY}" -f 2>/dev/null || true
+  cf delete-service "${SERVICE_INSTANCE}" -f 2>/dev/null || true
+
+  # Wait for service deletion to complete
+  local elapsed=0
+  while [ $elapsed -lt $TIMEOUT ]; do
+    if ! cf service "${SERVICE_INSTANCE}" 2>/dev/null | grep -q "delete in progress"; then
+      break
+    fi
+    sleep 5
+    elapsed=$((elapsed + 5))
+  done
+
+  cf delete-org "${SMOKE_ORG}" -f 2>/dev/null || true
+  echo "Cleanup complete."
+}
+trap cleanup EXIT
+
 echo "=== OpenClaw Smoke Tests ==="
 echo ""
 
-# Login
-echo "[1/3] Logging in to Cloud Foundry..."
+# [1/7] Login
+echo "[1/7] Logging in to Cloud Foundry..."
 cf api "${CF_API}" ${SSL_FLAG}
 cf auth "${CF_USER}" "${CF_PASSWORD}"
 
-# Verify service is available in marketplace
-echo "[2/3] Verifying openclaw service in marketplace..."
-cf create-org openclaw-smoke-tests 2>/dev/null || true
-cf target -o openclaw-smoke-tests
-cf create-space smoke-tests 2>/dev/null || true
-cf target -s smoke-tests
+# [2/7] Create org/space
+echo "[2/7] Creating smoke test org and space..."
+cf create-org "${SMOKE_ORG}" 2>/dev/null || true
+cf target -o "${SMOKE_ORG}"
+cf create-space "${SMOKE_SPACE}" 2>/dev/null || true
+cf target -s "${SMOKE_SPACE}"
 
+# [3/7] Verify marketplace
+echo "[3/7] Verifying openclaw service in marketplace..."
 if ! cf marketplace | grep -q "openclaw"; then
   echo "FAIL: openclaw service not found in marketplace"
-  cf delete-org openclaw-smoke-tests -f 2>/dev/null || true
   exit 1
 fi
 echo "PASS: openclaw service found in marketplace"
 
-# Verify broker catalog has plans
-echo "[3/3] Verifying service plans..."
-PLAN_COUNT=$(cf marketplace -e openclaw 2>/dev/null | grep -c "openclaw-" || echo "0")
-if [ "${PLAN_COUNT}" -gt 0 ]; then
-  echo "PASS: Found ${PLAN_COUNT} service plan(s)"
-else
-  echo "WARN: No plans found (operators should configure plans in OpsMan)"
+# [4/7] Create service instance
+echo "[4/7] Creating service instance (plan: ${PLAN})..."
+cf create-service openclaw "${PLAN}" "${SERVICE_INSTANCE}"
+echo "Service instance creation initiated."
+
+# [5/7] Wait for provisioning
+echo "[5/7] Waiting for provisioning to complete (timeout: ${TIMEOUT}s)..."
+elapsed=0
+while [ $elapsed -lt $TIMEOUT ]; do
+  status=$(cf service "${SERVICE_INSTANCE}" 2>&1)
+  if echo "${status}" | grep -q "create succeeded"; then
+    echo "PASS: Service instance provisioned successfully"
+    break
+  fi
+  if echo "${status}" | grep -q "create failed"; then
+    echo "FAIL: Service instance provisioning failed"
+    echo "${status}"
+    exit 1
+  fi
+  sleep 10
+  elapsed=$((elapsed + 10))
+  echo "  ...waiting (${elapsed}s / ${TIMEOUT}s)"
+done
+
+if [ $elapsed -ge $TIMEOUT ]; then
+  echo "FAIL: Timed out waiting for service instance to provision"
+  cf service "${SERVICE_INSTANCE}"
+  exit 1
 fi
 
-# Cleanup
-cf delete-org openclaw-smoke-tests -f 2>/dev/null || true
+# [6/7] Validate service key
+echo "[6/7] Validating service key credentials..."
+cf create-service-key "${SERVICE_INSTANCE}" "${SERVICE_KEY}"
+KEY_OUTPUT=$(cf service-key "${SERVICE_INSTANCE}" "${SERVICE_KEY}" 2>&1)
+
+# Extract JSON portion (skip the first two header lines from cf service-key output)
+KEY_JSON=$(echo "${KEY_OUTPUT}" | sed '1,2d')
+
+FAILED=0
+for field in webchat_url gateway_token instance_id; do
+  if ! echo "${KEY_JSON}" | grep -q "\"${field}\""; then
+    echo "FAIL: Service key missing expected field: ${field}"
+    FAILED=1
+  fi
+done
+
+if [ $FAILED -eq 1 ]; then
+  echo "Service key output:"
+  echo "${KEY_JSON}"
+  exit 1
+fi
+echo "PASS: Service key contains expected credential fields"
+
+# [7/7] Verify webchat route (conditional)
+<% if p('smoke_tests.verify_webchat_route') %>
+echo "[7/7] Verifying webchat route..."
+WEBCHAT_URL=$(echo "${KEY_JSON}" | grep '"webchat_url"' | sed 's/.*: *"\(.*\)".*/\1/' | sed 's/,$//')
+
+if [ -z "${WEBCHAT_URL}" ]; then
+  echo "FAIL: Could not extract webchat_url from service key"
+  exit 1
+fi
+
+HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" --max-time 30 ${SSL_FLAG:+--insecure} "${WEBCHAT_URL}" || echo "000")
+
+if [ "${HTTP_CODE}" = "200" ]; then
+  echo "PASS: WebChat UI is accessible (HTTP ${HTTP_CODE})"
+else
+  echo "WARN: WebChat UI returned HTTP ${HTTP_CODE} (may still be starting up)"
+fi
+<% else %>
+echo "[7/7] Skipping webchat route verification (disabled)."
+<% end %>
 
 echo ""
 echo "=== All smoke tests passed ==="

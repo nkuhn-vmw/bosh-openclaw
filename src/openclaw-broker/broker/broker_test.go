@@ -170,6 +170,36 @@ func TestCatalog_HasThreePlans(t *testing.T) {
 	}
 }
 
+func TestCatalog_HasImageUrl(t *testing.T) {
+	_, fakeBOSH, router := newTestBroker("done", false)
+	defer fakeBOSH.Close()
+
+	req := httptest.NewRequest("GET", "/v2/catalog", nil)
+	rr := httptest.NewRecorder()
+	router.ServeHTTP(rr, req)
+
+	var catalog CatalogResponse
+	if err := json.Unmarshal(rr.Body.Bytes(), &catalog); err != nil {
+		t.Fatalf("Failed to unmarshal catalog: %v", err)
+	}
+
+	metadata := catalog.Services[0].Metadata
+	imageUrl, ok := metadata["imageUrl"]
+	if !ok {
+		t.Fatal("Catalog metadata missing imageUrl")
+	}
+
+	imageUrlStr, ok := imageUrl.(string)
+	if !ok {
+		t.Fatalf("imageUrl is not a string: %T", imageUrl)
+	}
+
+	prefix := "data:image/svg+xml;base64,"
+	if len(imageUrlStr) < len(prefix) || imageUrlStr[:len(prefix)] != prefix {
+		t.Errorf("imageUrl does not start with %q, got: %s...", prefix, imageUrlStr[:50])
+	}
+}
+
 func TestCatalog_ServiceIsBindable(t *testing.T) {
 	_, fakeBOSH, router := newTestBroker("done", false)
 	defer fakeBOSH.Close()

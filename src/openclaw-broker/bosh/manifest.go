@@ -2,6 +2,7 @@ package bosh
 
 import (
 	"bytes"
+	"strings"
 	"text/template"
 )
 
@@ -52,7 +53,7 @@ instance_groups:
 
     vm_type: {{ .VMType }}
     stemcell: default
-    azs: [{{ .AZ }}]
+    azs: [{{ .AZsYAML }}]
     persistent_disk_type: {{ .DiskType }}
     networks:
       - name: {{ .Network }}
@@ -88,9 +89,14 @@ type ManifestParams struct {
 	ControlUIEnabled bool
 	OpenClawVersion string
 	Network         string
-	AZ              string
+	AZs             []string
 	StemcellOS      string
 	StemcellVersion string
+}
+
+// AZsYAML returns the AZs formatted for inline YAML: "az1, az2"
+func (p ManifestParams) AZsYAML() string {
+	return strings.Join(p.AZs, ", ")
 }
 
 func RenderAgentManifest(params ManifestParams) []byte {

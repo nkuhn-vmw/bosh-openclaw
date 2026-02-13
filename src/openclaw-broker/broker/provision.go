@@ -145,9 +145,9 @@ func (b *Broker) buildManifestParams(instance *Instance) bosh.ManifestParams {
 	if stemcellVersion == "" {
 		stemcellVersion = "latest"
 	}
-	az := b.config.AZ
-	if az == "" {
-		az = "z1"
+	azs := b.config.AZs
+	if len(azs) == 0 {
+		azs = []string{"z1"}
 	}
 
 	return bosh.ManifestParams{
@@ -163,7 +163,7 @@ func (b *Broker) buildManifestParams(instance *Instance) bosh.ManifestParams {
 		ControlUIEnabled: instance.ControlUIEnabled,
 		OpenClawVersion:  instance.OpenClawVersion,
 		Network:          network,
-		AZ:               az,
+		AZs:              azs,
 		StemcellOS:       stemcellOS,
 		StemcellVersion:  stemcellVersion,
 	}

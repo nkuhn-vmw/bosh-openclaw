@@ -143,8 +143,8 @@ properties:
     description: "BOSH network for on-demand agent VMs"
     default: ""
   openclaw.broker.on_demand.az:
-    description: "BOSH availability zone for on-demand agent VMs"
-    default: ""
+    description: "BOSH availability zones for on-demand agent VMs (array from service_network_az_multi_select)"
+    default: []
 
   # Cloud Foundry platform configuration
   openclaw.broker.cf.system_domain:

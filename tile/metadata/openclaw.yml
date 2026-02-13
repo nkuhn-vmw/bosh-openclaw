@@ -231,11 +231,10 @@ property_blueprints:
     configurable: true
     default: 8
 
-  # On-demand agent AZ (must match an AZ on the service network)
+  # On-demand agent AZ (populated from service network AZs)
   - name: on_demand_az
-    type: string
+    type: service_network_az_multi_select
     configurable: true
-    default: "z1"
 
   #
   # Service plans — Developer
@@ -475,8 +474,10 @@ form_types:
     description: Configure on-demand agent plans available in the CF marketplace
     property_inputs:
       - reference: .properties.on_demand_az
-        label: Availability Zone
-        description: BOSH AZ for on-demand agent VMs (must match an AZ on the service network)
+        label: AZs to deploy agent instances
+        description: >
+          AZs of the service network (configured in the Ops Manager Director tile).
+          If multiple AZs are selected then new instances will be distributed randomly between them.
       - reference: .properties.developer_plan_enabled
         label: Enable Developer Plan
       - reference: .properties.developer_plan_description

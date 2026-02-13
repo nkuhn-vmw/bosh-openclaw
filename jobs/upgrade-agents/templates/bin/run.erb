@@ -10,6 +10,19 @@ BROKER_USER="<%= p('upgrade_agents.broker_auth.username') %>"
 BROKER_PASSWORD="<%= p('upgrade_agents.broker_auth.password') %>"
 HEALTH_TIMEOUT="<%= p('upgrade_agents.health_check_timeout') %>"
 
+# Extract a numeric JSON field value using grep/sed (no python3/jq dependency).
+# Usage: json_int '{"healthy":5}' "healthy"  =>  5
+json_int() {
+  local json="$1" key="$2"
+  echo "${json}" | grep -o "\"${key}\"[[:space:]]*:[[:space:]]*[0-9]*" | grep -o '[0-9]*$' || echo "0"
+}
+
+# Count occurrences of "id" fields to determine array length.
+# Usage: json_array_len '{"instances":[{"id":"a"},{"id":"b"}]}'  =>  2
+json_array_len() {
+  echo "$1" | grep -o '"id"' | wc -l | tr -d ' '
+}
+
 echo "=== OpenClaw Agent Upgrade Errand ==="
 echo "Target version: ${TARGET_VERSION}"
 echo "Canary percentage: ${CANARY_PCT}%"
@@ -22,7 +35,7 @@ INSTANCES=$(curl -s -u "${BROKER_USER}:${BROKER_PASSWORD}" \
   "${BROKER_ENDPOINT}/admin/instances" \
   --max-time 30)
 
-TOTAL=$(echo "${INSTANCES}" | python3 -c "import sys,json; print(len(json.load(sys.stdin)['instances']))" 2>/dev/null || echo "0")
+TOTAL=$(json_array_len "${INSTANCES}")
 
 if [ "${TOTAL}" = "0" ]; then
   echo "No agent instances found. Nothing to upgrade."
@@ -53,9 +66,10 @@ echo "Waiting for canary instances to become healthy..."
 
 ELAPSED=0
 while [ ${ELAPSED} -lt ${HEALTH_TIMEOUT} ]; do
-  HEALTHY=$(curl -s -u "${BROKER_USER}:${BROKER_PASSWORD}" \
+  STATUS=$(curl -s -u "${BROKER_USER}:${BROKER_PASSWORD}" \
     "${BROKER_ENDPOINT}/admin/upgrade/status" \
-    --max-time 10 | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('healthy',0))" 2>/dev/null || echo "0")
+    --max-time 10 || echo '{}')
+  HEALTHY=$(json_int "${STATUS}" "healthy")
 
   if [ "${HEALTHY}" -ge "${CANARY_COUNT}" ]; then
     echo "All canary instances are healthy."
@@ -96,9 +110,10 @@ if [ ${REMAINING} -gt 0 ]; then
 
   ELAPSED=0
   while [ ${ELAPSED} -lt ${HEALTH_TIMEOUT} ]; do
-    HEALTHY=$(curl -s -u "${BROKER_USER}:${BROKER_PASSWORD}" \
+    STATUS=$(curl -s -u "${BROKER_USER}:${BROKER_PASSWORD}" \
       "${BROKER_ENDPOINT}/admin/upgrade/status" \
-      --max-time 10 | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('healthy',0))" 2>/dev/null || echo "0")
+      --max-time 10 || echo '{}')
+    HEALTHY=$(json_int "${STATUS}" "healthy")
 
     if [ "${HEALTHY}" -ge "${TOTAL}" ]; then
       echo "All instances upgraded and healthy."

@@ -4,6 +4,7 @@ name: openclaw-sso-proxy
 templates:
   bin/ctl.erb: bin/ctl
   config/oauth2-proxy.cfg.erb: config/oauth2-proxy.cfg
+  config/allowed-emails.txt.erb: config/allowed-emails.txt
 
 packages:
   - oauth2-proxy

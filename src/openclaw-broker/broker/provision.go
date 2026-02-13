@@ -45,6 +45,26 @@ func (b *Broker) Provision(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Enforce quota limits
+	if b.config.MaxInstances > 0 && b.countInstances() >= b.config.MaxInstances {
+		log.Printf("Quota exceeded: %d/%d total instances", b.countInstances(), b.config.MaxInstances)
+		w.WriteHeader(http.StatusUnprocessableEntity)
+		json.NewEncoder(w).Encode(map[string]string{
+			"error":       "Quota exceeded",
+			"description": fmt.Sprintf("Maximum total instances (%d) reached", b.config.MaxInstances),
+		})
+		return
+	}
+	if b.config.MaxInstancesPerOrg > 0 && b.countInstancesByOrg(req.OrganizationGUID) >= b.config.MaxInstancesPerOrg {
+		log.Printf("Quota exceeded: org %s has %d/%d instances", req.OrganizationGUID, b.countInstancesByOrg(req.OrganizationGUID), b.config.MaxInstancesPerOrg)
+		w.WriteHeader(http.StatusUnprocessableEntity)
+		json.NewEncoder(w).Encode(map[string]string{
+			"error":       "Quota exceeded",
+			"description": fmt.Sprintf("Maximum instances per org (%d) reached", b.config.MaxInstancesPerOrg),
+		})
+		return
+	}
+
 	// Enforce minimum OpenClaw version (CVE-2026-25253)
 	openclawVersion := b.config.OpenClawVersion
 	if v, ok := req.Parameters["openclaw_version"]; ok {
@@ -105,13 +125,19 @@ func (b *Broker) Provision(w http.ResponseWriter, r *http.Request) {
 		VMType:           plan.VMType,
 		DiskType:         plan.DiskType,
 		State:            "provisioning",
+		SSOEnabled:       b.config.SSOEnabled,
 		ControlUIEnabled: controlUIEnabled,
 		OpenClawVersion:  openclawVersion,
 	}
 
 	// Build manifest params and deploy via BOSH
 	params := b.buildManifestParams(instance)
-	manifest := bosh.RenderAgentManifest(params)
+	manifest, err := bosh.RenderAgentManifest(params)
+	if err != nil {
+		log.Printf("Manifest render failed for %s: %v", instanceID, err)
+		http.Error(w, `{"error": "Failed to render deployment manifest"}`, http.StatusInternalServerError)
+		return
+	}
 	taskID, err := b.director.Deploy(manifest)
 	if err != nil {
 		log.Printf("BOSH deploy failed for %s: %v", instanceID, err)
@@ -150,22 +176,48 @@ func (b *Broker) buildManifestParams(instance *Instance) bosh.ManifestParams {
 		azs = []string{"z1"}
 	}
 
+	sandboxMode := b.config.SandboxMode
+	if sandboxMode == "" {
+		sandboxMode = "strict"
+	}
+	cfDeploymentName := b.config.CFDeploymentName
+	if cfDeploymentName == "" {
+		cfDeploymentName = "cf"
+	}
+	openclawReleaseVersion := b.config.OpenClawReleaseVersion
+	if openclawReleaseVersion == "" {
+		openclawReleaseVersion = "latest"
+	}
+	bpmReleaseVersion := b.config.BPMReleaseVersion
+	if bpmReleaseVersion == "" {
+		bpmReleaseVersion = "latest"
+	}
+	routingReleaseVersion := b.config.RoutingReleaseVersion
+	if routingReleaseVersion == "" {
+		routingReleaseVersion = "latest"
+	}
+
 	return bosh.ManifestParams{
-		DeploymentName:   instance.DeploymentName,
-		ID:               instance.ID,
-		Owner:            instance.Owner,
-		PlanName:         instance.PlanName,
-		GatewayToken:     instance.GatewayToken,
-		NodeSeed:         instance.NodeSeed,
-		RouteHostname:    instance.RouteHostname,
-		VMType:           instance.VMType,
-		DiskType:         instance.DiskType,
-		ControlUIEnabled: instance.ControlUIEnabled,
-		OpenClawVersion:  instance.OpenClawVersion,
-		Network:          network,
-		AZs:              azs,
-		StemcellOS:       stemcellOS,
-		StemcellVersion:  stemcellVersion,
+		DeploymentName:         instance.DeploymentName,
+		ID:                     instance.ID,
+		Owner:                  instance.Owner,
+		PlanName:               instance.PlanName,
+		GatewayToken:           instance.GatewayToken,
+		NodeSeed:               instance.NodeSeed,
+		RouteHostname:          instance.RouteHostname,
+		VMType:                 instance.VMType,
+		DiskType:               instance.DiskType,
+		ControlUIEnabled:       instance.ControlUIEnabled,
+		OpenClawVersion:        instance.OpenClawVersion,
+		SandboxMode:            sandboxMode,
+		Network:                network,
+		AZs:                    azs,
+		StemcellOS:             stemcellOS,
+		StemcellVersion:        stemcellVersion,
+		CFDeploymentName:       cfDeploymentName,
+		OpenClawReleaseVersion: openclawReleaseVersion,
+		BPMReleaseVersion:      bpmReleaseVersion,
+		RoutingReleaseVersion:  routingReleaseVersion,
 	}
 }
 

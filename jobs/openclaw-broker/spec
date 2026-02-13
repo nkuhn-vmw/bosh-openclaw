@@ -145,6 +145,15 @@ properties:
   openclaw.broker.on_demand.az:
     description: "BOSH availability zones for on-demand agent VMs (array from service_network_az_multi_select)"
     default: []
+  openclaw.broker.on_demand.openclaw_release_version:
+    description: "OpenClaw BOSH release version for on-demand agent deployments"
+    default: "latest"
+  openclaw.broker.on_demand.bpm_release_version:
+    description: "BPM BOSH release version for on-demand agent deployments"
+    default: "1.1.21"
+  openclaw.broker.on_demand.routing_release_version:
+    description: "Routing BOSH release version for on-demand agent deployments"
+    default: "0.283.0"
 
   # Cloud Foundry platform configuration
   openclaw.broker.cf.system_domain:
@@ -158,6 +167,9 @@ properties:
     default: ""
 
   # Security policy
+  openclaw.broker.security.sso_enabled:
+    description: "Enable SSO for agent WebChat instances"
+    default: false
   openclaw.broker.security.sandbox_mode:
     description: "Agent sandbox mode (strict, moderate, loose)"
     default: "strict"

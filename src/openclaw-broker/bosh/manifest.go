@@ -2,6 +2,7 @@ package bosh
 
 import (
 	"bytes"
+	"fmt"
 	"strings"
 	"text/template"
 )
@@ -13,6 +14,9 @@ instance_groups:
   - name: agent
     instances: 1
     jobs:
+      - name: bpm
+        release: bpm
+
       - name: openclaw-agent
         release: openclaw
         properties:
@@ -29,7 +33,7 @@ instance_groups:
               enabled: {{ .ControlUIEnabled }}
               require_auth: true
             security:
-              sandbox_mode: strict
+              sandbox_mode: {{ .SandboxMode }}
             node:
               enabled: true
               seed: "{{ .NodeSeed }}"
@@ -42,6 +46,10 @@ instance_groups:
 
       - name: route_registrar
         release: routing
+        consumes:
+          nats-tls:
+            from: nats-tls
+            deployment: {{ .CFDeploymentName }}
         properties:
           route_registrar:
             routes:
@@ -65,9 +73,11 @@ stemcells:
 
 releases:
   - name: openclaw
-    version: latest
+    version: "{{ .OpenClawReleaseVersion }}"
+  - name: bpm
+    version: "{{ .BPMReleaseVersion }}"
   - name: routing
-    version: latest
+    version: "{{ .RoutingReleaseVersion }}"
 
 update:
   canaries: 1
@@ -77,21 +87,26 @@ update:
 `
 
 type ManifestParams struct {
-	DeploymentName  string
-	ID              string
-	Owner           string
-	PlanName        string
-	GatewayToken    string
-	NodeSeed        string
-	RouteHostname   string
-	VMType          string
-	DiskType        string
-	ControlUIEnabled bool
-	OpenClawVersion string
-	Network         string
-	AZs             []string
-	StemcellOS      string
-	StemcellVersion string
+	DeploymentName        string
+	ID                    string
+	Owner                 string
+	PlanName              string
+	GatewayToken          string
+	NodeSeed              string
+	RouteHostname         string
+	VMType                string
+	DiskType              string
+	ControlUIEnabled      bool
+	OpenClawVersion       string
+	SandboxMode           string
+	Network               string
+	AZs                   []string
+	StemcellOS            string
+	StemcellVersion       string
+	CFDeploymentName      string
+	OpenClawReleaseVersion string
+	BPMReleaseVersion     string
+	RoutingReleaseVersion string
 }
 
 // AZsYAML returns the AZs formatted for inline YAML: "az1, az2"
@@ -99,15 +114,15 @@ func (p ManifestParams) AZsYAML() string {
 	return strings.Join(p.AZs, ", ")
 }
 
-func RenderAgentManifest(params ManifestParams) []byte {
+func RenderAgentManifest(params ManifestParams) ([]byte, error) {
 	tmpl, err := template.New("manifest").Parse(agentManifestTemplate)
 	if err != nil {
-		return nil
+		return nil, fmt.Errorf("failed to parse manifest template: %w", err)
 	}
 
 	var buf bytes.Buffer
 	if err := tmpl.Execute(&buf, params); err != nil {
-		return nil
+		return nil, fmt.Errorf("failed to render manifest: %w", err)
 	}
-	return buf.Bytes()
+	return buf.Bytes(), nil
 }

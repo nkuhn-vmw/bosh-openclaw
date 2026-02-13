@@ -592,12 +592,16 @@ job_types:
             control_ui_enabled: (( .properties.control_ui_enabled.value ))
             blocked_commands: (( .properties.blocked_commands.value ))
             min_openclaw_version: (( .properties.min_openclaw_version.value ))
+            sso_enabled: (( .properties.sso_enabled.value ))
           on_demand:
             service_name: openclaw
             stemcell_os: ubuntu-jammy
             stemcell_version: latest
             network: (( $self.service_network ))
             az: (( .properties.on_demand_az.value ))
+            openclaw_release_version: VERSION_PLACEHOLDER
+            bpm_release_version: "1.1.21"
+            routing_release_version: "0.283.0"
             plans:
               developer:
                 enabled: (( .properties.developer_plan_enabled.value ))

@@ -8,16 +8,23 @@ import (
 )
 
 type BrokerConfig struct {
-	MinOpenClawVersion string `json:"min_openclaw_version"`
-	ControlUIEnabled   bool   `json:"control_ui_enabled"`
-	SandboxMode        string `json:"sandbox_mode"`
-	OpenClawVersion    string `json:"openclaw_version"`
-	Plans              []Plan `json:"plans"`
-	AppsDomain         string `json:"apps_domain"`
-	Network            string `json:"network"`
-	AZs                []string `json:"azs"`
-	StemcellOS         string `json:"stemcell_os"`
-	StemcellVersion    string `json:"stemcell_version"`
+	MinOpenClawVersion     string   `json:"min_openclaw_version"`
+	ControlUIEnabled       bool     `json:"control_ui_enabled"`
+	SandboxMode            string   `json:"sandbox_mode"`
+	OpenClawVersion        string   `json:"openclaw_version"`
+	Plans                  []Plan   `json:"plans"`
+	AppsDomain             string   `json:"apps_domain"`
+	Network                string   `json:"network"`
+	AZs                    []string `json:"azs"`
+	StemcellOS             string   `json:"stemcell_os"`
+	StemcellVersion        string   `json:"stemcell_version"`
+	CFDeploymentName       string   `json:"cf_deployment_name"`
+	OpenClawReleaseVersion string   `json:"openclaw_release_version"`
+	BPMReleaseVersion      string   `json:"bpm_release_version"`
+	RoutingReleaseVersion  string   `json:"routing_release_version"`
+	SSOEnabled             bool     `json:"sso_enabled"`
+	MaxInstances           int      `json:"max_instances"`
+	MaxInstancesPerOrg     int      `json:"max_instances_per_org"`
 }
 
 type Broker struct {
@@ -84,6 +91,30 @@ func normalizePlans(plans []Plan) {
 			plans[i].Description = fmt.Sprintf("OpenClaw %s plan", plans[i].Name)
 		}
 	}
+}
+
+// countInstances returns the total number of active (non-deprovisioning) instances.
+// Must be called with b.mu held.
+func (b *Broker) countInstances() int {
+	count := 0
+	for _, inst := range b.instances {
+		if inst.State != "deprovisioning" {
+			count++
+		}
+	}
+	return count
+}
+
+// countInstancesByOrg returns the number of active instances for a given org.
+// Must be called with b.mu held.
+func (b *Broker) countInstancesByOrg(orgGUID string) int {
+	count := 0
+	for _, inst := range b.instances {
+		if inst.OrgGUID == orgGUID && inst.State != "deprovisioning" {
+			count++
+		}
+	}
+	return count
 }
 
 // findPlan searches config plans by ID, falling back to hardcoded defaults.

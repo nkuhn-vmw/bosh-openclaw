@@ -45,7 +45,7 @@ func (b *Broker) Bind(w http.ResponseWriter, r *http.Request) {
 			"instance_id":      instance.ID,
 			"owner":            instance.Owner,
 			"plan":             instance.PlanName,
-			"openclaw_version": "2026.2.10",
+			"openclaw_version": instance.OpenClawVersion,
 			"node_seed":        instance.NodeSeed,
 			"sso_enabled":      instance.SSOEnabled,
 		},

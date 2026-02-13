@@ -41,6 +41,26 @@ func TestValidateVersion_RejectsOlderVersion(t *testing.T) {
 	}
 }
 
+func TestValidateVersion_HandlesMultiDigitMonths(t *testing.T) {
+	// Regression: string comparison "2026.2.10" < "2026.10.1" was wrong
+	// because "2" > "1" lexicographically. Numeric comparison should accept both.
+	accepted := []string{"2026.10.1", "2026.11.15", "2026.12.31"}
+	for _, v := range accepted {
+		if err := ValidateVersion(v); err != nil {
+			t.Errorf("ValidateVersion(%q) returned error: %v, want nil", v, err)
+		}
+	}
+}
+
+func TestValidateVersion_RejectsInvalidFormat(t *testing.T) {
+	invalid := []string{"2026", "2026.1", "abc.1.2", "2026.x.1"}
+	for _, v := range invalid {
+		if err := ValidateVersion(v); err == nil {
+			t.Errorf("ValidateVersion(%q) returned nil, want error for invalid format", v)
+		}
+	}
+}
+
 func TestValidateVersion_RejectsEmptyVersion(t *testing.T) {
 	err := ValidateVersion("")
 	if err == nil {

@@ -2,6 +2,7 @@ package broker
 
 import (
 	"encoding/json"
+	"log"
 	"net/http"
 
 	"github.com/gorilla/mux"
@@ -46,7 +47,12 @@ func (b *Broker) Update(w http.ResponseWriter, r *http.Request) {
 		instance.DiskType = plan.DiskType
 
 		params := b.buildManifestParams(instance)
-		manifest := bosh.RenderAgentManifest(params)
+		manifest, err := bosh.RenderAgentManifest(params)
+		if err != nil {
+			log.Printf("Manifest render failed for update %s: %v", instanceID, err)
+			http.Error(w, `{"error": "Failed to render deployment manifest"}`, http.StatusInternalServerError)
+			return
+		}
 		taskID, err := b.director.Deploy(manifest)
 		if err != nil {
 			http.Error(w, `{"error": "Update deployment failed"}`, http.StatusInternalServerError)

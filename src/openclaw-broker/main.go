@@ -35,16 +35,23 @@ func main() {
 	}
 
 	brokerCfg := broker.BrokerConfig{
-		MinOpenClawVersion: cfg.Security.MinOpenClawVersion,
-		ControlUIEnabled:   cfg.Security.ControlUIEnabled,
-		SandboxMode:        cfg.Security.SandboxMode,
-		OpenClawVersion:    cfg.AgentDefaults.OpenClawVersion,
-		Plans:              plans,
-		AppsDomain:         cfg.CF.AppsDomain,
-		Network:            cfg.OnDemand.Network,
-		AZs:                cfg.OnDemand.AZs,
-		StemcellOS:         cfg.OnDemand.StemcellOS,
-		StemcellVersion:    cfg.OnDemand.StemcellVersion,
+		MinOpenClawVersion:     cfg.Security.MinOpenClawVersion,
+		ControlUIEnabled:       cfg.Security.ControlUIEnabled,
+		SandboxMode:            cfg.Security.SandboxMode,
+		OpenClawVersion:        cfg.AgentDefaults.OpenClawVersion,
+		Plans:                  plans,
+		AppsDomain:             cfg.CF.AppsDomain,
+		Network:                cfg.OnDemand.Network,
+		AZs:                    cfg.OnDemand.AZs,
+		StemcellOS:             cfg.OnDemand.StemcellOS,
+		StemcellVersion:        cfg.OnDemand.StemcellVersion,
+		CFDeploymentName:       cfg.CF.DeploymentName,
+		OpenClawReleaseVersion: cfg.OnDemand.OpenClawReleaseVersion,
+		BPMReleaseVersion:      cfg.OnDemand.BPMReleaseVersion,
+		RoutingReleaseVersion:  cfg.OnDemand.RoutingReleaseVersion,
+		SSOEnabled:             cfg.Security.SSOEnabled,
+		MaxInstances:           cfg.Limits.MaxInstances,
+		MaxInstancesPerOrg:     cfg.Limits.MaxInstancesPerOrg,
 	}
 	b := broker.New(brokerCfg, director)
 
@@ -110,6 +117,7 @@ type Config struct {
 		MinOpenClawVersion string `json:"min_openclaw_version"`
 		ControlUIEnabled   bool   `json:"control_ui_enabled"`
 		SandboxMode        string `json:"sandbox_mode"`
+		SSOEnabled         bool   `json:"sso_enabled"`
 	} `json:"security"`
 	GenAI struct {
 		Endpoint string `json:"endpoint"`
@@ -117,12 +125,15 @@ type Config struct {
 		Model    string `json:"model"`
 	} `json:"genai"`
 	OnDemand struct {
-		ServiceName     string        `json:"service_name"`
-		Plans           []broker.Plan `json:"plans"`
-		StemcellOS      string        `json:"stemcell_os"`
-		StemcellVersion string        `json:"stemcell_version"`
-		Network         string        `json:"network"`
-		AZs             []string      `json:"azs"`
+		ServiceName            string        `json:"service_name"`
+		Plans                  []broker.Plan `json:"plans"`
+		StemcellOS             string        `json:"stemcell_os"`
+		StemcellVersion        string        `json:"stemcell_version"`
+		Network                string        `json:"network"`
+		AZs                    []string      `json:"azs"`
+		OpenClawReleaseVersion string        `json:"openclaw_release_version"`
+		BPMReleaseVersion      string        `json:"bpm_release_version"`
+		RoutingReleaseVersion  string        `json:"routing_release_version"`
 	} `json:"on_demand"`
 	CF struct {
 		SystemDomain   string `json:"system_domain"`

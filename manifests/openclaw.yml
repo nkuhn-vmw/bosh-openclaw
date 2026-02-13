@@ -4,6 +4,10 @@ name: openclaw
 releases:
   - name: openclaw
     version: latest
+  - name: bpm
+    version: latest
+  - name: routing
+    version: latest
 
 stemcells:
   - alias: default
@@ -46,8 +50,14 @@ instance_groups:
               limits:
                 max_instances: 50
                 max_instances_per_org: 10
-      - name: route-registrar
-        release: openclaw
+      - name: bpm
+        release: bpm
+      - name: route_registrar
+        release: routing
+        consumes:
+          nats-tls:
+            from: nats-tls
+            deployment: cf
         properties:
           route_registrar:
             routes:
@@ -56,11 +66,6 @@ instance_groups:
                 port: 8080
                 uris:
                   - openclaw-broker.((apps_domain))
-            nats:
-              machines: ((nats_machines))
-              port: ((nats_port))
-              user: ((nats_user))
-              password: ((nats_password))
     vm_type: small
     stemcell: default
     azs: [z1]
@@ -114,8 +119,14 @@ instance_groups:
               auth:
                 username: ((dashboard_username))
                 password: ((dashboard_password))
-      - name: route-registrar
-        release: openclaw
+      - name: bpm
+        release: bpm
+      - name: route_registrar
+        release: routing
+        consumes:
+          nats-tls:
+            from: nats-tls
+            deployment: cf
         properties:
           route_registrar:
             routes:
@@ -124,11 +135,6 @@ instance_groups:
                 port: 8080
                 uris:
                   - openclaw-admin.((apps_domain))
-            nats:
-              machines: ((nats_machines))
-              port: ((nats_port))
-              user: ((nats_user))
-              password: ((nats_password))
     vm_type: small
     stemcell: default
     azs: [z1]

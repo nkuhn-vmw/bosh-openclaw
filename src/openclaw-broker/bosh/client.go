@@ -130,7 +130,9 @@ func (c *Client) Deploy(manifest []byte) (int, error) {
 
 	location := resp.Header.Get("Location")
 	var taskID int
-	fmt.Sscanf(location, "/tasks/%d", &taskID)
+	if n, _ := fmt.Sscanf(location, "/tasks/%d", &taskID); n != 1 {
+		return 0, fmt.Errorf("failed to parse task ID from Location header: %q", location)
+	}
 	return taskID, nil
 }
 
@@ -151,7 +153,9 @@ func (c *Client) DeleteDeployment(name string) (int, error) {
 
 	location := resp.Header.Get("Location")
 	var taskID int
-	fmt.Sscanf(location, "/tasks/%d", &taskID)
+	if n, _ := fmt.Sscanf(location, "/tasks/%d", &taskID); n != 1 {
+		return 0, fmt.Errorf("failed to parse task ID from Location header: %q", location)
+	}
 	return taskID, nil
 }
 

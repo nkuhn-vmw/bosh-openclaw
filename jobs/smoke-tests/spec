@@ -25,8 +25,8 @@ properties:
     description: "CF space to use for smoke tests"
     default: "smoke-tests"
   smoke_tests.plan:
-    description: "Service plan to test"
-    default: "developer"
+    description: "Service plan to test (empty = auto-detect first available plan)"
+    default: ""
   smoke_tests.timeout_seconds:
     description: "Maximum time to wait for smoke tests to complete"
     default: 300

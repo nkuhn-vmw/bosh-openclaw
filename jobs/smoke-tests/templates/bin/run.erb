@@ -58,11 +58,28 @@ cf target -s "${SMOKE_SPACE}"
 
 # [3/7] Verify marketplace
 echo "[3/7] Verifying openclaw service in marketplace..."
-if ! cf marketplace | grep -q "openclaw"; then
+MARKETPLACE=$(cf marketplace -e openclaw 2>&1)
+if ! echo "${MARKETPLACE}" | grep -q "openclaw"; then
   echo "FAIL: openclaw service not found in marketplace"
   exit 1
 fi
 echo "PASS: openclaw service found in marketplace"
+
+# Auto-detect plan if configured plan is not available
+if [ -n "${PLAN}" ] && echo "${MARKETPLACE}" | grep -q "^${PLAN} "; then
+  echo "Using configured plan: ${PLAN}"
+else
+  # Pick the first available plan from marketplace output
+  # cf marketplace -e openclaw shows plan names starting at column 1, after the header
+  DETECTED_PLAN=$(echo "${MARKETPLACE}" | awk '/^[a-z]/ && !/^service/ {print $1; exit}')
+  if [ -n "${DETECTED_PLAN}" ]; then
+    echo "Configured plan '${PLAN}' not found, using first available plan: ${DETECTED_PLAN}"
+    PLAN="${DETECTED_PLAN}"
+  else
+    echo "FAIL: No service plans available for openclaw"
+    exit 1
+  fi
+fi
 
 # [4/7] Create service instance
 echo "[4/7] Creating service instance (plan: ${PLAN})..."

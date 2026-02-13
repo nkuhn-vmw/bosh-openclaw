@@ -900,7 +900,7 @@ job_types:
         admin_password: (( ..cf.uaa.system_services_credentials.password ))
         skip_ssl_validation: true
       smoke_tests:
-        plan: developer
+        plan: ""
         timeout_seconds: 300
         verify_webchat_route: true
         test_prompt: "What is 2 + 2? Reply with just the number."

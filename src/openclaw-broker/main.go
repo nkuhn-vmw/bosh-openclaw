@@ -42,6 +42,7 @@ func main() {
 		Plans:              plans,
 		AppsDomain:         cfg.CF.AppsDomain,
 		Network:            cfg.OnDemand.Network,
+		AZ:                 cfg.OnDemand.AZ,
 		StemcellOS:         cfg.OnDemand.StemcellOS,
 		StemcellVersion:    cfg.OnDemand.StemcellVersion,
 	}
@@ -121,6 +122,7 @@ type Config struct {
 		StemcellOS      string        `json:"stemcell_os"`
 		StemcellVersion string        `json:"stemcell_version"`
 		Network         string        `json:"network"`
+		AZ              string        `json:"az"`
 	} `json:"on_demand"`
 	CF struct {
 		SystemDomain   string `json:"system_domain"`

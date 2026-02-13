@@ -52,7 +52,7 @@ instance_groups:
 
     vm_type: {{ .VMType }}
     stemcell: default
-    azs: [z1]
+    azs: [{{ .AZ }}]
     persistent_disk_type: {{ .DiskType }}
     networks:
       - name: {{ .Network }}
@@ -88,6 +88,7 @@ type ManifestParams struct {
 	ControlUIEnabled bool
 	OpenClawVersion string
 	Network         string
+	AZ              string
 	StemcellOS      string
 	StemcellVersion string
 }

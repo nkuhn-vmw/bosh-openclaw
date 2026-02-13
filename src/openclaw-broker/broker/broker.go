@@ -15,6 +15,7 @@ type BrokerConfig struct {
 	Plans              []Plan `json:"plans"`
 	AppsDomain         string `json:"apps_domain"`
 	Network            string `json:"network"`
+	AZ                 string `json:"az"`
 	StemcellOS         string `json:"stemcell_os"`
 	StemcellVersion    string `json:"stemcell_version"`
 }

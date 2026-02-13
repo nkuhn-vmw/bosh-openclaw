@@ -81,6 +81,13 @@ else
   fi
 fi
 
+# Clean up any leftover instance from a previous failed run
+if cf service "${SERVICE_INSTANCE}" 2>/dev/null | grep -q "${SERVICE_INSTANCE}"; then
+  echo "Found leftover instance '${SERVICE_INSTANCE}', purging..."
+  cf purge-service-instance "${SERVICE_INSTANCE}" -f 2>/dev/null || true
+  sleep 5
+fi
+
 # [4/7] Create service instance
 echo "[4/7] Creating service instance (plan: ${PLAN})..."
 cf create-service openclaw "${PLAN}" "${SERVICE_INSTANCE}"

@@ -46,6 +46,12 @@ func NewClient(directorURL, clientID, clientSecret, caCert, uaaURL string) *Clie
 			Transport: &http.Transport{
 				TLSClientConfig: tlsConfig,
 			},
+			// Don't follow redirects — the BOSH Director returns 302 with
+			// Location: /tasks/NNN for async operations. We need to capture
+			// that header rather than following the redirect.
+			CheckRedirect: func(req *http.Request, via []*http.Request) error {
+				return http.ErrUseLastResponse
+			},
 		},
 	}
 }
@@ -123,17 +129,7 @@ func (c *Client) Deploy(manifest []byte) (int, error) {
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusFound && resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
-		return 0, fmt.Errorf("deploy failed with status %d: %s", resp.StatusCode, body)
-	}
-
-	location := resp.Header.Get("Location")
-	var taskID int
-	if n, _ := fmt.Sscanf(location, "/tasks/%d", &taskID); n != 1 {
-		return 0, fmt.Errorf("failed to parse task ID from Location header: %q", location)
-	}
-	return taskID, nil
+	return c.extractTaskID(resp, "deploy")
 }
 
 func (c *Client) DeleteDeployment(name string) (int, error) {
@@ -151,12 +147,39 @@ func (c *Client) DeleteDeployment(name string) (int, error) {
 	}
 	defer resp.Body.Close()
 
-	location := resp.Header.Get("Location")
-	var taskID int
-	if n, _ := fmt.Sscanf(location, "/tasks/%d", &taskID); n != 1 {
-		return 0, fmt.Errorf("failed to parse task ID from Location header: %q", location)
+	return c.extractTaskID(resp, "delete")
+}
+
+// extractTaskID gets the BOSH task ID from a Director async response.
+// The Director returns 302 with Location: /tasks/NNN. Since redirect-following
+// is disabled, we read the Location header directly.
+func (c *Client) extractTaskID(resp *http.Response, operation string) (int, error) {
+	// 302 Found — standard async response with Location header
+	if resp.StatusCode == http.StatusFound {
+		location := resp.Header.Get("Location")
+		var taskID int
+		if n, _ := fmt.Sscanf(location, "/tasks/%d", &taskID); n == 1 {
+			return taskID, nil
+		}
+		return 0, fmt.Errorf("%s: got 302 but could not parse task ID from Location: %q", operation, location)
 	}
-	return taskID, nil
+
+	// 200 OK — some Director versions return task JSON directly
+	if resp.StatusCode == http.StatusOK {
+		var taskResp struct {
+			ID int `json:"id"`
+		}
+		if err := json.NewDecoder(resp.Body).Decode(&taskResp); err != nil {
+			return 0, fmt.Errorf("%s: got 200 but could not parse task response: %w", operation, err)
+		}
+		if taskResp.ID > 0 {
+			return taskResp.ID, nil
+		}
+		return 0, fmt.Errorf("%s: got 200 but task ID is 0", operation)
+	}
+
+	body, _ := io.ReadAll(resp.Body)
+	return 0, fmt.Errorf("%s failed with status %d: %s", operation, resp.StatusCode, body)
 }
 
 func (c *Client) TaskStatus(taskID int) (string, error) {
@@ -179,6 +202,9 @@ func (c *Client) TaskStatus(taskID int) (string, error) {
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
 		return "", err
+	}
+	if result.State == "" {
+		return "", fmt.Errorf("BOSH task %d returned empty state", taskID)
 	}
 	return result.State, nil
 }

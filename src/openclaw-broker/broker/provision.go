@@ -71,7 +71,7 @@ func (b *Broker) Provision(w http.ResponseWriter, r *http.Request) {
 		openclawVersion = fmt.Sprintf("%v", v)
 	}
 	if b.config.MinOpenClawVersion != "" {
-		if err := security.ValidateVersion(openclawVersion); err != nil {
+		if err := security.ValidateVersion(openclawVersion, b.config.MinOpenClawVersion); err != nil {
 			log.Printf("Version gate rejected %s for %s: %v", openclawVersion, instanceID, err)
 			w.WriteHeader(http.StatusUnprocessableEntity)
 			json.NewEncoder(w).Encode(map[string]string{
@@ -208,6 +208,7 @@ func (b *Broker) buildManifestParams(instance *Instance) bosh.ManifestParams {
 		VMType:                 instance.VMType,
 		DiskType:               instance.DiskType,
 		ControlUIEnabled:       instance.ControlUIEnabled,
+		SSOEnabled:             instance.SSOEnabled,
 		OpenClawVersion:        instance.OpenClawVersion,
 		SandboxMode:            sandboxMode,
 		Network:                network,

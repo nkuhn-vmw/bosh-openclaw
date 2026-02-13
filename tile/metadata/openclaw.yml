@@ -700,7 +700,7 @@ job_types:
         registry:
           port: 8081
           skills_mode: (( .properties.skills_mode.value ))
-          approved_skills: (( .properties.approved_skills.value ))
+          skills_allowlist: (( .properties.approved_skills.value ))
           auto_sync: (( .properties.auto_sync_from_clawhub.value ))
           scan_on_sync: (( .properties.scan_skills_on_sync.value ))
     templates:
@@ -909,9 +909,55 @@ job_types:
         timeout_seconds: 300
         verify_webchat_route: true
         test_prompt: "What is 2 + 2? Reply with just the number."
-        apps_domain: (( $runtime.apps_domains.[0] ))
     templates:
       - name: smoke-tests
+        release: openclaw
+
+  #
+  # upgrade-agents errand
+  #
+  - name: upgrade-agents
+    resource_label: Upgrade Agent Instances
+    errand: true
+    resource_definitions:
+      - name: ram
+        type: integer
+        configurable: false
+        default: 1024
+      - name: ephemeral_disk
+        type: integer
+        configurable: false
+        default: 2048
+      - name: persistent_disk
+        type: integer
+        configurable: false
+        default: 0
+      - name: cpu
+        type: integer
+        configurable: false
+        default: 1
+    static_ip: 0
+    dynamic_ip: 1
+    max_in_flight: 1
+    single_az_only: true
+    instance_definition:
+      name: instances
+      type: integer
+      configurable: false
+      default: 1
+    manifest: |
+      upgrade_agents:
+        target_version: VERSION_PLACEHOLDER
+        canary_percentage: 10
+        pause_after_canary: true
+        max_parallel: 5
+        broker_endpoint: http://(( ..openclaw-broker.first_ip )):8080
+        broker_auth:
+          username: (( .properties.generated_broker_credentials.identity ))
+          password: (( .properties.generated_broker_credentials.password ))
+        health_check_timeout: 120
+    templates:
+      - name: upgrade-agents
         release: openclaw
 
 # ---------------------------------------------------------------------------

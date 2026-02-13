@@ -5,7 +5,7 @@ import (
 )
 
 func TestValidateVersion_AcceptsMinimumVersion(t *testing.T) {
-	err := ValidateVersion("2026.1.29")
+	err := ValidateVersion("2026.1.29", "")
 	if err != nil {
 		t.Errorf("ValidateVersion(%q) returned error: %v, want nil", "2026.1.29", err)
 	}
@@ -19,7 +19,7 @@ func TestValidateVersion_AcceptsNewerVersion(t *testing.T) {
 		"2027.1.1",
 	}
 	for _, v := range versions {
-		err := ValidateVersion(v)
+		err := ValidateVersion(v, "")
 		if err != nil {
 			t.Errorf("ValidateVersion(%q) returned error: %v, want nil", v, err)
 		}
@@ -34,7 +34,7 @@ func TestValidateVersion_RejectsOlderVersion(t *testing.T) {
 		"2025.1.1",
 	}
 	for _, v := range versions {
-		err := ValidateVersion(v)
+		err := ValidateVersion(v, "")
 		if err == nil {
 			t.Errorf("ValidateVersion(%q) returned nil, want error", v)
 		}
@@ -42,11 +42,9 @@ func TestValidateVersion_RejectsOlderVersion(t *testing.T) {
 }
 
 func TestValidateVersion_HandlesMultiDigitMonths(t *testing.T) {
-	// Regression: string comparison "2026.2.10" < "2026.10.1" was wrong
-	// because "2" > "1" lexicographically. Numeric comparison should accept both.
 	accepted := []string{"2026.10.1", "2026.11.15", "2026.12.31"}
 	for _, v := range accepted {
-		if err := ValidateVersion(v); err != nil {
+		if err := ValidateVersion(v, ""); err != nil {
 			t.Errorf("ValidateVersion(%q) returned error: %v, want nil", v, err)
 		}
 	}
@@ -55,21 +53,21 @@ func TestValidateVersion_HandlesMultiDigitMonths(t *testing.T) {
 func TestValidateVersion_RejectsInvalidFormat(t *testing.T) {
 	invalid := []string{"2026", "2026.1", "abc.1.2", "2026.x.1"}
 	for _, v := range invalid {
-		if err := ValidateVersion(v); err == nil {
+		if err := ValidateVersion(v, ""); err == nil {
 			t.Errorf("ValidateVersion(%q) returned nil, want error for invalid format", v)
 		}
 	}
 }
 
 func TestValidateVersion_RejectsEmptyVersion(t *testing.T) {
-	err := ValidateVersion("")
+	err := ValidateVersion("", "")
 	if err == nil {
 		t.Error("ValidateVersion(\"\") returned nil, want error")
 	}
 }
 
 func TestValidateVersion_ErrorMessageContainsCVE(t *testing.T) {
-	err := ValidateVersion("2025.1.1")
+	err := ValidateVersion("2025.1.1", "")
 	if err == nil {
 		t.Fatal("ValidateVersion returned nil, want error")
 	}
@@ -80,13 +78,28 @@ func TestValidateVersion_ErrorMessageContainsCVE(t *testing.T) {
 }
 
 func TestValidateVersion_EmptyErrorMessageContainsCVE(t *testing.T) {
-	err := ValidateVersion("")
+	err := ValidateVersion("", "")
 	if err == nil {
 		t.Fatal("ValidateVersion returned nil, want error")
 	}
 	msg := err.Error()
 	if !contains(msg, "CVE-2026-25253") {
 		t.Errorf("Error message %q should contain CVE identifier", msg)
+	}
+}
+
+func TestValidateVersion_UsesCustomMinVersion(t *testing.T) {
+	// Should accept 2026.2.1 when min is 2026.2.1
+	if err := ValidateVersion("2026.2.1", "2026.2.1"); err != nil {
+		t.Errorf("ValidateVersion with custom min returned error: %v", err)
+	}
+	// Should reject 2026.1.29 when min is 2026.2.1
+	if err := ValidateVersion("2026.1.29", "2026.2.1"); err == nil {
+		t.Error("ValidateVersion should reject version below custom minimum")
+	}
+	// Should accept 2026.3.1 when min is 2026.2.1
+	if err := ValidateVersion("2026.3.1", "2026.2.1"); err != nil {
+		t.Errorf("ValidateVersion should accept version above custom minimum: %v", err)
 	}
 }
 

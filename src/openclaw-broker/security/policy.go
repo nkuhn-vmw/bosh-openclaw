@@ -30,20 +30,26 @@ func parseVersion(v string) (int, int, int, error) {
 	return year, month, day, nil
 }
 
-// ValidateVersion ensures the OpenClaw version meets the minimum safe version
-// required to mitigate CVE-2026-25253 (1-click RCE via WebSocket token exfiltration).
-func ValidateVersion(version string) error {
+// ValidateVersion ensures the OpenClaw version meets the given minimum version.
+// If minVersion is empty, falls back to the hardcoded MinSafeVersion constant.
+func ValidateVersion(version, minVersion string) error {
+	if minVersion == "" {
+		minVersion = MinSafeVersion
+	}
 	if version == "" {
-		return fmt.Errorf("OpenClaw version is required (minimum: %s for CVE-2026-25253)", MinSafeVersion)
+		return fmt.Errorf("OpenClaw version is required (minimum: %s for CVE-2026-25253)", minVersion)
 	}
 	vY, vM, vD, err := parseVersion(version)
 	if err != nil {
 		return err
 	}
-	mY, mM, mD, _ := parseVersion(MinSafeVersion)
+	mY, mM, mD, err := parseVersion(minVersion)
+	if err != nil {
+		return fmt.Errorf("invalid minimum version %q: %w", minVersion, err)
+	}
 
 	if vY < mY || (vY == mY && vM < mM) || (vY == mY && vM == mM && vD < mD) {
-		return fmt.Errorf("OpenClaw version %s is below minimum safe version %s (CVE-2026-25253)", version, MinSafeVersion)
+		return fmt.Errorf("OpenClaw version %s is below minimum safe version %s (CVE-2026-25253)", version, minVersion)
 	}
 	return nil
 }

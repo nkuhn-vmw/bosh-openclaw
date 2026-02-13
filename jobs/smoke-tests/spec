@@ -36,5 +36,3 @@ properties:
   smoke_tests.test_prompt:
     description: "Prompt to send to the agent during testing"
     default: "What is 2 + 2? Reply with just the number."
-  smoke_tests.apps_domain:
-    description: "Apps domain for verifying routes"

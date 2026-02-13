@@ -16,9 +16,9 @@ import (
 
 // newFakeBOSHDirector creates an httptest.Server that simulates the BOSH Director API.
 // taskState controls what TaskStatus returns. deployFail causes Deploy to return 500.
-// Deploy and DeleteDeployment return 200 OK with a Location header containing the task
-// path, since Go's HTTP client follows 302 redirects by default which would lose the
-// Location header. The BOSH client accepts both 200 and 302 for deploy responses.
+// Deploy and DeleteDeployment return 302 Found with a Location header containing the
+// task path, matching real BOSH Director behavior. The BOSH client is configured to
+// not follow redirects so it can capture the Location header.
 func newFakeBOSHDirector(taskState string, deployFail bool) *httptest.Server {
 	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch {
@@ -30,12 +30,12 @@ func newFakeBOSHDirector(taskState string, deployFail bool) *httptest.Server {
 				return
 			}
 			w.Header().Set("Location", "/tasks/42")
-			w.WriteHeader(http.StatusOK)
+			w.WriteHeader(http.StatusFound)
 
 		// DELETE /deployments/{name} -> DeleteDeployment
 		case r.Method == "DELETE" && len(r.URL.Path) > len("/deployments/"):
 			w.Header().Set("Location", "/tasks/99")
-			w.WriteHeader(http.StatusOK)
+			w.WriteHeader(http.StatusFound)
 
 		// GET /tasks/{id} -> TaskStatus
 		case r.Method == "GET" && len(r.URL.Path) > len("/tasks/"):
@@ -1053,7 +1053,7 @@ func TestUpdate_BOSHDeployFailure(t *testing.T) {
 				return
 			}
 			w.Header().Set("Location", "/tasks/42")
-			w.WriteHeader(http.StatusOK)
+			w.WriteHeader(http.StatusFound)
 		case r.Method == "GET" && len(r.URL.Path) > len("/tasks/"):
 			w.Header().Set("Content-Type", "application/json")
 			json.NewEncoder(w).Encode(map[string]string{"state": "done"})
@@ -1342,10 +1342,10 @@ func TestFullLifecycle_ProvisionBindDeprovision(t *testing.T) {
 		switch {
 		case r.Method == "POST" && r.URL.Path == "/deployments":
 			w.Header().Set("Location", "/tasks/42")
-			w.WriteHeader(http.StatusOK)
+			w.WriteHeader(http.StatusFound)
 		case r.Method == "DELETE" && len(r.URL.Path) > len("/deployments/"):
 			w.Header().Set("Location", "/tasks/99")
-			w.WriteHeader(http.StatusOK)
+			w.WriteHeader(http.StatusFound)
 		case r.Method == "GET" && len(r.URL.Path) > len("/tasks/"):
 			w.Header().Set("Content-Type", "application/json")
 			json.NewEncoder(w).Encode(map[string]string{"state": taskState})

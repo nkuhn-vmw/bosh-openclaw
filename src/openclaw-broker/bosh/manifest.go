@@ -3,6 +3,7 @@ package bosh
 import (
 	"bytes"
 	"fmt"
+	"regexp"
 	"strings"
 	"text/template"
 )
@@ -28,7 +29,7 @@ instance_groups:
               websocket_origin_check: true
             webchat:
               enabled: true
-              port: 8080
+              port: {{ if .SSOEnabled }}8081{{ else }}8080{{ end }}
             control_ui:
               enabled: {{ .ControlUIEnabled }}
               require_auth: true
@@ -43,7 +44,15 @@ instance_groups:
               plan: "{{ .PlanName }}"
             route:
               hostname: "{{ .RouteHostname }}"
-
+{{ if .SSOEnabled }}
+      - name: openclaw-sso-proxy
+        release: openclaw
+        properties:
+          openclaw:
+            sso_proxy:
+              listen_port: 8080
+              upstream_port: 8081
+{{ end }}
       - name: route_registrar
         release: routing
         consumes:
@@ -97,6 +106,7 @@ type ManifestParams struct {
 	VMType                string
 	DiskType              string
 	ControlUIEnabled      bool
+	SSOEnabled            bool
 	OpenClawVersion       string
 	SandboxMode           string
 	Network               string
@@ -114,7 +124,23 @@ func (p ManifestParams) AZsYAML() string {
 	return strings.Join(p.AZs, ", ")
 }
 
+// yamlSafeControlChars strips control characters and escapes double quotes and
+// backslashes in strings that will be placed inside YAML double-quoted values.
+// This prevents YAML injection via user-supplied fields like Owner.
+var unsafeYAMLChars = regexp.MustCompile(`[^\x20-\x7E]`)
+
+func sanitizeForYAML(s string) string {
+	s = strings.ReplaceAll(s, `\`, `\\`)
+	s = strings.ReplaceAll(s, `"`, `\"`)
+	s = unsafeYAMLChars.ReplaceAllString(s, "")
+	return s
+}
+
 func RenderAgentManifest(params ManifestParams) ([]byte, error) {
+	// Sanitize user-supplied strings that go into YAML quoted values
+	params.Owner = sanitizeForYAML(params.Owner)
+	params.RouteHostname = sanitizeForYAML(params.RouteHostname)
+
 	tmpl, err := template.New("manifest").Parse(agentManifestTemplate)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse manifest template: %w", err)

@@ -151,15 +151,21 @@ func (c *Client) DeleteDeployment(name string) (int, error) {
 }
 
 // extractTaskID gets the BOSH task ID from a Director async response.
-// The Director returns 302 with Location: /tasks/NNN. Since redirect-following
-// is disabled, we read the Location header directly.
+// The Director returns 302 with Location header containing the task path.
+// The Location may be a relative path (/tasks/NNN) or a full URL
+// (https://host:port/tasks/NNN). Since redirect-following is disabled,
+// we read the Location header directly.
 func (c *Client) extractTaskID(resp *http.Response, operation string) (int, error) {
 	// 302 Found — standard async response with Location header
 	if resp.StatusCode == http.StatusFound {
 		location := resp.Header.Get("Location")
-		var taskID int
-		if n, _ := fmt.Sscanf(location, "/tasks/%d", &taskID); n == 1 {
-			return taskID, nil
+		// Extract task ID from either relative path or full URL
+		// by finding "/tasks/" anywhere in the string
+		if idx := strings.Index(location, "/tasks/"); idx >= 0 {
+			var taskID int
+			if n, _ := fmt.Sscanf(location[idx:], "/tasks/%d", &taskID); n == 1 {
+				return taskID, nil
+			}
 		}
 		return 0, fmt.Errorf("%s: got 302 but could not parse task ID from Location: %q", operation, location)
 	}

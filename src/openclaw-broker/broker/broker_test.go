@@ -16,11 +16,11 @@ import (
 
 // newFakeBOSHDirector creates an httptest.Server that simulates the BOSH Director API.
 // taskState controls what TaskStatus returns. deployFail causes Deploy to return 500.
-// Deploy and DeleteDeployment return 302 Found with a Location header containing the
-// task path, matching real BOSH Director behavior. The BOSH client is configured to
-// not follow redirects so it can capture the Location header.
+// Deploy and DeleteDeployment return 302 Found with a full-URL Location header
+// (e.g., https://host:port/tasks/NNN) matching real BOSH Director behavior.
 func newFakeBOSHDirector(taskState string, deployFail bool) *httptest.Server {
-	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	var server *httptest.Server
+	server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch {
 		// POST /deployments -> Deploy
 		case r.Method == "POST" && r.URL.Path == "/deployments":
@@ -29,12 +29,13 @@ func newFakeBOSHDirector(taskState string, deployFail bool) *httptest.Server {
 				w.Write([]byte("deploy error"))
 				return
 			}
-			w.Header().Set("Location", "/tasks/42")
+			// Real BOSH Director returns full URL in Location header
+			w.Header().Set("Location", server.URL+"/tasks/42")
 			w.WriteHeader(http.StatusFound)
 
 		// DELETE /deployments/{name} -> DeleteDeployment
 		case r.Method == "DELETE" && len(r.URL.Path) > len("/deployments/"):
-			w.Header().Set("Location", "/tasks/99")
+			w.Header().Set("Location", server.URL+"/tasks/99")
 			w.WriteHeader(http.StatusFound)
 
 		// GET /tasks/{id} -> TaskStatus
@@ -46,6 +47,7 @@ func newFakeBOSHDirector(taskState string, deployFail bool) *httptest.Server {
 			w.WriteHeader(http.StatusNotFound)
 		}
 	}))
+	return server
 }
 
 // newTestBroker creates a Broker backed by a fake BOSH director.

@@ -39,8 +39,8 @@ instance_groups:
             route:
               hostname: "{{ .RouteHostname }}"
 
-      - name: route-registrar
-        release: openclaw
+      - name: route_registrar
+        release: routing
         properties:
           route_registrar:
             routes:
@@ -55,15 +55,17 @@ instance_groups:
     azs: [z1]
     persistent_disk_type: {{ .DiskType }}
     networks:
-      - name: openclaw-agents
+      - name: {{ .Network }}
 
 stemcells:
   - alias: default
-    os: ubuntu-jammy
-    version: latest
+    os: {{ .StemcellOS }}
+    version: "{{ .StemcellVersion }}"
 
 releases:
   - name: openclaw
+    version: latest
+  - name: routing
     version: latest
 
 update:
@@ -74,31 +76,30 @@ update:
 `
 
 type ManifestParams struct {
-	DeploymentName string
-	ID             string
-	Owner          string
-	PlanName       string
-	GatewayToken   string
-	NodeSeed       string
-	RouteHostname  string
-	VMType         string
-	DiskType       string
+	DeploymentName  string
+	ID              string
+	Owner           string
+	PlanName        string
+	GatewayToken    string
+	NodeSeed        string
+	RouteHostname   string
+	VMType          string
+	DiskType        string
+	ControlUIEnabled bool
+	OpenClawVersion string
+	Network         string
+	StemcellOS      string
+	StemcellVersion string
 }
 
-func (c *Client) RenderAgentManifest(deploymentName string, instance interface{}) []byte {
-	// Type-assert the instance to extract fields
-	type instanceLike interface {
-		GetManifestParams() ManifestParams
-	}
-
-	// For simplicity, use a basic approach
+func RenderAgentManifest(params ManifestParams) []byte {
 	tmpl, err := template.New("manifest").Parse(agentManifestTemplate)
 	if err != nil {
 		return nil
 	}
 
 	var buf bytes.Buffer
-	if err := tmpl.Execute(&buf, instance); err != nil {
+	if err := tmpl.Execute(&buf, params); err != nil {
 		return nil
 	}
 	return buf.Bytes()

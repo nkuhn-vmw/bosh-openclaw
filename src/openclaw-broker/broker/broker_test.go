@@ -23,18 +23,12 @@ func newFakeBOSHDirector(taskState string, deployFail bool) *httptest.Server {
 	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch {
 		// POST /deployments -> Deploy
-		// Return 302 with Location header. Go HTTP client will follow to GET /tasks/42.
 		case r.Method == "POST" && r.URL.Path == "/deployments":
 			if deployFail {
 				w.WriteHeader(http.StatusInternalServerError)
 				w.Write([]byte("deploy error"))
 				return
 			}
-			// Return the redirect. Go's client will follow it to GET /tasks/42
-			// which returns task status JSON (200). The bosh.Client sees 200 (not 302),
-			// so it passes the status check but Location is empty -> taskID=0.
-			// To get taskID properly extracted, we need to prevent redirect following.
-			// Instead, let's just return 200 OK with the Location header directly.
 			w.Header().Set("Location", "/tasks/42")
 			w.WriteHeader(http.StatusOK)
 
@@ -59,7 +53,7 @@ func newFakeBOSHDirector(taskState string, deployFail bool) *httptest.Server {
 func newTestBroker(taskState string, deployFail bool) (*Broker, *httptest.Server, *mux.Router) {
 	fakeBOSH := newFakeBOSHDirector(taskState, deployFail)
 
-	director := bosh.NewClient(fakeBOSH.URL, "admin", "admin", "")
+	director := bosh.NewClient(fakeBOSH.URL, "admin", "admin", "", "")
 	cfg := BrokerConfig{
 		MinOpenClawVersion: "2026.1.29",
 		ControlUIEnabled:   false,
@@ -216,6 +210,42 @@ func TestCatalog_ServiceHasTags(t *testing.T) {
 		if tag != expectedTags[i] {
 			t.Errorf("Tag[%d] = %q, want %q", i, tag, expectedTags[i])
 		}
+	}
+}
+
+func TestCatalog_UsesConfigPlans(t *testing.T) {
+	fakeBOSH := newFakeBOSHDirector("done", false)
+	defer fakeBOSH.Close()
+
+	director := bosh.NewClient(fakeBOSH.URL, "admin", "admin", "", "")
+	cfg := BrokerConfig{
+		OpenClawVersion: "2026.2.10",
+		Plans: []Plan{
+			{ID: "custom-plan-1", Name: "custom", Description: "Custom plan", VMType: "tiny", DiskType: "5GB"},
+			{ID: "custom-plan-2", Name: "custom-big", Description: "Big custom plan", VMType: "huge", DiskType: "100GB"},
+		},
+	}
+	b := New(cfg, director)
+
+	r := mux.NewRouter()
+	r.HandleFunc("/v2/catalog", b.Catalog).Methods("GET")
+
+	req := httptest.NewRequest("GET", "/v2/catalog", nil)
+	rr := httptest.NewRecorder()
+	r.ServeHTTP(rr, req)
+
+	var catalog CatalogResponse
+	json.Unmarshal(rr.Body.Bytes(), &catalog)
+
+	plans := catalog.Services[0].Plans
+	if len(plans) != 2 {
+		t.Fatalf("Catalog has %d plans, want 2", len(plans))
+	}
+	if plans[0].ID != "custom-plan-1" {
+		t.Errorf("Plan[0].ID = %q, want %q", plans[0].ID, "custom-plan-1")
+	}
+	if plans[1].ID != "custom-plan-2" {
+		t.Errorf("Plan[1].ID = %q, want %q", plans[1].ID, "custom-plan-2")
 	}
 }
 
@@ -424,6 +454,24 @@ func TestProvision_SetsOwnerFromParameters(t *testing.T) {
 
 	if inst.Owner != "dev@example.com" {
 		t.Errorf("Owner = %q, want %q", inst.Owner, "dev@example.com")
+	}
+}
+
+func TestProvision_SetsVMTypeAndDiskTypeFromPlan(t *testing.T) {
+	b, fakeBOSH, router := newTestBroker("done", false)
+	defer fakeBOSH.Close()
+
+	provisionInstance(t, router, "inst-vm", "openclaw-developer-plan")
+
+	b.mu.RLock()
+	inst := b.instances["inst-vm"]
+	b.mu.RUnlock()
+
+	if inst.VMType != "small" {
+		t.Errorf("VMType = %q, want %q", inst.VMType, "small")
+	}
+	if inst.DiskType != "10GB" {
+		t.Errorf("DiskType = %q, want %q", inst.DiskType, "10GB")
 	}
 }
 
@@ -886,6 +934,12 @@ func TestUpdate_ChangePlan(t *testing.T) {
 	if inst.PlanName != "team" {
 		t.Errorf("PlanName = %q, want %q", inst.PlanName, "team")
 	}
+	if inst.VMType != "large" {
+		t.Errorf("VMType = %q, want %q after plan change", inst.VMType, "large")
+	}
+	if inst.DiskType != "50GB" {
+		t.Errorf("DiskType = %q, want %q after plan change", inst.DiskType, "50GB")
+	}
 	if inst.State != "provisioning" {
 		t.Errorf("State = %q, want %q after re-deploy", inst.State, "provisioning")
 	}
@@ -979,7 +1033,7 @@ func TestUpdate_BOSHDeployFailure(t *testing.T) {
 	}))
 	defer boshServer.Close()
 
-	director := bosh.NewClient(boshServer.URL, "admin", "admin", "")
+	director := bosh.NewClient(boshServer.URL, "admin", "admin", "", "")
 	cfg := BrokerConfig{
 		MinOpenClawVersion: "2026.1.29",
 		ControlUIEnabled:   false,
@@ -1092,33 +1146,84 @@ func TestSanitizeHostname_EmptyString(t *testing.T) {
 	}
 }
 
-// --- planNameFromID tests ---
+// --- findPlan tests ---
 
-func TestPlanNameFromID_DeveloperPlan(t *testing.T) {
-	name := planNameFromID("openclaw-developer-plan")
-	if name != "developer" {
-		t.Errorf("planNameFromID(%q) = %q, want %q", "openclaw-developer-plan", name, "developer")
+func TestFindPlan_DeveloperPlan(t *testing.T) {
+	b, fakeBOSH, _ := newTestBroker("done", false)
+	defer fakeBOSH.Close()
+
+	plan := b.findPlan("openclaw-developer-plan")
+	if plan == nil {
+		t.Fatal("findPlan returned nil for developer plan")
+	}
+	if plan.Name != "developer" {
+		t.Errorf("plan.Name = %q, want %q", plan.Name, "developer")
+	}
+	if plan.VMType != "small" {
+		t.Errorf("plan.VMType = %q, want %q", plan.VMType, "small")
 	}
 }
 
-func TestPlanNameFromID_DeveloperPlusPlan(t *testing.T) {
-	name := planNameFromID("openclaw-developer-plus-plan")
-	if name != "developer-plus" {
-		t.Errorf("planNameFromID(%q) = %q, want %q", "openclaw-developer-plus-plan", name, "developer-plus")
+func TestFindPlan_DeveloperPlusPlan(t *testing.T) {
+	b, fakeBOSH, _ := newTestBroker("done", false)
+	defer fakeBOSH.Close()
+
+	plan := b.findPlan("openclaw-developer-plus-plan")
+	if plan == nil {
+		t.Fatal("findPlan returned nil for developer-plus plan")
+	}
+	if plan.Name != "developer-plus" {
+		t.Errorf("plan.Name = %q, want %q", plan.Name, "developer-plus")
 	}
 }
 
-func TestPlanNameFromID_TeamPlan(t *testing.T) {
-	name := planNameFromID("openclaw-team-plan")
-	if name != "team" {
-		t.Errorf("planNameFromID(%q) = %q, want %q", "openclaw-team-plan", name, "team")
+func TestFindPlan_TeamPlan(t *testing.T) {
+	b, fakeBOSH, _ := newTestBroker("done", false)
+	defer fakeBOSH.Close()
+
+	plan := b.findPlan("openclaw-team-plan")
+	if plan == nil {
+		t.Fatal("findPlan returned nil for team plan")
+	}
+	if plan.Name != "team" {
+		t.Errorf("plan.Name = %q, want %q", plan.Name, "team")
 	}
 }
 
-func TestPlanNameFromID_UnknownPlan(t *testing.T) {
-	name := planNameFromID("unknown-plan")
-	if name != "" {
-		t.Errorf("planNameFromID(%q) = %q, want empty string", "unknown-plan", name)
+func TestFindPlan_UnknownPlan(t *testing.T) {
+	b, fakeBOSH, _ := newTestBroker("done", false)
+	defer fakeBOSH.Close()
+
+	plan := b.findPlan("unknown-plan")
+	if plan != nil {
+		t.Errorf("findPlan returned non-nil for unknown plan: %+v", plan)
+	}
+}
+
+func TestFindPlan_UsesConfigPlans(t *testing.T) {
+	fakeBOSH := newFakeBOSHDirector("done", false)
+	defer fakeBOSH.Close()
+
+	director := bosh.NewClient(fakeBOSH.URL, "admin", "admin", "", "")
+	cfg := BrokerConfig{
+		Plans: []Plan{
+			{ID: "custom-plan", Name: "custom", VMType: "micro", DiskType: "1GB"},
+		},
+	}
+	b := New(cfg, director)
+
+	plan := b.findPlan("custom-plan")
+	if plan == nil {
+		t.Fatal("findPlan returned nil for custom config plan")
+	}
+	if plan.Name != "custom" {
+		t.Errorf("plan.Name = %q, want %q", plan.Name, "custom")
+	}
+
+	// Default plans should not be found when config plans are set
+	defaultPlan := b.findPlan("openclaw-developer-plan")
+	if defaultPlan != nil {
+		t.Error("findPlan should not return default plan when config plans are set")
 	}
 }
 
@@ -1127,7 +1232,7 @@ func TestPlanNameFromID_UnknownPlan(t *testing.T) {
 func TestNew_ReturnsNonNil(t *testing.T) {
 	fakeBOSH := newFakeBOSHDirector("done", false)
 	defer fakeBOSH.Close()
-	director := bosh.NewClient(fakeBOSH.URL, "admin", "admin", "")
+	director := bosh.NewClient(fakeBOSH.URL, "admin", "admin", "", "")
 
 	b := New(BrokerConfig{}, director)
 	if b == nil {
@@ -1138,7 +1243,7 @@ func TestNew_ReturnsNonNil(t *testing.T) {
 func TestNew_InitializesInstancesMap(t *testing.T) {
 	fakeBOSH := newFakeBOSHDirector("done", false)
 	defer fakeBOSH.Close()
-	director := bosh.NewClient(fakeBOSH.URL, "admin", "admin", "")
+	director := bosh.NewClient(fakeBOSH.URL, "admin", "admin", "", "")
 
 	b := New(BrokerConfig{}, director)
 	if b.instances == nil {
@@ -1171,7 +1276,7 @@ func TestFullLifecycle_ProvisionBindDeprovision(t *testing.T) {
 	}))
 	defer boshServer.Close()
 
-	director := bosh.NewClient(boshServer.URL, "admin", "admin", "")
+	director := bosh.NewClient(boshServer.URL, "admin", "admin", "", "")
 	cfg := BrokerConfig{
 		MinOpenClawVersion: "2026.1.29",
 		ControlUIEnabled:   false,

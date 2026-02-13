@@ -26,12 +26,24 @@ func main() {
 		log.Fatalf("Failed to load config: %v", err)
 	}
 
-	director := bosh.NewClient(cfg.BOSH.DirectorURL, cfg.BOSH.ClientID, cfg.BOSH.ClientSecret, cfg.BOSH.CACert)
+	director := bosh.NewClient(cfg.BOSH.DirectorURL, cfg.BOSH.ClientID, cfg.BOSH.ClientSecret, cfg.BOSH.CACert, cfg.BOSH.UaaURL)
+
+	// Use on_demand plans if available, fall back to top-level plans
+	plans := cfg.OnDemand.Plans
+	if len(plans) == 0 {
+		plans = cfg.Plans
+	}
+
 	brokerCfg := broker.BrokerConfig{
 		MinOpenClawVersion: cfg.Security.MinOpenClawVersion,
 		ControlUIEnabled:   cfg.Security.ControlUIEnabled,
 		SandboxMode:        cfg.Security.SandboxMode,
 		OpenClawVersion:    cfg.AgentDefaults.OpenClawVersion,
+		Plans:              plans,
+		AppsDomain:         cfg.CF.AppsDomain,
+		Network:            cfg.OnDemand.Network,
+		StemcellOS:         cfg.OnDemand.StemcellOS,
+		StemcellVersion:    cfg.OnDemand.StemcellVersion,
 	}
 	b := broker.New(brokerCfg, director)
 
@@ -82,6 +94,7 @@ type Config struct {
 	} `json:"auth"`
 	BOSH struct {
 		DirectorURL  string `json:"director_url"`
+		UaaURL       string `json:"uaa_url"`
 		ClientID     string `json:"client_id"`
 		ClientSecret string `json:"client_secret"`
 		CACert       string `json:"ca_cert"`
@@ -102,6 +115,18 @@ type Config struct {
 		APIKey   string `json:"api_key"`
 		Model    string `json:"model"`
 	} `json:"genai"`
+	OnDemand struct {
+		ServiceName     string        `json:"service_name"`
+		Plans           []broker.Plan `json:"plans"`
+		StemcellOS      string        `json:"stemcell_os"`
+		StemcellVersion string        `json:"stemcell_version"`
+		Network         string        `json:"network"`
+	} `json:"on_demand"`
+	CF struct {
+		SystemDomain   string `json:"system_domain"`
+		AppsDomain     string `json:"apps_domain"`
+		DeploymentName string `json:"deployment_name"`
+	} `json:"cf"`
 	Plans  []broker.Plan `json:"plans"`
 	Limits struct {
 		MaxInstances       int `json:"max_instances"`

@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/gorilla/mux"
+	"github.com/nkuhn-vmw/bosh-openclaw/src/openclaw-broker/bosh"
 	"github.com/nkuhn-vmw/bosh-openclaw/src/openclaw-broker/security"
 )
 
@@ -70,8 +71,8 @@ func (b *Broker) Provision(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Find plan
-	planName := planNameFromID(req.PlanID)
-	if planName == "" {
+	plan := b.findPlan(req.PlanID)
+	if plan == nil {
 		http.Error(w, `{"error": "Unknown plan"}`, http.StatusBadRequest)
 		return
 	}
@@ -92,7 +93,7 @@ func (b *Broker) Provision(w http.ResponseWriter, r *http.Request) {
 	instance := &Instance{
 		ID:               instanceID,
 		PlanID:           req.PlanID,
-		PlanName:         planName,
+		PlanName:         plan.Name,
 		Owner:            owner,
 		OrgGUID:          req.OrganizationGUID,
 		SpaceGUID:        req.SpaceGUID,
@@ -100,13 +101,17 @@ func (b *Broker) Provision(w http.ResponseWriter, r *http.Request) {
 		GatewayToken:     gatewayToken,
 		NodeSeed:         nodeSeed,
 		RouteHostname:    routeHostname,
+		AppsDomain:       b.config.AppsDomain,
+		VMType:           plan.VMType,
+		DiskType:         plan.DiskType,
 		State:            "provisioning",
 		ControlUIEnabled: controlUIEnabled,
 		OpenClawVersion:  openclawVersion,
 	}
 
-	// Deploy via BOSH
-	manifest := b.director.RenderAgentManifest(instance.DeploymentName, instance)
+	// Build manifest params and deploy via BOSH
+	params := b.buildManifestParams(instance)
+	manifest := bosh.RenderAgentManifest(params)
 	taskID, err := b.director.Deploy(manifest)
 	if err != nil {
 		log.Printf("BOSH deploy failed for %s: %v", instanceID, err)
@@ -127,16 +132,35 @@ func (b *Broker) Provision(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(resp)
 }
 
-func planNameFromID(planID string) string {
-	switch planID {
-	case "openclaw-developer-plan":
-		return "developer"
-	case "openclaw-developer-plus-plan":
-		return "developer-plus"
-	case "openclaw-team-plan":
-		return "team"
-	default:
-		return ""
+func (b *Broker) buildManifestParams(instance *Instance) bosh.ManifestParams {
+	network := b.config.Network
+	if network == "" {
+		network = "default"
+	}
+	stemcellOS := b.config.StemcellOS
+	if stemcellOS == "" {
+		stemcellOS = "ubuntu-jammy"
+	}
+	stemcellVersion := b.config.StemcellVersion
+	if stemcellVersion == "" {
+		stemcellVersion = "latest"
+	}
+
+	return bosh.ManifestParams{
+		DeploymentName:   instance.DeploymentName,
+		ID:               instance.ID,
+		Owner:            instance.Owner,
+		PlanName:         instance.PlanName,
+		GatewayToken:     instance.GatewayToken,
+		NodeSeed:         instance.NodeSeed,
+		RouteHostname:    instance.RouteHostname,
+		VMType:           instance.VMType,
+		DiskType:         instance.DiskType,
+		ControlUIEnabled: instance.ControlUIEnabled,
+		OpenClawVersion:  instance.OpenClawVersion,
+		Network:          network,
+		StemcellOS:       stemcellOS,
+		StemcellVersion:  stemcellVersion,
 	}
 }
 

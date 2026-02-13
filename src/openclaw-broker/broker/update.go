@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"github.com/gorilla/mux"
+	"github.com/nkuhn-vmw/bosh-openclaw/src/openclaw-broker/bosh"
 )
 
 type UpdateRequest struct {
@@ -33,10 +34,19 @@ func (b *Broker) Update(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if req.PlanID != "" && req.PlanID != instance.PlanID {
-		instance.PlanID = req.PlanID
-		instance.PlanName = planNameFromID(req.PlanID)
+		plan := b.findPlan(req.PlanID)
+		if plan == nil {
+			http.Error(w, `{"error": "Unknown plan"}`, http.StatusBadRequest)
+			return
+		}
 
-		manifest := b.director.RenderAgentManifest(instance.DeploymentName, instance)
+		instance.PlanID = req.PlanID
+		instance.PlanName = plan.Name
+		instance.VMType = plan.VMType
+		instance.DiskType = plan.DiskType
+
+		params := b.buildManifestParams(instance)
+		manifest := bosh.RenderAgentManifest(params)
 		taskID, err := b.director.Deploy(manifest)
 		if err != nil {
 			http.Error(w, `{"error": "Update deployment failed"}`, http.StatusInternalServerError)

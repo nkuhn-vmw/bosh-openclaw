@@ -31,53 +31,7 @@ type ServicePlan struct {
 }
 
 func (b *Broker) Catalog(w http.ResponseWriter, r *http.Request) {
-	plans := []ServicePlan{
-		{
-			ID:          "openclaw-developer-plan",
-			Name:        "developer",
-			Description: "Dedicated OpenClaw agent for individual developers",
-			Free:        false,
-			Metadata: map[string]interface{}{
-				"displayName": "Developer",
-				"bullets": []string{
-					"Dedicated VM with isolated WebChat UI",
-					"2GB RAM, 10GB persistent disk",
-					"Cloud LLM integration",
-					"Per-instance SSO",
-				},
-			},
-		},
-		{
-			ID:          "openclaw-developer-plus-plan",
-			Name:        "developer-plus",
-			Description: "Enhanced agent with browser automation",
-			Free:        false,
-			Metadata: map[string]interface{}{
-				"displayName": "Developer Plus",
-				"bullets": []string{
-					"Dedicated VM with isolated WebChat UI",
-					"4GB RAM, 20GB persistent disk",
-					"Browser automation enabled",
-					"All messaging channels",
-				},
-			},
-		},
-		{
-			ID:          "openclaw-team-plan",
-			Name:        "team",
-			Description: "Shared agent for teams",
-			Free:        false,
-			Metadata: map[string]interface{}{
-				"displayName": "Team",
-				"bullets": []string{
-					"Dedicated VM with isolated WebChat UI",
-					"8GB RAM, 50GB persistent disk",
-					"Multi-user with Slack/Teams",
-					"Full browser automation",
-				},
-			},
-		},
-	}
+	plans := b.buildServicePlans()
 
 	catalog := CatalogResponse{
 		Services: []Service{
@@ -103,4 +57,24 @@ func (b *Broker) Catalog(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(catalog)
+}
+
+func (b *Broker) buildServicePlans() []ServicePlan {
+	configPlans := b.config.Plans
+	if len(configPlans) == 0 {
+		configPlans = defaultPlans()
+	}
+
+	plans := make([]ServicePlan, 0, len(configPlans))
+	for _, p := range configPlans {
+		sp := ServicePlan{
+			ID:          p.ID,
+			Name:        p.Name,
+			Description: p.Description,
+			Free:        false,
+			Metadata:    p.Metadata,
+		}
+		plans = append(plans, sp)
+	}
+	return plans
 }

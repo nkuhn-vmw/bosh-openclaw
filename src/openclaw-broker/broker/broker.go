@@ -1,6 +1,7 @@
 package broker
 
 import (
+	"fmt"
 	"sync"
 
 	"github.com/nkuhn-vmw/bosh-openclaw/src/openclaw-broker/bosh"
@@ -47,21 +48,40 @@ type Instance struct {
 }
 
 type Plan struct {
-	Name        string                 `json:"name"`
-	ID          string                 `json:"id"`
-	Description string                 `json:"description"`
-	VMType      string                 `json:"vm_type"`
-	DiskType    string                 `json:"disk_type"`
-	Memory      int                    `json:"memory"`
-	Features    map[string]bool        `json:"features,omitempty"`
-	Metadata    map[string]interface{} `json:"metadata,omitempty"`
+	Name            string                 `json:"name"`
+	ID              string                 `json:"id"`
+	Description     string                 `json:"description"`
+	PlanDescription string                 `json:"plan_description"` // OpsMan service_plan_forms field
+	VMType          string                 `json:"vm_type"`
+	DiskType        string                 `json:"disk_type"`
+	Memory          int                    `json:"memory"`
+	Features        map[string]bool        `json:"features,omitempty"`
+	Metadata        map[string]interface{} `json:"metadata,omitempty"`
 }
 
 func New(config BrokerConfig, director *bosh.Client) *Broker {
+	normalizePlans(config.Plans)
 	return &Broker{
 		config:    config,
 		director:  director,
 		instances: make(map[string]*Instance),
+	}
+}
+
+// normalizePlans fills in missing ID and Description fields for plans coming
+// from OpsMan service_plan_forms, which uses "plan_description" instead of
+// "description" and doesn't emit an "id" field.
+func normalizePlans(plans []Plan) {
+	for i := range plans {
+		if plans[i].ID == "" && plans[i].Name != "" {
+			plans[i].ID = fmt.Sprintf("openclaw-%s-plan", plans[i].Name)
+		}
+		if plans[i].Description == "" && plans[i].PlanDescription != "" {
+			plans[i].Description = plans[i].PlanDescription
+		}
+		if plans[i].Description == "" && plans[i].Name != "" {
+			plans[i].Description = fmt.Sprintf("OpenClaw %s plan", plans[i].Name)
+		}
 	}
 }
 

@@ -1227,6 +1227,55 @@ func TestFindPlan_UsesConfigPlans(t *testing.T) {
 	}
 }
 
+// --- normalizePlans tests ---
+
+func TestNormalizePlans_GeneratesIDFromName(t *testing.T) {
+	fakeBOSH := newFakeBOSHDirector("done", false)
+	defer fakeBOSH.Close()
+	director := bosh.NewClient(fakeBOSH.URL, "admin", "admin", "", "")
+
+	cfg := BrokerConfig{
+		Plans: []Plan{
+			{Name: "dedicated-agent", PlanDescription: "A dedicated agent", VMType: "small", DiskType: "10240"},
+		},
+	}
+	b := New(cfg, director)
+
+	plan := b.findPlan("openclaw-dedicated-agent-plan")
+	if plan == nil {
+		t.Fatal("findPlan returned nil for auto-generated plan ID")
+	}
+	if plan.ID != "openclaw-dedicated-agent-plan" {
+		t.Errorf("plan.ID = %q, want %q", plan.ID, "openclaw-dedicated-agent-plan")
+	}
+	if plan.Description != "A dedicated agent" {
+		t.Errorf("plan.Description = %q, want %q", plan.Description, "A dedicated agent")
+	}
+}
+
+func TestNormalizePlans_FallbackDescription(t *testing.T) {
+	plans := []Plan{
+		{Name: "test-plan"},
+	}
+	normalizePlans(plans)
+	if plans[0].Description != "OpenClaw test-plan plan" {
+		t.Errorf("Description = %q, want %q", plans[0].Description, "OpenClaw test-plan plan")
+	}
+}
+
+func TestNormalizePlans_PreservesExistingIDAndDescription(t *testing.T) {
+	plans := []Plan{
+		{Name: "custom", ID: "my-custom-id", Description: "My description"},
+	}
+	normalizePlans(plans)
+	if plans[0].ID != "my-custom-id" {
+		t.Errorf("ID = %q, want %q (should not be overwritten)", plans[0].ID, "my-custom-id")
+	}
+	if plans[0].Description != "My description" {
+		t.Errorf("Description = %q, want %q (should not be overwritten)", plans[0].Description, "My description")
+	}
+}
+
 // --- New() constructor tests ---
 
 func TestNew_ReturnsNonNil(t *testing.T) {

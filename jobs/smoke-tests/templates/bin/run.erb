@@ -66,12 +66,12 @@ fi
 echo "PASS: openclaw service found in marketplace"
 
 # Auto-detect plan if configured plan is not available
-if [ -n "${PLAN}" ] && echo "${MARKETPLACE}" | grep -q "^${PLAN} "; then
+if [ -n "${PLAN}" ] && echo "${MARKETPLACE}" | grep -q "^[[:space:]]*${PLAN}[[:space:]]"; then
   echo "Using configured plan: ${PLAN}"
 else
   # Pick the first available plan from marketplace output
-  # cf marketplace -e openclaw shows plan names starting at column 1, after the header
-  DETECTED_PLAN=$(echo "${MARKETPLACE}" | awk '/^[a-z]/ && !/^service/ {print $1; exit}')
+  # cf marketplace -e openclaw indents plan rows with spaces; skip the "plan" header row
+  DETECTED_PLAN=$(echo "${MARKETPLACE}" | awk '/^[ \t]+[a-z]/ && $1 != "plan" {print $1; exit}')
   if [ -n "${DETECTED_PLAN}" ]; then
     echo "Configured plan '${PLAN}' not found, using first available plan: ${DETECTED_PLAN}"
     PLAN="${DETECTED_PLAN}"

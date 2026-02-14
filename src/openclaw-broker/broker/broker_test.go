@@ -61,6 +61,7 @@ func newTestBroker(taskState string, deployFail bool) (*Broker, *httptest.Server
 		ControlUIEnabled:   false,
 		SandboxMode:        "strict",
 		OpenClawVersion:    "2026.2.10",
+		AZs:                []string{"z1"},
 	}
 	b := New(cfg, director)
 
@@ -1071,6 +1072,7 @@ func TestUpdate_BOSHDeployFailure(t *testing.T) {
 		ControlUIEnabled:   false,
 		SandboxMode:        "strict",
 		OpenClawVersion:    "2026.2.10",
+		AZs:                []string{"z1"},
 	}
 	b := New(cfg, director)
 
@@ -1363,6 +1365,7 @@ func TestFullLifecycle_ProvisionBindDeprovision(t *testing.T) {
 		ControlUIEnabled:   false,
 		SandboxMode:        "strict",
 		OpenClawVersion:    "2026.2.10",
+		AZs:                []string{"z1"},
 	}
 	b := New(cfg, director)
 

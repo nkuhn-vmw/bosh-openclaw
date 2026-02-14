@@ -1,4 +1,13 @@
 <%
+  # Normalize AZs: service_network_az_multi_select may return a string (single AZ)
+  # or an array. Ensure it's always an array for the Go broker.
+  azs_raw = p("openclaw.broker.on_demand.az")
+  azs_array = case azs_raw
+    when Array then azs_raw
+    when String then azs_raw.strip.empty? ? [] : [azs_raw.strip]
+    else []
+  end
+
   # Transform the on_demand.plans hash (from tile manifest) into an array
   # of Plan objects that the Go broker expects.
   # Tile provides: { "developer" => { "enabled" => true, "vm_type" => "small", ... }, ... }
@@ -65,7 +74,7 @@
     "stemcell_os" => p("openclaw.broker.on_demand.stemcell_os"),
     "stemcell_version" => p("openclaw.broker.on_demand.stemcell_version"),
     "network" => p("openclaw.broker.on_demand.network", ""),
-    "azs" => p("openclaw.broker.on_demand.az"),
+    "azs" => azs_array,
     "openclaw_release_version" => p("openclaw.broker.on_demand.openclaw_release_version", "latest"),
     "bpm_release_version" => p("openclaw.broker.on_demand.bpm_release_version", "1.1.21"),
     "routing_release_version" => p("openclaw.broker.on_demand.routing_release_version", "0.283.0")

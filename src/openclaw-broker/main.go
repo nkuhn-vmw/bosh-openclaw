@@ -55,6 +55,11 @@ func main() {
 	}
 	b := broker.New(brokerCfg, director)
 
+	log.Printf("Broker config: AZs=%v Network=%q StemcellOS=%q CFDeployment=%q SSOEnabled=%v",
+		brokerCfg.AZs, brokerCfg.Network, brokerCfg.StemcellOS, brokerCfg.CFDeploymentName, brokerCfg.SSOEnabled)
+	log.Printf("Broker config: Plans=%d MaxInstances=%d MaxPerOrg=%d MinVersion=%q",
+		len(brokerCfg.Plans), brokerCfg.MaxInstances, brokerCfg.MaxInstancesPerOrg, brokerCfg.MinOpenClawVersion)
+
 	r := mux.NewRouter()
 	r.Use(basicAuthMiddleware(cfg.Auth.Username, cfg.Auth.Password))
 

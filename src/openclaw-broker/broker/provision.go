@@ -130,6 +130,13 @@ func (b *Broker) Provision(w http.ResponseWriter, r *http.Request) {
 		OpenClawVersion:  openclawVersion,
 	}
 
+	// Validate required infrastructure config
+	if len(b.config.AZs) == 0 {
+		log.Printf("No AZs configured for on-demand deployments")
+		http.Error(w, `{"error": "Broker misconfiguration: no availability zones configured"}`, http.StatusInternalServerError)
+		return
+	}
+
 	// Build manifest params and deploy via BOSH
 	params := b.buildManifestParams(instance)
 	manifest, err := bosh.RenderAgentManifest(params)
@@ -172,10 +179,6 @@ func (b *Broker) buildManifestParams(instance *Instance) bosh.ManifestParams {
 		stemcellVersion = "latest"
 	}
 	azs := b.config.AZs
-	if len(azs) == 0 {
-		azs = []string{"z1"}
-	}
-
 	sandboxMode := b.config.SandboxMode
 	if sandboxMode == "" {
 		sandboxMode = "strict"

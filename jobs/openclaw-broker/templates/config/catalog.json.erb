@@ -4,6 +4,21 @@
   on_demand_plans = p("openclaw.broker.on_demand.plans")
   static_plans = p("openclaw.broker.catalog.plans")
 
+  # Normalize on_demand_plans: tile manifest provides a Hash (plan_name => config),
+  # while the Go broker produces an Array. Handle both formats.
+  if on_demand_plans.is_a?(Hash)
+    on_demand_plans = on_demand_plans.select { |_, cfg| cfg.fetch("enabled", true) }.map do |name, cfg|
+      {
+        "name" => name.to_s.tr('_', '-'),
+        "description" => (cfg["plan_description"] || cfg["description"] || "").to_s,
+        "vm_type" => cfg["vm_type"].to_s,
+        "disk_type" => cfg["disk_type"].to_s,
+        "browser_automation" => cfg.fetch("browser_automation", false),
+        "max_sessions" => cfg.fetch("max_sessions", 1),
+      }
+    end
+  end
+
   if on_demand_plans.is_a?(Array) && !on_demand_plans.empty?
     # Plans from OpsMan service_plan_forms
     catalog_plans = on_demand_plans.each_with_index.map do |plan, idx|
@@ -11,7 +26,7 @@
       {
         "id" => "openclaw-#{plan_name}-plan",
         "name" => plan_name,
-        "description" => plan["plan_description"] || "OpenClaw AI agent instance",
+        "description" => plan["description"] || plan["plan_description"] || "OpenClaw AI agent instance",
         "free" => false,
         "bindable" => true,
         "plan_updateable" => true,

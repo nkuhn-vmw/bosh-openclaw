@@ -89,10 +89,15 @@ func (c *Client) getToken() (string, error) {
 		return "", fmt.Errorf("failed to decode UAA token response: %w", err)
 	}
 
-	// Cache token with 60s safety margin before expiry
+	// Cache token with 60s safety margin before expiry.
+	// Clamp margin so we don't get a negative duration if ExpiresIn < 60.
+	margin := tokenResp.ExpiresIn - 60
+	if margin < 0 {
+		margin = 0
+	}
 	c.token = &uaaToken{
 		accessToken: tokenResp.AccessToken,
-		expiresAt:   time.Now().Add(time.Duration(tokenResp.ExpiresIn-60) * time.Second),
+		expiresAt:   time.Now().Add(time.Duration(margin) * time.Second),
 	}
 
 	return c.token.accessToken, nil

@@ -2,6 +2,7 @@ package broker
 
 import (
 	"encoding/json"
+	"log"
 	"net/http"
 
 	"github.com/gorilla/mux"
@@ -16,36 +17,59 @@ func (b *Broker) LastOperation(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	instanceID := vars["instance_id"]
 
-	// Use a write lock for the entire operation to prevent races between
-	// reading the instance state and mutating it based on BOSH task status.
-	b.mu.Lock()
+	// Read instance state and task ID under lock, then release before
+	// making BOSH HTTP calls to avoid blocking other operations.
+	b.mu.RLock()
 	instance, exists := b.instances[instanceID]
 	if !exists {
-		b.mu.Unlock()
-		http.Error(w, `{"error": "Instance not found"}`, http.StatusNotFound)
+		b.mu.RUnlock()
+		writeJSON(w, http.StatusNotFound, map[string]string{"error": "Instance not found"})
 		return
 	}
+	state := instance.State
+	taskID := instance.BoshTaskID
+	b.mu.RUnlock()
 
 	var resp LastOperationResponse
 
-	switch instance.State {
+	switch state {
 	case "provisioning":
-		taskState, _ := b.director.TaskStatus(instance.BoshTaskID)
+		if taskID == 0 {
+			resp = LastOperationResponse{State: "in progress", Description: "Waiting for deployment task..."}
+			break
+		}
+		taskState, err := b.director.TaskStatus(taskID)
+		if err != nil {
+			log.Printf("TaskStatus error for %s (task %d): %v", instanceID, taskID, err)
+		}
 		switch taskState {
 		case "done":
+			b.mu.Lock()
 			instance.State = "ready"
+			b.mu.Unlock()
 			resp = LastOperationResponse{State: "succeeded", Description: "Agent ready"}
 		case "error", "cancelled":
+			b.mu.Lock()
 			instance.State = "failed"
+			b.mu.Unlock()
 			resp = LastOperationResponse{State: "failed", Description: "BOSH deployment failed"}
 		default:
 			resp = LastOperationResponse{State: "in progress", Description: "Deploying agent VM..."}
 		}
 	case "deprovisioning":
-		taskState, _ := b.director.TaskStatus(instance.BoshTaskID)
+		if taskID == 0 {
+			resp = LastOperationResponse{State: "in progress", Description: "Waiting for delete task..."}
+			break
+		}
+		taskState, err := b.director.TaskStatus(taskID)
+		if err != nil {
+			log.Printf("TaskStatus error for %s (task %d): %v", instanceID, taskID, err)
+		}
 		switch taskState {
 		case "done":
+			b.mu.Lock()
 			delete(b.instances, instanceID)
+			b.mu.Unlock()
 			resp = LastOperationResponse{State: "succeeded", Description: "Agent deprovisioned"}
 		case "error", "cancelled":
 			resp = LastOperationResponse{State: "failed", Description: "Deprovision failed"}
@@ -59,7 +83,6 @@ func (b *Broker) LastOperation(w http.ResponseWriter, r *http.Request) {
 	default:
 		resp = LastOperationResponse{State: "in progress", Description: "Processing..."}
 	}
-	b.mu.Unlock()
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(resp)

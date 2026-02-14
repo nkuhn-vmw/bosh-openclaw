@@ -62,6 +62,7 @@ func newTestBroker(taskState string, deployFail bool) (*Broker, *httptest.Server
 		SandboxMode:        "strict",
 		OpenClawVersion:    "2026.2.10",
 		AZs:                []string{"z1"},
+		AppsDomain:         "apps.example.com",
 	}
 	b := New(cfg, director)
 
@@ -91,7 +92,7 @@ func provisionInstance(t *testing.T, router *mux.Router, instanceID, planID stri
 		},
 	}
 	bodyBytes, _ := json.Marshal(body)
-	req := httptest.NewRequest("PUT", "/v2/service_instances/"+instanceID, bytes.NewReader(bodyBytes))
+	req := httptest.NewRequest("PUT", "/v2/service_instances/"+instanceID+"?accepts_incomplete=true", bytes.NewReader(bodyBytes))
 	req.Header.Set("Content-Type", "application/json")
 	rr := httptest.NewRecorder()
 	router.ServeHTTP(rr, req)
@@ -337,7 +338,7 @@ func TestProvision_UnknownPlan(t *testing.T) {
 		},
 	}
 	bodyBytes, _ := json.Marshal(body)
-	req := httptest.NewRequest("PUT", "/v2/service_instances/inst-bad-plan", bytes.NewReader(bodyBytes))
+	req := httptest.NewRequest("PUT", "/v2/service_instances/inst-bad-plan?accepts_incomplete=true", bytes.NewReader(bodyBytes))
 	rr := httptest.NewRecorder()
 	router.ServeHTTP(rr, req)
 
@@ -360,7 +361,7 @@ func TestProvision_RejectsVersionBelowMinimum(t *testing.T) {
 		},
 	}
 	bodyBytes, _ := json.Marshal(body)
-	req := httptest.NewRequest("PUT", "/v2/service_instances/inst-old-ver", bytes.NewReader(bodyBytes))
+	req := httptest.NewRequest("PUT", "/v2/service_instances/inst-old-ver?accepts_incomplete=true", bytes.NewReader(bodyBytes))
 	rr := httptest.NewRecorder()
 	router.ServeHTTP(rr, req)
 
@@ -383,7 +384,7 @@ func TestProvision_AcceptsVersionAtMinimum(t *testing.T) {
 		},
 	}
 	bodyBytes, _ := json.Marshal(body)
-	req := httptest.NewRequest("PUT", "/v2/service_instances/inst-min-ver", bytes.NewReader(bodyBytes))
+	req := httptest.NewRequest("PUT", "/v2/service_instances/inst-min-ver?accepts_incomplete=true", bytes.NewReader(bodyBytes))
 	rr := httptest.NewRecorder()
 	router.ServeHTTP(rr, req)
 
@@ -406,7 +407,7 @@ func TestProvision_BOSHDeployFailure(t *testing.T) {
 		},
 	}
 	bodyBytes, _ := json.Marshal(body)
-	req := httptest.NewRequest("PUT", "/v2/service_instances/inst-bosh-fail", bytes.NewReader(bodyBytes))
+	req := httptest.NewRequest("PUT", "/v2/service_instances/inst-bosh-fail?accepts_incomplete=true", bytes.NewReader(bodyBytes))
 	rr := httptest.NewRecorder()
 	router.ServeHTTP(rr, req)
 
@@ -419,7 +420,7 @@ func TestProvision_InvalidJSON(t *testing.T) {
 	_, fakeBOSH, router := newTestBroker("done", false)
 	defer fakeBOSH.Close()
 
-	req := httptest.NewRequest("PUT", "/v2/service_instances/inst-bad-json", bytes.NewReader([]byte("not-json")))
+	req := httptest.NewRequest("PUT", "/v2/service_instances/inst-bad-json?accepts_incomplete=true", bytes.NewReader([]byte("not-json")))
 	rr := httptest.NewRecorder()
 	router.ServeHTTP(rr, req)
 
@@ -520,7 +521,7 @@ func TestProvision_UsesConfigVersionWhenNotInParams(t *testing.T) {
 		Parameters:       map[string]interface{}{},
 	}
 	bodyBytes, _ := json.Marshal(body)
-	req := httptest.NewRequest("PUT", "/v2/service_instances/inst-cfg-ver", bytes.NewReader(bodyBytes))
+	req := httptest.NewRequest("PUT", "/v2/service_instances/inst-cfg-ver?accepts_incomplete=true", bytes.NewReader(bodyBytes))
 	rr := httptest.NewRecorder()
 	router.ServeHTTP(rr, req)
 
@@ -547,7 +548,7 @@ func TestDeprovision_ExistingInstance(t *testing.T) {
 	provisionInstance(t, router, "inst-deprov", "openclaw-developer-plan")
 
 	// Then deprovision
-	req := httptest.NewRequest("DELETE", "/v2/service_instances/inst-deprov?service_id=openclaw-service&plan_id=openclaw-developer-plan", nil)
+	req := httptest.NewRequest("DELETE", "/v2/service_instances/inst-deprov?accepts_incomplete=true&service_id=openclaw-service&plan_id=openclaw-developer-plan", nil)
 	rr := httptest.NewRecorder()
 	router.ServeHTTP(rr, req)
 
@@ -566,7 +567,7 @@ func TestDeprovision_NonExistentInstance(t *testing.T) {
 	_, fakeBOSH, router := newTestBroker("done", false)
 	defer fakeBOSH.Close()
 
-	req := httptest.NewRequest("DELETE", "/v2/service_instances/inst-ghost?service_id=openclaw-service&plan_id=openclaw-developer-plan", nil)
+	req := httptest.NewRequest("DELETE", "/v2/service_instances/inst-ghost?accepts_incomplete=true&service_id=openclaw-service&plan_id=openclaw-developer-plan", nil)
 	rr := httptest.NewRecorder()
 	router.ServeHTTP(rr, req)
 
@@ -581,7 +582,7 @@ func TestDeprovision_SetsStateToDeprovisioning(t *testing.T) {
 
 	provisionInstance(t, router, "inst-deprov-state", "openclaw-developer-plan")
 
-	req := httptest.NewRequest("DELETE", "/v2/service_instances/inst-deprov-state?service_id=openclaw-service&plan_id=openclaw-developer-plan", nil)
+	req := httptest.NewRequest("DELETE", "/v2/service_instances/inst-deprov-state?accepts_incomplete=true&service_id=openclaw-service&plan_id=openclaw-developer-plan", nil)
 	rr := httptest.NewRecorder()
 	router.ServeHTTP(rr, req)
 
@@ -949,7 +950,7 @@ func TestUpdate_ChangePlan(t *testing.T) {
 		PlanID:    "openclaw-team-plan",
 	}
 	bodyBytes, _ := json.Marshal(body)
-	req := httptest.NewRequest("PATCH", "/v2/service_instances/inst-update", bytes.NewReader(bodyBytes))
+	req := httptest.NewRequest("PATCH", "/v2/service_instances/inst-update?accepts_incomplete=true", bytes.NewReader(bodyBytes))
 	rr := httptest.NewRecorder()
 	router.ServeHTTP(rr, req)
 
@@ -994,12 +995,12 @@ func TestUpdate_SamePlanNoRedeploy(t *testing.T) {
 		PlanID:    "openclaw-developer-plan", // same plan
 	}
 	bodyBytes, _ := json.Marshal(body)
-	req := httptest.NewRequest("PATCH", "/v2/service_instances/inst-same-plan", bytes.NewReader(bodyBytes))
+	req := httptest.NewRequest("PATCH", "/v2/service_instances/inst-same-plan?accepts_incomplete=true", bytes.NewReader(bodyBytes))
 	rr := httptest.NewRecorder()
 	router.ServeHTTP(rr, req)
 
-	if rr.Code != http.StatusAccepted {
-		t.Fatalf("Update same plan status = %d, want %d", rr.Code, http.StatusAccepted)
+	if rr.Code != http.StatusOK {
+		t.Fatalf("Update same plan status = %d, want %d", rr.Code, http.StatusOK)
 	}
 
 	b.mu.RLock()
@@ -1021,7 +1022,7 @@ func TestUpdate_InstanceNotFound(t *testing.T) {
 		PlanID:    "openclaw-team-plan",
 	}
 	bodyBytes, _ := json.Marshal(body)
-	req := httptest.NewRequest("PATCH", "/v2/service_instances/inst-missing", bytes.NewReader(bodyBytes))
+	req := httptest.NewRequest("PATCH", "/v2/service_instances/inst-missing?accepts_incomplete=true", bytes.NewReader(bodyBytes))
 	rr := httptest.NewRecorder()
 	router.ServeHTTP(rr, req)
 
@@ -1034,7 +1035,7 @@ func TestUpdate_InvalidJSON(t *testing.T) {
 	_, fakeBOSH, router := newTestBroker("done", false)
 	defer fakeBOSH.Close()
 
-	req := httptest.NewRequest("PATCH", "/v2/service_instances/inst-bad", bytes.NewReader([]byte("{bad")))
+	req := httptest.NewRequest("PATCH", "/v2/service_instances/inst-bad?accepts_incomplete=true", bytes.NewReader([]byte("{bad")))
 	rr := httptest.NewRecorder()
 	router.ServeHTTP(rr, req)
 
@@ -1073,6 +1074,7 @@ func TestUpdate_BOSHDeployFailure(t *testing.T) {
 		SandboxMode:        "strict",
 		OpenClawVersion:    "2026.2.10",
 		AZs:                []string{"z1"},
+		AppsDomain:         "apps.example.com",
 	}
 	b := New(cfg, director)
 
@@ -1089,7 +1091,7 @@ func TestUpdate_BOSHDeployFailure(t *testing.T) {
 		PlanID:    "openclaw-team-plan",
 	}
 	bodyBytes, _ := json.Marshal(body)
-	req := httptest.NewRequest("PATCH", "/v2/service_instances/inst-upd-fail", bytes.NewReader(bodyBytes))
+	req := httptest.NewRequest("PATCH", "/v2/service_instances/inst-upd-fail?accepts_incomplete=true", bytes.NewReader(bodyBytes))
 	rr := httptest.NewRecorder()
 	r.ServeHTTP(rr, req)
 
@@ -1112,12 +1114,12 @@ func TestUpdate_EmptyPlanIDNoRedeploy(t *testing.T) {
 		PlanID:    "", // empty plan ID
 	}
 	bodyBytes, _ := json.Marshal(body)
-	req := httptest.NewRequest("PATCH", "/v2/service_instances/inst-empty-plan", bytes.NewReader(bodyBytes))
+	req := httptest.NewRequest("PATCH", "/v2/service_instances/inst-empty-plan?accepts_incomplete=true", bytes.NewReader(bodyBytes))
 	rr := httptest.NewRecorder()
 	router.ServeHTTP(rr, req)
 
-	if rr.Code != http.StatusAccepted {
-		t.Fatalf("Update empty plan status = %d, want %d", rr.Code, http.StatusAccepted)
+	if rr.Code != http.StatusOK {
+		t.Fatalf("Update empty plan status = %d, want %d", rr.Code, http.StatusOK)
 	}
 
 	b.mu.RLock()
@@ -1366,6 +1368,7 @@ func TestFullLifecycle_ProvisionBindDeprovision(t *testing.T) {
 		SandboxMode:        "strict",
 		OpenClawVersion:    "2026.2.10",
 		AZs:                []string{"z1"},
+		AppsDomain:         "apps.example.com",
 	}
 	b := New(cfg, director)
 
@@ -1424,7 +1427,7 @@ func TestFullLifecycle_ProvisionBindDeprovision(t *testing.T) {
 
 	// Step 6: Deprovision
 	taskState = "processing" // reset for deprovision
-	req = httptest.NewRequest("DELETE", fmt.Sprintf("/v2/service_instances/%s?service_id=openclaw-service&plan_id=openclaw-developer-plan", instanceID), nil)
+	req = httptest.NewRequest("DELETE", fmt.Sprintf("/v2/service_instances/%s?accepts_incomplete=true&service_id=openclaw-service&plan_id=openclaw-developer-plan", instanceID), nil)
 	rr = httptest.NewRecorder()
 	router.ServeHTTP(rr, req)
 	if rr.Code != http.StatusAccepted {

@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"crypto/subtle"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -24,6 +25,11 @@ func main() {
 	cfg, err := loadConfig(*configPath)
 	if err != nil {
 		log.Fatalf("Failed to load config: %v", err)
+	}
+
+	// Validate auth credentials are non-empty to prevent bypass
+	if cfg.Auth.Username == "" || cfg.Auth.Password == "" {
+		log.Fatalf("Broker auth credentials must not be empty (username=%q)", cfg.Auth.Username)
 	}
 
 	director := bosh.NewClient(cfg.BOSH.DirectorURL, cfg.BOSH.ClientID, cfg.BOSH.ClientSecret, cfg.BOSH.CACert, cfg.BOSH.UaaURL)
@@ -50,6 +56,10 @@ func main() {
 		BPMReleaseVersion:      cfg.OnDemand.BPMReleaseVersion,
 		RoutingReleaseVersion:  cfg.OnDemand.RoutingReleaseVersion,
 		SSOEnabled:             cfg.Security.SSOEnabled,
+		SSOClientID:            cfg.Security.SSOClientID,
+		SSOClientSecret:        cfg.Security.SSOClientSecret,
+		SSOCookieSecret:        cfg.Security.SSOCookieSecret,
+		SSOOIDCIssuerURL:       cfg.Security.SSOOIDCIssuerURL,
 		MaxInstances:           cfg.Limits.MaxInstances,
 		MaxInstancesPerOrg:     cfg.Limits.MaxInstancesPerOrg,
 	}
@@ -123,6 +133,10 @@ type Config struct {
 		ControlUIEnabled   bool   `json:"control_ui_enabled"`
 		SandboxMode        string `json:"sandbox_mode"`
 		SSOEnabled         bool   `json:"sso_enabled"`
+		SSOClientID        string `json:"sso_client_id"`
+		SSOClientSecret    string `json:"sso_client_secret"`
+		SSOCookieSecret    string `json:"sso_cookie_secret"`
+		SSOOIDCIssuerURL   string `json:"sso_oidc_issuer_url"`
 	} `json:"security"`
 	GenAI struct {
 		Endpoint string `json:"endpoint"`
@@ -171,7 +185,7 @@ func basicAuthMiddleware(username, password string) mux.MiddlewareFunc {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			u, p, ok := r.BasicAuth()
-			if !ok || u != username || p != password {
+			if !ok || subtle.ConstantTimeCompare([]byte(u), []byte(username)) != 1 || subtle.ConstantTimeCompare([]byte(p), []byte(password)) != 1 {
 				w.Header().Set("WWW-Authenticate", `Basic realm="OpenClaw Broker"`)
 				http.Error(w, "Unauthorized", http.StatusUnauthorized)
 				return

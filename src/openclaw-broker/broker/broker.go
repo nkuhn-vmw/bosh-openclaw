@@ -1,11 +1,21 @@
 package broker
 
 import (
+	"encoding/json"
 	"fmt"
+	"net/http"
 	"sync"
 
 	"github.com/nkuhn-vmw/bosh-openclaw/src/openclaw-broker/bosh"
 )
+
+// writeJSON writes a JSON response with the given status code.
+// All OSB API responses must be application/json.
+func writeJSON(w http.ResponseWriter, status int, v interface{}) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+	json.NewEncoder(w).Encode(v)
+}
 
 type BrokerConfig struct {
 	MinOpenClawVersion     string   `json:"min_openclaw_version"`
@@ -23,6 +33,10 @@ type BrokerConfig struct {
 	BPMReleaseVersion      string   `json:"bpm_release_version"`
 	RoutingReleaseVersion  string   `json:"routing_release_version"`
 	SSOEnabled             bool     `json:"sso_enabled"`
+	SSOClientID            string   `json:"sso_client_id"`
+	SSOClientSecret        string   `json:"sso_client_secret"`
+	SSOCookieSecret        string   `json:"sso_cookie_secret"`
+	SSOOIDCIssuerURL       string   `json:"sso_oidc_issuer_url"`
 	MaxInstances           int      `json:"max_instances"`
 	MaxInstancesPerOrg     int      `json:"max_instances_per_org"`
 }

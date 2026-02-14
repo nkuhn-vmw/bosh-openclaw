@@ -52,6 +52,12 @@ instance_groups:
             sso_proxy:
               listen_port: 8080
               upstream_port: 8081
+              client_id: "{{ .SSOClientID }}"
+              client_secret: "{{ .SSOClientSecret }}"
+              cookie_secret: "{{ .SSOCookieSecret }}"
+{{- if .SSOOIDCIssuerURL }}
+              oidc_issuer_url: "{{ .SSOOIDCIssuerURL }}"
+{{- end }}
 {{ end }}
       - name: route_registrar
         release: routing
@@ -66,7 +72,7 @@ instance_groups:
                 registration_interval: 20s
                 port: 8080
                 uris:
-                  - "{{ .RouteHostname }}"
+                  - "{{ .RouteHostname }}.{{ .AppsDomain }}"
 
     vm_type: {{ .VMType }}
     stemcell: default
@@ -115,8 +121,13 @@ type ManifestParams struct {
 	StemcellVersion       string
 	CFDeploymentName      string
 	OpenClawReleaseVersion string
-	BPMReleaseVersion     string
-	RoutingReleaseVersion string
+	BPMReleaseVersion      string
+	RoutingReleaseVersion  string
+	AppsDomain             string
+	SSOClientID            string
+	SSOClientSecret        string
+	SSOCookieSecret        string
+	SSOOIDCIssuerURL       string
 }
 
 // AZsYAML returns the AZs formatted for inline YAML: "az1, az2"
@@ -137,9 +148,13 @@ func sanitizeForYAML(s string) string {
 }
 
 func RenderAgentManifest(params ManifestParams) ([]byte, error) {
-	// Sanitize user-supplied strings that go into YAML quoted values
+	// Sanitize strings that go into YAML double-quoted values
 	params.Owner = sanitizeForYAML(params.Owner)
 	params.RouteHostname = sanitizeForYAML(params.RouteHostname)
+	params.SSOClientID = sanitizeForYAML(params.SSOClientID)
+	params.SSOClientSecret = sanitizeForYAML(params.SSOClientSecret)
+	params.SSOCookieSecret = sanitizeForYAML(params.SSOCookieSecret)
+	params.SSOOIDCIssuerURL = sanitizeForYAML(params.SSOOIDCIssuerURL)
 
 	tmpl, err := template.New("manifest").Parse(agentManifestTemplate)
 	if err != nil {

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"regexp"
 	"strings"
 
 	"github.com/gorilla/mux"
@@ -29,27 +30,37 @@ func (b *Broker) Provision(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	instanceID := vars["instance_id"]
 
+	// OSB API: async operations require accepts_incomplete=true
+	if r.URL.Query().Get("accepts_incomplete") != "true" {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusUnprocessableEntity)
+		json.NewEncoder(w).Encode(map[string]string{
+			"error":       "AsyncRequired",
+			"description": "This service plan requires client support for asynchronous service operations.",
+		})
+		return
+	}
+
 	var req ProvisionRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, `{"error": "Bad request"}`, http.StatusBadRequest)
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "Bad request"})
 		return
 	}
 
 	b.mu.Lock()
-	defer b.mu.Unlock()
 
 	// Check if already exists
 	if _, exists := b.instances[instanceID]; exists {
-		w.WriteHeader(http.StatusConflict)
-		json.NewEncoder(w).Encode(map[string]string{"error": "Instance already exists"})
+		b.mu.Unlock()
+		writeJSON(w, http.StatusConflict, map[string]string{"error": "Instance already exists"})
 		return
 	}
 
 	// Enforce quota limits
 	if b.config.MaxInstances > 0 && b.countInstances() >= b.config.MaxInstances {
 		log.Printf("Quota exceeded: %d/%d total instances", b.countInstances(), b.config.MaxInstances)
-		w.WriteHeader(http.StatusUnprocessableEntity)
-		json.NewEncoder(w).Encode(map[string]string{
+		b.mu.Unlock()
+		writeJSON(w, http.StatusUnprocessableEntity, map[string]string{
 			"error":       "Quota exceeded",
 			"description": fmt.Sprintf("Maximum total instances (%d) reached", b.config.MaxInstances),
 		})
@@ -57,8 +68,8 @@ func (b *Broker) Provision(w http.ResponseWriter, r *http.Request) {
 	}
 	if b.config.MaxInstancesPerOrg > 0 && b.countInstancesByOrg(req.OrganizationGUID) >= b.config.MaxInstancesPerOrg {
 		log.Printf("Quota exceeded: org %s has %d/%d instances", req.OrganizationGUID, b.countInstancesByOrg(req.OrganizationGUID), b.config.MaxInstancesPerOrg)
-		w.WriteHeader(http.StatusUnprocessableEntity)
-		json.NewEncoder(w).Encode(map[string]string{
+		b.mu.Unlock()
+		writeJSON(w, http.StatusUnprocessableEntity, map[string]string{
 			"error":       "Quota exceeded",
 			"description": fmt.Sprintf("Maximum instances per org (%d) reached", b.config.MaxInstancesPerOrg),
 		})
@@ -73,8 +84,8 @@ func (b *Broker) Provision(w http.ResponseWriter, r *http.Request) {
 	if b.config.MinOpenClawVersion != "" {
 		if err := security.ValidateVersion(openclawVersion, b.config.MinOpenClawVersion); err != nil {
 			log.Printf("Version gate rejected %s for %s: %v", openclawVersion, instanceID, err)
-			w.WriteHeader(http.StatusUnprocessableEntity)
-			json.NewEncoder(w).Encode(map[string]string{
+			b.mu.Unlock()
+			writeJSON(w, http.StatusUnprocessableEntity, map[string]string{
 				"error":       "Version below minimum safe version",
 				"description": err.Error(),
 			})
@@ -93,7 +104,8 @@ func (b *Broker) Provision(w http.ResponseWriter, r *http.Request) {
 	// Find plan
 	plan := b.findPlan(req.PlanID)
 	if plan == nil {
-		http.Error(w, `{"error": "Unknown plan"}`, http.StatusBadRequest)
+		b.mu.Unlock()
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "Unknown plan"})
 		return
 	}
 
@@ -106,7 +118,11 @@ func (b *Broker) Provision(w http.ResponseWriter, r *http.Request) {
 	if o, ok := req.Parameters["owner"]; ok {
 		owner = fmt.Sprintf("%v", o)
 	}
-	routeHostname := fmt.Sprintf("openclaw-%s", sanitizeHostname(owner))
+	sanitizedOwner := sanitizeHostname(owner)
+	if sanitizedOwner == "" {
+		sanitizedOwner = "agent"
+	}
+	routeHostname := fmt.Sprintf("openclaw-%s", sanitizedOwner)
 
 	deploymentName := fmt.Sprintf("openclaw-agent-%s", instanceID)
 
@@ -132,31 +148,50 @@ func (b *Broker) Provision(w http.ResponseWriter, r *http.Request) {
 
 	// Validate required infrastructure config
 	if len(b.config.AZs) == 0 {
+		b.mu.Unlock()
 		log.Printf("No AZs configured for on-demand deployments")
-		http.Error(w, `{"error": "Broker misconfiguration: no availability zones configured"}`, http.StatusInternalServerError)
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "Broker misconfiguration: no availability zones configured"})
+		return
+	}
+	if b.config.AppsDomain == "" {
+		b.mu.Unlock()
+		log.Printf("No apps domain configured")
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "Broker misconfiguration: no apps domain configured"})
 		return
 	}
 
-	// Build manifest params and deploy via BOSH
+	// Reserve the instance slot before releasing the lock for the BOSH call.
+	// This prevents duplicate provisions for the same instance ID.
+	b.instances[instanceID] = instance
+	b.mu.Unlock()
+
+	// Build manifest params and deploy via BOSH (outside lock to avoid blocking)
 	params := b.buildManifestParams(instance)
 	manifest, err := bosh.RenderAgentManifest(params)
 	if err != nil {
 		log.Printf("Manifest render failed for %s: %v", instanceID, err)
-		http.Error(w, `{"error": "Failed to render deployment manifest"}`, http.StatusInternalServerError)
+		b.mu.Lock()
+		delete(b.instances, instanceID)
+		b.mu.Unlock()
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "Failed to render deployment manifest"})
 		return
 	}
 	taskID, err := b.director.Deploy(manifest)
 	if err != nil {
 		log.Printf("BOSH deploy failed for %s: %v", instanceID, err)
-		http.Error(w, `{"error": "Deployment failed"}`, http.StatusInternalServerError)
+		b.mu.Lock()
+		delete(b.instances, instanceID)
+		b.mu.Unlock()
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "Deployment failed"})
 		return
 	}
 
+	b.mu.Lock()
 	instance.BoshTaskID = taskID
-	b.instances[instanceID] = instance
+	b.mu.Unlock()
 
 	resp := ProvisionResponse{
-		DashboardURL: fmt.Sprintf("https://%s", routeHostname),
+		DashboardURL: fmt.Sprintf("https://%s.%s", routeHostname, b.config.AppsDomain),
 		Operation:    fmt.Sprintf("provision-%s", instanceID),
 	}
 
@@ -222,13 +257,24 @@ func (b *Broker) buildManifestParams(instance *Instance) bosh.ManifestParams {
 		OpenClawReleaseVersion: openclawReleaseVersion,
 		BPMReleaseVersion:      bpmReleaseVersion,
 		RoutingReleaseVersion:  routingReleaseVersion,
+		AppsDomain:             instance.AppsDomain,
+		SSOClientID:            b.config.SSOClientID,
+		SSOClientSecret:        b.config.SSOClientSecret,
+		SSOCookieSecret:        b.config.SSOCookieSecret,
+		SSOOIDCIssuerURL:       b.config.SSOOIDCIssuerURL,
 	}
 }
+
+// invalidDNSChars matches any character not valid in a DNS label.
+var invalidDNSChars = regexp.MustCompile(`[^a-z0-9-]`)
 
 func sanitizeHostname(s string) string {
 	s = strings.ToLower(s)
 	s = strings.Split(s, "@")[0]
 	s = strings.ReplaceAll(s, ".", "-")
 	s = strings.ReplaceAll(s, "_", "-")
+	s = invalidDNSChars.ReplaceAllString(s, "")
+	// Trim leading/trailing hyphens
+	s = strings.Trim(s, "-")
 	return s
 }

@@ -24,18 +24,19 @@ func (b *Broker) Bind(w http.ResponseWriter, r *http.Request) {
 
 	b.mu.RLock()
 	instance, exists := b.instances[instanceID]
-	b.mu.RUnlock()
-
 	if !exists {
-		http.Error(w, `{"error": "Instance not found"}`, http.StatusNotFound)
+		b.mu.RUnlock()
+		writeJSON(w, http.StatusNotFound, map[string]string{"error": "Instance not found"})
 		return
 	}
 
 	if instance.State != "ready" {
-		http.Error(w, `{"error": "Instance not ready"}`, http.StatusUnprocessableEntity)
+		b.mu.RUnlock()
+		writeJSON(w, http.StatusUnprocessableEntity, map[string]string{"error": "Instance not ready"})
 		return
 	}
 
+	// Copy values under lock to avoid race with concurrent state mutations
 	resp := BindResponse{
 		Credentials: map[string]interface{}{
 			"webchat_url":      fmt.Sprintf("https://%s.%s", instance.RouteHostname, instance.AppsDomain),
@@ -50,6 +51,7 @@ func (b *Broker) Bind(w http.ResponseWriter, r *http.Request) {
 			"sso_enabled":      instance.SSOEnabled,
 		},
 	}
+	b.mu.RUnlock()
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)

@@ -143,6 +143,7 @@ packages:
                 stemcell_os: ubuntu-jammy
                 stemcell_version: latest
                 network: (( $self.service_network ))
+                az: (( .properties.on_demand_az.value ))
               cf:
                 system_domain: (( ..cf.cloud_controller.system_domain.value ))
                 apps_domain: (( ..cf.cloud_controller.apps_domain.value ))
@@ -521,6 +522,11 @@ forms:
     label: Service Broker
     description: Configure broker credentials and route prefixes
     properties:
+      - name: on_demand_az
+        type: service_network_az_multi_select
+        label: On-Demand Agent Availability Zones
+        configurable: true
+        description: Select the availability zones where on-demand agent VMs will be deployed
       - name: generated_broker_credentials
         type: simple_credentials
         label: Broker Credentials (Auto-generated)

@@ -416,6 +416,49 @@ func TestProvision_BOSHDeployFailure(t *testing.T) {
 	}
 }
 
+func TestProvision_InvalidInstanceID(t *testing.T) {
+	_, fakeBOSH, router := newTestBroker("done", false)
+	defer fakeBOSH.Close()
+
+	// Instance ID with YAML injection attempt
+	body := ProvisionRequest{
+		ServiceID:        "openclaw-service",
+		PlanID:           "openclaw-developer-plan",
+		OrganizationGUID: "org-123",
+		SpaceGUID:        "space-456",
+		Parameters:       map[string]interface{}{"openclaw_version": "2026.2.10"},
+	}
+	bodyBytes, _ := json.Marshal(body)
+
+	// IDs that are valid URL path segments but should fail instance ID validation
+	badIDs := []string{
+		".hidden-start",     // starts with dot
+		"-leading-hyphen",   // starts with hyphen
+		"has.dots.in.it",    // dots not allowed
+		"has;semicolon",     // semicolons not allowed
+		"inst@bad",          // @ not allowed
+	}
+	for _, id := range badIDs {
+		req := httptest.NewRequest("PUT", "/v2/service_instances/"+id+"?accepts_incomplete=true", bytes.NewReader(bodyBytes))
+		rr := httptest.NewRecorder()
+		router.ServeHTTP(rr, req)
+		if rr.Code != http.StatusBadRequest {
+			t.Errorf("Instance ID %q: status = %d, want 400", id, rr.Code)
+		}
+	}
+
+	// Valid IDs should pass validation
+	validIDs := []string{"inst-001", "abc123", "my_instance-v2"}
+	for _, id := range validIDs {
+		req := httptest.NewRequest("PUT", "/v2/service_instances/"+id+"?accepts_incomplete=true", bytes.NewReader(bodyBytes))
+		rr := httptest.NewRecorder()
+		router.ServeHTTP(rr, req)
+		if rr.Code == http.StatusBadRequest {
+			t.Errorf("Valid instance ID %q rejected with 400", id)
+		}
+	}
+}
+
 func TestProvision_InvalidJSON(t *testing.T) {
 	_, fakeBOSH, router := newTestBroker("done", false)
 	defer fakeBOSH.Close()
@@ -1128,6 +1171,84 @@ func TestUpdate_EmptyPlanIDNoRedeploy(t *testing.T) {
 
 	if inst.State != "ready" {
 		t.Errorf("State = %q, want %q (no re-deploy for empty plan)", inst.State, "ready")
+	}
+}
+
+// --- ManifestParams tests ---
+
+func TestProvision_LLMConfigFlowsToManifest(t *testing.T) {
+	// Verify that GenAI config is included in manifest params
+	fakeBOSH := newFakeBOSHDirector("done", false)
+	defer fakeBOSH.Close()
+
+	director := bosh.NewClient(fakeBOSH.URL, "admin", "admin", "", "")
+	cfg := BrokerConfig{
+		OpenClawVersion: "2026.2.10",
+		AZs:             []string{"z1"},
+		AppsDomain:      "apps.example.com",
+		LLMProvider:     "genai",
+		LLMEndpoint:     "https://genai.example.com",
+		LLMAPIKey:       "test-key",
+		LLMModel:        "gpt-4",
+		BlockedCommands: "rm -rf /,dd if=/dev/zero",
+	}
+	b := New(cfg, director)
+
+	r := mux.NewRouter()
+	r.HandleFunc("/v2/service_instances/{instance_id}", b.Provision).Methods("PUT")
+
+	rr := provisionInstance(t, r, "inst-llm", "openclaw-developer-plan")
+	if rr.Code != http.StatusAccepted {
+		t.Fatalf("Provision failed: %d, body: %s", rr.Code, rr.Body.String())
+	}
+}
+
+func TestProvision_BrowserEnabledFromPlanFeatures(t *testing.T) {
+	fakeBOSH := newFakeBOSHDirector("done", false)
+	defer fakeBOSH.Close()
+
+	director := bosh.NewClient(fakeBOSH.URL, "admin", "admin", "", "")
+	cfg := BrokerConfig{
+		OpenClawVersion: "2026.2.10",
+		AZs:             []string{"z1"},
+		AppsDomain:      "apps.example.com",
+		Plans: []Plan{
+			{
+				ID: "browser-plan", Name: "browser-enabled",
+				VMType: "medium", DiskType: "20GB",
+				Features: map[string]bool{"browser": true},
+			},
+		},
+	}
+	b := New(cfg, director)
+
+	// Build manifest params and check browser is enabled
+	instance := &Instance{
+		ID: "inst-browser", PlanID: "browser-plan", PlanName: "browser-enabled",
+		VMType: "medium", DiskType: "20GB", AppsDomain: "apps.example.com",
+	}
+	params := b.buildManifestParams(instance)
+	if !params.BrowserEnabled {
+		t.Error("BrowserEnabled should be true for plan with browser feature")
+	}
+
+	// Also test plan without browser feature
+	cfg2 := BrokerConfig{
+		OpenClawVersion: "2026.2.10",
+		AZs:             []string{"z1"},
+		AppsDomain:      "apps.example.com",
+		Plans: []Plan{
+			{ID: "no-browser-plan", Name: "basic", VMType: "small", DiskType: "10GB"},
+		},
+	}
+	b2 := New(cfg2, director)
+	instance2 := &Instance{
+		ID: "inst-no-browser", PlanID: "no-browser-plan", PlanName: "basic",
+		VMType: "small", DiskType: "10GB", AppsDomain: "apps.example.com",
+	}
+	params2 := b2.buildManifestParams(instance2)
+	if params2.BrowserEnabled {
+		t.Error("BrowserEnabled should be false for plan without browser feature")
 	}
 }
 

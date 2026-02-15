@@ -26,7 +26,6 @@ instance_groups:
             gateway:
               token: "{{ .GatewayToken }}"
               port: 18789
-              websocket_origin_check: true
             webchat:
               enabled: true
               port: {{ if .SSOEnabled }}8081{{ else }}8080{{ end }}
@@ -35,6 +34,47 @@ instance_groups:
               require_auth: true
             security:
               sandbox_mode: {{ .SandboxMode }}
+{{- if .BlockedCommands }}
+              blocked_commands:
+{{- range .BlockedCommands }}
+                - "{{ . }}"
+{{- end }}
+{{- end }}
+{{- if .LLMProvider }}
+            llm:
+              provider: "{{ .LLMProvider }}"
+{{- if or .LLMEndpoint .LLMAPIEndpoint }}
+              genai:
+{{- if .LLMEndpoint }}
+                endpoint: "{{ .LLMEndpoint }}"
+{{- else if .LLMAPIEndpoint }}
+                endpoint: "{{ .LLMAPIEndpoint }}"
+{{- end }}
+{{- if .LLMAPIKey }}
+                api_key: "{{ .LLMAPIKey }}"
+{{- end }}
+{{- if .LLMModel }}
+                model: "{{ .LLMModel }}"
+{{- end }}
+{{- end }}
+{{- if not (or .LLMEndpoint .LLMAPIEndpoint) }}
+{{- if .LLMAPIKey }}
+              genai:
+                api_key: "{{ .LLMAPIKey }}"
+{{- if .LLMModel }}
+                model: "{{ .LLMModel }}"
+{{- end }}
+{{- end }}
+{{- end }}
+{{- if .GenAIOfferingName }}
+              offering_name: "{{ .GenAIOfferingName }}"
+{{- end }}
+{{- if .GenAIPlanName }}
+              plan_name: "{{ .GenAIPlanName }}"
+{{- end }}
+{{- end }}
+            browser:
+              enabled: {{ .BrowserEnabled }}
             node:
               enabled: true
               seed: "{{ .NodeSeed }}"
@@ -44,6 +84,11 @@ instance_groups:
               plan: "{{ .PlanName }}"
             route:
               hostname: "{{ .RouteHostname }}"
+              domain: "{{ .AppsDomain }}"
+{{- if .SSOEnabled }}
+            sso:
+              enabled: true
+{{- end }}
 {{ if .SSOEnabled }}
       - name: openclaw-sso-proxy
         release: openclaw
@@ -128,6 +173,15 @@ type ManifestParams struct {
 	SSOClientSecret        string
 	SSOCookieSecret        string
 	SSOOIDCIssuerURL       string
+	LLMProvider            string
+	LLMEndpoint            string
+	LLMAPIKey              string
+	LLMModel               string
+	LLMAPIEndpoint         string
+	GenAIOfferingName      string
+	GenAIPlanName          string
+	BrowserEnabled         bool
+	BlockedCommands        []string
 }
 
 // AZsYAML returns the AZs formatted for inline YAML: "az1, az2"
@@ -155,6 +209,16 @@ func RenderAgentManifest(params ManifestParams) ([]byte, error) {
 	params.SSOClientSecret = sanitizeForYAML(params.SSOClientSecret)
 	params.SSOCookieSecret = sanitizeForYAML(params.SSOCookieSecret)
 	params.SSOOIDCIssuerURL = sanitizeForYAML(params.SSOOIDCIssuerURL)
+	params.LLMProvider = sanitizeForYAML(params.LLMProvider)
+	params.LLMEndpoint = sanitizeForYAML(params.LLMEndpoint)
+	params.LLMAPIKey = sanitizeForYAML(params.LLMAPIKey)
+	params.LLMModel = sanitizeForYAML(params.LLMModel)
+	params.LLMAPIEndpoint = sanitizeForYAML(params.LLMAPIEndpoint)
+	params.GenAIOfferingName = sanitizeForYAML(params.GenAIOfferingName)
+	params.GenAIPlanName = sanitizeForYAML(params.GenAIPlanName)
+	for i := range params.BlockedCommands {
+		params.BlockedCommands[i] = sanitizeForYAML(params.BlockedCommands[i])
+	}
 
 	tmpl, err := template.New("manifest").Parse(agentManifestTemplate)
 	if err != nil {

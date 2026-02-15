@@ -31,9 +31,9 @@ echo ""
 
 # Get list of all agent instances from broker
 echo "Fetching agent instances from broker..."
-INSTANCES=$(curl -s -u "${BROKER_USER}:${BROKER_PASSWORD}" \
+INSTANCES=$(curl -sf -u "${BROKER_USER}:${BROKER_PASSWORD}" \
   "${BROKER_ENDPOINT}/admin/instances" \
-  --max-time 30)
+  --max-time 30) || { echo "FAIL: Could not fetch instances from broker"; exit 1; }
 
 TOTAL=$(json_array_len "${INSTANCES}")
 
@@ -55,11 +55,11 @@ echo ""
 
 # Phase 1: Canary upgrades
 echo "--- Phase 1: Canary Upgrade (${CANARY_COUNT} instances) ---"
-curl -s -X POST -u "${BROKER_USER}:${BROKER_PASSWORD}" \
+curl -sf -X POST -u "${BROKER_USER}:${BROKER_PASSWORD}" \
   "${BROKER_ENDPOINT}/admin/upgrade" \
   -H "Content-Type: application/json" \
   -d "{\"target_version\": \"${TARGET_VERSION}\", \"count\": ${CANARY_COUNT}, \"max_parallel\": ${MAX_PARALLEL}}" \
-  --max-time 60
+  --max-time 60 || { echo "FAIL: Canary upgrade request failed"; exit 1; }
 
 echo ""
 echo "Waiting for canary instances to become healthy..."
@@ -99,11 +99,11 @@ REMAINING=$((TOTAL - CANARY_COUNT))
 if [ ${REMAINING} -gt 0 ]; then
   echo ""
   echo "--- Phase 2: Rolling Upgrade (${REMAINING} remaining instances) ---"
-  curl -s -X POST -u "${BROKER_USER}:${BROKER_PASSWORD}" \
+  curl -sf -X POST -u "${BROKER_USER}:${BROKER_PASSWORD}" \
     "${BROKER_ENDPOINT}/admin/upgrade" \
     -H "Content-Type: application/json" \
     -d "{\"target_version\": \"${TARGET_VERSION}\", \"count\": ${REMAINING}, \"max_parallel\": ${MAX_PARALLEL}}" \
-    --max-time 60
+    --max-time 60 || { echo "FAIL: Rolling upgrade request failed"; exit 1; }
 
   echo ""
   echo "Waiting for all instances to become healthy..."

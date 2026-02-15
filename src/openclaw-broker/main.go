@@ -62,6 +62,14 @@ func main() {
 		SSOOIDCIssuerURL:       cfg.Security.SSOOIDCIssuerURL,
 		MaxInstances:           cfg.Limits.MaxInstances,
 		MaxInstancesPerOrg:     cfg.Limits.MaxInstancesPerOrg,
+		LLMProvider:            cfg.GenAI.Provider,
+		LLMEndpoint:            cfg.GenAI.Endpoint,
+		LLMAPIKey:              cfg.GenAI.APIKey,
+		LLMModel:               cfg.GenAI.Model,
+		LLMAPIEndpoint:         cfg.GenAI.APIEndpoint,
+		GenAIOfferingName:      cfg.GenAI.OfferingName,
+		GenAIPlanName:          cfg.GenAI.PlanName,
+		BlockedCommands:        cfg.Security.BlockedCommands,
 	}
 	b := broker.New(brokerCfg, director)
 
@@ -132,6 +140,7 @@ type Config struct {
 		MinOpenClawVersion string `json:"min_openclaw_version"`
 		ControlUIEnabled   bool   `json:"control_ui_enabled"`
 		SandboxMode        string `json:"sandbox_mode"`
+		BlockedCommands    string `json:"blocked_commands"`
 		SSOEnabled         bool   `json:"sso_enabled"`
 		SSOClientID        string `json:"sso_client_id"`
 		SSOClientSecret    string `json:"sso_client_secret"`
@@ -139,9 +148,13 @@ type Config struct {
 		SSOOIDCIssuerURL   string `json:"sso_oidc_issuer_url"`
 	} `json:"security"`
 	GenAI struct {
-		Endpoint string `json:"endpoint"`
-		APIKey   string `json:"api_key"`
-		Model    string `json:"model"`
+		Provider     string `json:"provider"`
+		Endpoint     string `json:"endpoint"`
+		APIKey       string `json:"api_key"`
+		Model        string `json:"model"`
+		APIEndpoint  string `json:"api_endpoint"`
+		OfferingName string `json:"offering_name"`
+		PlanName     string `json:"plan_name"`
 	} `json:"genai"`
 	OnDemand struct {
 		ServiceName            string        `json:"service_name"`

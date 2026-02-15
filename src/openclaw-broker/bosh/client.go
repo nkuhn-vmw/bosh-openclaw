@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"net/url"
 	"strings"
@@ -32,7 +33,9 @@ func NewClient(directorURL, clientID, clientSecret, caCert, uaaURL string) *Clie
 	tlsConfig := &tls.Config{}
 	if caCert != "" {
 		pool := x509.NewCertPool()
-		pool.AppendCertsFromPEM([]byte(caCert))
+		if !pool.AppendCertsFromPEM([]byte(caCert)) {
+			log.Printf("WARNING: failed to parse any CA certificates from provided ca_cert")
+		}
 		tlsConfig.RootCAs = pool
 	}
 
@@ -207,6 +210,11 @@ func (c *Client) TaskStatus(taskID int) (string, error) {
 		return "", fmt.Errorf("task status request failed: %w", err)
 	}
 	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return "", fmt.Errorf("task status request returned %d: %s", resp.StatusCode, body)
+	}
 
 	var result struct {
 		State string `json:"state"`

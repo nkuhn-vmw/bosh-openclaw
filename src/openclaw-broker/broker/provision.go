@@ -13,6 +13,9 @@ import (
 	"github.com/nkuhn-vmw/bosh-openclaw/src/openclaw-broker/security"
 )
 
+// validInstanceID matches OSB instance IDs: alphanumeric, hyphens, underscores, max 64 chars.
+var validInstanceID = regexp.MustCompile(`^[a-zA-Z0-9][a-zA-Z0-9_-]{0,63}$`)
+
 type ProvisionRequest struct {
 	ServiceID        string                 `json:"service_id"`
 	PlanID           string                 `json:"plan_id"`
@@ -29,6 +32,12 @@ type ProvisionResponse struct {
 func (b *Broker) Provision(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	instanceID := vars["instance_id"]
+
+	// Validate instance ID to prevent YAML injection via crafted IDs
+	if !validInstanceID.MatchString(instanceID) {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "Invalid instance_id format"})
+		return
+	}
 
 	// OSB API: async operations require accepts_incomplete=true
 	if r.URL.Query().Get("accepts_incomplete") != "true" {
@@ -235,6 +244,27 @@ func (b *Broker) buildManifestParams(instance *Instance) bosh.ManifestParams {
 		routingReleaseVersion = "latest"
 	}
 
+	// Determine browser automation from plan features
+	browserEnabled := false
+	plan := b.findPlan(instance.PlanID)
+	if plan != nil && plan.Features["browser"] {
+		browserEnabled = true
+	}
+
+	// Parse blocked commands: tile may send newline-separated or comma-separated
+	var blockedCmds []string
+	if b.config.BlockedCommands != "" {
+		// Replace newlines with commas so we can split uniformly
+		normalized := strings.ReplaceAll(b.config.BlockedCommands, "\n", ",")
+		normalized = strings.ReplaceAll(normalized, "\r", "")
+		for _, cmd := range strings.Split(normalized, ",") {
+			cmd = strings.TrimSpace(cmd)
+			if cmd != "" {
+				blockedCmds = append(blockedCmds, cmd)
+			}
+		}
+	}
+
 	return bosh.ManifestParams{
 		DeploymentName:         instance.DeploymentName,
 		ID:                     instance.ID,
@@ -262,6 +292,15 @@ func (b *Broker) buildManifestParams(instance *Instance) bosh.ManifestParams {
 		SSOClientSecret:        b.config.SSOClientSecret,
 		SSOCookieSecret:        b.config.SSOCookieSecret,
 		SSOOIDCIssuerURL:       b.config.SSOOIDCIssuerURL,
+		LLMProvider:            b.config.LLMProvider,
+		LLMEndpoint:            b.config.LLMEndpoint,
+		LLMAPIKey:              b.config.LLMAPIKey,
+		LLMModel:               b.config.LLMModel,
+		LLMAPIEndpoint:         b.config.LLMAPIEndpoint,
+		GenAIOfferingName:      b.config.GenAIOfferingName,
+		GenAIPlanName:          b.config.GenAIPlanName,
+		BrowserEnabled:         browserEnabled,
+		BlockedCommands:        blockedCmds,
 	}
 }
 

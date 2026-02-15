@@ -39,6 +39,14 @@ type BrokerConfig struct {
 	SSOOIDCIssuerURL       string   `json:"sso_oidc_issuer_url"`
 	MaxInstances           int      `json:"max_instances"`
 	MaxInstancesPerOrg     int      `json:"max_instances_per_org"`
+	LLMProvider            string   `json:"llm_provider"`
+	LLMEndpoint            string   `json:"llm_endpoint"`
+	LLMAPIKey              string   `json:"llm_api_key"`
+	LLMModel               string   `json:"llm_model"`
+	LLMAPIEndpoint         string   `json:"llm_api_endpoint"`
+	GenAIOfferingName      string   `json:"genai_offering_name"`
+	GenAIPlanName          string   `json:"genai_plan_name"`
+	BlockedCommands        string   `json:"blocked_commands"`
 }
 
 type Broker struct {

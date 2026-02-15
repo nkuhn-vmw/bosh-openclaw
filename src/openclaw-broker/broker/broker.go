@@ -85,6 +85,7 @@ type Plan struct {
 	VMType          string                 `json:"vm_type"`
 	DiskType        string                 `json:"disk_type"`
 	Memory          int                    `json:"memory"`
+	AZs             []string               `json:"azs,omitempty"`
 	Features        map[string]bool        `json:"features,omitempty"`
 	Metadata        map[string]interface{} `json:"metadata,omitempty"`
 }

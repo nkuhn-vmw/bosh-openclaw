@@ -155,10 +155,10 @@ func (b *Broker) Provision(w http.ResponseWriter, r *http.Request) {
 		OpenClawVersion:  openclawVersion,
 	}
 
-	// Validate required infrastructure config
-	if len(b.config.AZs) == 0 {
+	// Validate required infrastructure config — per-plan AZs take precedence over global
+	if len(plan.AZs) == 0 && len(b.config.AZs) == 0 {
 		b.mu.Unlock()
-		log.Printf("No AZs configured for on-demand deployments")
+		log.Printf("No AZs configured for plan %s or globally", plan.Name)
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "Broker misconfiguration: no availability zones configured"})
 		return
 	}
@@ -223,6 +223,10 @@ func (b *Broker) buildManifestParams(instance *Instance) bosh.ManifestParams {
 		stemcellVersion = "latest"
 	}
 	azs := b.config.AZs
+	plan := b.findPlan(instance.PlanID)
+	if plan != nil && len(plan.AZs) > 0 {
+		azs = plan.AZs
+	}
 	sandboxMode := b.config.SandboxMode
 	if sandboxMode == "" {
 		sandboxMode = "strict"
@@ -246,7 +250,6 @@ func (b *Broker) buildManifestParams(instance *Instance) bosh.ManifestParams {
 
 	// Determine browser automation from plan features
 	browserEnabled := false
-	plan := b.findPlan(instance.PlanID)
 	if plan != nil && plan.Features["browser"] {
 		browserEnabled = true
 	}

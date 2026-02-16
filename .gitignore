@@ -19,6 +19,9 @@ vendor/
 *.tar.gz
 *.tgz
 
+# OpsManager credentials
+om-cli-*.yml
+
 # OS
 .DS_Store
 Thumbs.db

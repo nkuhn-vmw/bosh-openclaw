@@ -154,6 +154,7 @@ echo "Extracting credentials from service key..."
 # cf service-key output has 2 header lines before the JSON
 cf service-key "${SERVICE_INSTANCE}" "${SERVICE_KEY}" | sed '1,2d' > "${CREDS_FILE}"
 
+chown vcap:vcap "${CREDS_FILE}"
 chmod 0600 "${CREDS_FILE}"
 echo "Credentials written to ${CREDS_FILE}"
 
@@ -161,6 +162,9 @@ echo "Credentials written to ${CREDS_FILE}"
 ENDPOINT=$(python3 -c "
 import json, sys
 creds = json.load(open('${CREDS_FILE}'))
+# Handle wrapped format: {credentials: {api_base: ...}}
+if 'credentials' in creds:
+    creds = creds['credentials']
 ep = creds.get('api_base') or creds.get('endpoint', {}).get('api_base', '<not found>')
 print(ep)
 ")

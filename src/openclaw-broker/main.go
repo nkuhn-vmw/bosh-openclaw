@@ -233,6 +233,13 @@ type GenAIEndpoint struct {
 }
 
 type GenAIServiceKey struct {
+	// Wrapped format: {"credentials": {...}}
+	Credentials *GenAIServiceKeyCreds `json:"credentials"`
+	// Unwrapped format: top-level fields
+	GenAIServiceKeyCreds
+}
+
+type GenAIServiceKeyCreds struct {
 	APIBase   string         `json:"api_base"`
 	APIKey    string         `json:"api_key"`
 	ModelName string         `json:"model_name"`
@@ -251,21 +258,26 @@ func loadGenAICredentials(configDir string) (endpoint, apiKey, model string, err
 		return "", "", "", fmt.Errorf("parsing %s: %w", credsPath, err)
 	}
 
-	// Try top-level api_base/api_key first (single binding format)
-	endpoint = key.APIBase
-	apiKey = key.APIKey
-	model = key.ModelName
+	// Use wrapped credentials if present, otherwise use top-level
+	creds := &key.GenAIServiceKeyCreds
+	if key.Credentials != nil && (key.Credentials.APIBase != "" || key.Credentials.APIKey != "") {
+		creds = key.Credentials
+	}
+
+	endpoint = creds.APIBase
+	apiKey = creds.APIKey
+	model = creds.ModelName
 
 	// Fall back to endpoint.api_base/api_key (multi-format binding)
-	if endpoint == "" && key.Endpoint != nil {
-		endpoint = key.Endpoint.APIBase
+	if endpoint == "" && creds.Endpoint != nil {
+		endpoint = creds.Endpoint.APIBase
 	}
-	if apiKey == "" && key.Endpoint != nil {
-		apiKey = key.Endpoint.APIKey
+	if apiKey == "" && creds.Endpoint != nil {
+		apiKey = creds.Endpoint.APIKey
 	}
 
 	if endpoint == "" || apiKey == "" {
-		return "", "", "", fmt.Errorf("genai-credentials.json missing api_base or api_key (top-level and endpoint both empty)")
+		return "", "", "", fmt.Errorf("genai-credentials.json missing api_base or api_key")
 	}
 
 	return endpoint, apiKey, model, nil

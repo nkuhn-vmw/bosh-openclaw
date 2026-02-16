@@ -116,11 +116,11 @@ instance_groups:
 {{ indent 16 .NATSTLSClientCert }}
 {{- end }}
 {{- if .NATSTLSClientKey }}
-              private_key: |
+              client_key: |
 {{ indent 16 .NATSTLSClientKey }}
 {{- end }}
 {{- if .NATSTLSCACert }}
-              ca_certs: |
+              ca_cert: |
 {{ indent 16 .NATSTLSCACert }}
 {{- end }}
           route_registrar:

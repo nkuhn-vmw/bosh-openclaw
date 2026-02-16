@@ -309,8 +309,8 @@ packages:
             skip_ssl_validation: true
           smoke_tests:
             plan: developer
-            lifecycle_test: false
-            timeout_seconds: 300
+            lifecycle_test: true
+            timeout_seconds: 600
             verify_webchat_route: true
             test_prompt: "What is 2 + 2? Reply with just the number."
 

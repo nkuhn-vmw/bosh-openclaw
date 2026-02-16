@@ -300,8 +300,6 @@ func (b *Broker) buildManifestParams(instance *Instance) bosh.ManifestParams {
 		LLMAPIKey:              b.config.LLMAPIKey,
 		LLMModel:               b.config.LLMModel,
 		LLMAPIEndpoint:         b.config.LLMAPIEndpoint,
-		GenAIOfferingName:      b.config.GenAIOfferingName,
-		GenAIPlanName:          b.config.GenAIPlanName,
 		BrowserEnabled:         browserEnabled,
 		BlockedCommands:        blockedCmds,
 		NATSTLSClientCert:      b.config.NATSTLSClientCert,

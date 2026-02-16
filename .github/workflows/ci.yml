@@ -102,6 +102,8 @@ jobs:
             const gwToken = (config.gateway && config.gateway.token) || '';
             const gwBind = (config.gateway && config.gateway.bind_address) || '0.0.0.0';
             const webchatPort = (config.webchat && config.webchat.port) || 8080;
+            const llmProvider = (config.llm && config.llm.provider) || 'none';
+            const llmEndpoint = (config.llm && config.llm.genai && config.llm.genai.endpoint) || 'not set';
             const instanceId = (config.instance && config.instance.id) || 'unknown';
             const owner = (config.instance && config.instance.owner) || 'unknown';
             const planName = (config.instance && config.instance.plan) || 'unknown';
@@ -149,6 +151,7 @@ jobs:
             gwServer.listen(gwPort, gwBind, () => {
               console.log('OpenClaw Gateway listening on ' + gwBind + ':' + gwPort);
               console.log('OpenClaw Agent v' + pkg.version + ' started (placeholder runtime)');
+              console.log('LLM config: provider=' + llmProvider + ' endpoint=' + llmEndpoint);
             });
 
             // Handle graceful shutdown

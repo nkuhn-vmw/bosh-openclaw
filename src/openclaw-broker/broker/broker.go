@@ -44,8 +44,6 @@ type BrokerConfig struct {
 	LLMAPIKey              string   `json:"llm_api_key"`
 	LLMModel               string   `json:"llm_model"`
 	LLMAPIEndpoint         string   `json:"llm_api_endpoint"`
-	GenAIOfferingName      string   `json:"genai_offering_name"`
-	GenAIPlanName          string   `json:"genai_plan_name"`
 	BlockedCommands        string   `json:"blocked_commands"`
 	NATSTLSEnabled         bool     `json:"nats_tls_enabled"`
 	NATSTLSClientCert      string   `json:"nats_tls_client_cert"`

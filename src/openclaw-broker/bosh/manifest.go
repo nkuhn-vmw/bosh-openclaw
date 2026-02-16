@@ -66,12 +66,6 @@ instance_groups:
 {{- end }}
 {{- end }}
 {{- end }}
-{{- if .GenAIOfferingName }}
-              offering_name: "{{ .GenAIOfferingName }}"
-{{- end }}
-{{- if .GenAIPlanName }}
-              plan_name: "{{ .GenAIPlanName }}"
-{{- end }}
 {{- end }}
             browser:
               enabled: {{ .BrowserEnabled }}
@@ -196,8 +190,6 @@ type ManifestParams struct {
 	LLMAPIKey              string
 	LLMModel               string
 	LLMAPIEndpoint         string
-	GenAIOfferingName      string
-	GenAIPlanName          string
 	BrowserEnabled         bool
 	BlockedCommands        []string
 	NATSTLSClientCert      string
@@ -251,8 +243,6 @@ func RenderAgentManifest(params ManifestParams) ([]byte, error) {
 	params.LLMAPIKey = sanitizeForYAML(params.LLMAPIKey)
 	params.LLMModel = sanitizeForYAML(params.LLMModel)
 	params.LLMAPIEndpoint = sanitizeForYAML(params.LLMAPIEndpoint)
-	params.GenAIOfferingName = sanitizeForYAML(params.GenAIOfferingName)
-	params.GenAIPlanName = sanitizeForYAML(params.GenAIPlanName)
 	for i := range params.BlockedCommands {
 		params.BlockedCommands[i] = sanitizeForYAML(params.BlockedCommands[i])
 	}

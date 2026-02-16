@@ -106,9 +106,6 @@ instance_groups:
             deployment: {{ .CFDeploymentName }}
         properties:
           nats:
-            machines:
-              - q-s0.nats.default.{{ .CFDeploymentName }}.bosh
-            port: 4222
             tls:
               enabled: true
 {{- if .NATSTLSClientCert }}

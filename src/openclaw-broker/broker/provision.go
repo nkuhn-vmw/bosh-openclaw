@@ -304,6 +304,9 @@ func (b *Broker) buildManifestParams(instance *Instance) bosh.ManifestParams {
 		GenAIPlanName:          b.config.GenAIPlanName,
 		BrowserEnabled:         browserEnabled,
 		BlockedCommands:        blockedCmds,
+		NATSTLSClientCert:      b.config.NATSTLSClientCert,
+		NATSTLSClientKey:       b.config.NATSTLSClientKey,
+		NATSTLSCACert:          b.config.NATSTLSCACert,
 	}
 }
 

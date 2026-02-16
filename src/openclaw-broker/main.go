@@ -70,6 +70,10 @@ func main() {
 		GenAIOfferingName:      cfg.GenAI.OfferingName,
 		GenAIPlanName:          cfg.GenAI.PlanName,
 		BlockedCommands:        cfg.Security.BlockedCommands,
+		NATSTLSEnabled:         cfg.NATS.TLS.Enabled,
+		NATSTLSClientCert:      cfg.NATS.TLS.ClientCert,
+		NATSTLSClientKey:       cfg.NATS.TLS.ClientKey,
+		NATSTLSCACert:          cfg.NATS.TLS.CACert,
 	}
 	b := broker.New(brokerCfg, director)
 
@@ -156,6 +160,14 @@ type Config struct {
 		OfferingName string `json:"offering_name"`
 		PlanName     string `json:"plan_name"`
 	} `json:"genai"`
+	NATS struct {
+		TLS struct {
+			Enabled    bool   `json:"enabled"`
+			ClientCert string `json:"client_cert"`
+			ClientKey  string `json:"client_key"`
+			CACert     string `json:"ca_cert"`
+		} `json:"tls"`
+	} `json:"nats"`
 	OnDemand struct {
 		ServiceName            string        `json:"service_name"`
 		Plans                  []broker.Plan `json:"plans"`

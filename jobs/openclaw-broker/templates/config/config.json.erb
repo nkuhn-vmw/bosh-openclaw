@@ -80,6 +80,14 @@
     "offering_name" => p("openclaw.broker.genai.offering_name", ""),
     "plan_name" => p("openclaw.broker.genai.plan_name", "")
   },
+  "nats" => {
+    "tls" => {
+      "enabled" => p("openclaw.broker.nats.tls.enabled"),
+      "client_cert" => p("openclaw.broker.nats.tls.client_cert", ""),
+      "client_key" => p("openclaw.broker.nats.tls.client_key", ""),
+      "ca_cert" => p("openclaw.broker.nats.tls.ca_cert", "")
+    }
+  },
   "on_demand" => {
     "service_name" => p("openclaw.broker.on_demand.service_name"),
     "plans" => plans_array,

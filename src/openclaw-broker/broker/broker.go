@@ -47,6 +47,10 @@ type BrokerConfig struct {
 	GenAIOfferingName      string   `json:"genai_offering_name"`
 	GenAIPlanName          string   `json:"genai_plan_name"`
 	BlockedCommands        string   `json:"blocked_commands"`
+	NATSTLSEnabled         bool     `json:"nats_tls_enabled"`
+	NATSTLSClientCert      string   `json:"nats_tls_client_cert"`
+	NATSTLSClientKey       string   `json:"nats_tls_client_key"`
+	NATSTLSCACert          string   `json:"nats_tls_ca_cert"`
 }
 
 type Broker struct {

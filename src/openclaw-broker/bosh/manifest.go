@@ -111,6 +111,24 @@ instance_groups:
             from: nats-tls
             deployment: {{ .CFDeploymentName }}
         properties:
+          nats:
+            machines:
+              - q-s0.nats.default.{{ .CFDeploymentName }}.bosh
+            port: 4222
+            tls:
+              enabled: true
+{{- if .NATSTLSClientCert }}
+              client_cert: |
+{{ indent 16 .NATSTLSClientCert }}
+{{- end }}
+{{- if .NATSTLSClientKey }}
+              private_key: |
+{{ indent 16 .NATSTLSClientKey }}
+{{- end }}
+{{- if .NATSTLSCACert }}
+              ca_certs: |
+{{ indent 16 .NATSTLSCACert }}
+{{- end }}
           route_registrar:
             routes:
               - name: "openclaw-{{ .ID }}"
@@ -182,6 +200,9 @@ type ManifestParams struct {
 	GenAIPlanName          string
 	BrowserEnabled         bool
 	BlockedCommands        []string
+	NATSTLSClientCert      string
+	NATSTLSClientKey       string
+	NATSTLSCACert          string
 }
 
 // AZsYAML returns the AZs formatted for inline YAML: "az1, az2"
@@ -201,8 +222,24 @@ func sanitizeForYAML(s string) string {
 	return s
 }
 
+// indent returns s with each line prefixed by the given number of spaces.
+// Used in the manifest template to indent PEM certificates inside YAML block scalars.
+func indentPEM(spaces int, s string) string {
+	if s == "" {
+		return ""
+	}
+	pad := strings.Repeat(" ", spaces)
+	lines := strings.Split(strings.TrimRight(s, "\n"), "\n")
+	for i := range lines {
+		lines[i] = pad + lines[i]
+	}
+	return strings.Join(lines, "\n")
+}
+
 func RenderAgentManifest(params ManifestParams) ([]byte, error) {
-	// Sanitize strings that go into YAML double-quoted values
+	// Sanitize strings that go into YAML double-quoted values.
+	// PEM certs (NATSTLSClientCert/Key) are NOT sanitized because they go
+	// inside YAML block scalars and contain multi-line base64 content.
 	params.Owner = sanitizeForYAML(params.Owner)
 	params.RouteHostname = sanitizeForYAML(params.RouteHostname)
 	params.SSOClientID = sanitizeForYAML(params.SSOClientID)
@@ -220,7 +257,9 @@ func RenderAgentManifest(params ManifestParams) ([]byte, error) {
 		params.BlockedCommands[i] = sanitizeForYAML(params.BlockedCommands[i])
 	}
 
-	tmpl, err := template.New("manifest").Parse(agentManifestTemplate)
+	tmpl, err := template.New("manifest").Funcs(template.FuncMap{
+		"indent": indentPEM,
+	}).Parse(agentManifestTemplate)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse manifest template: %w", err)
 	}

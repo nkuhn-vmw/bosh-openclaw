@@ -9,6 +9,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"path/filepath"
 	"os/signal"
 	"syscall"
 	"time"
@@ -30,6 +31,21 @@ func main() {
 	// Validate auth credentials are non-empty to prevent bypass
 	if cfg.Auth.Username == "" || cfg.Auth.Password == "" {
 		log.Fatalf("Broker auth credentials must not be empty (username=%q)", cfg.Auth.Username)
+	}
+
+	// Load GenAI credentials from marketplace service key (if tanzu_genai provider)
+	if cfg.GenAI.Provider == "tanzu_genai" {
+		configDir := filepath.Dir(*configPath)
+		endpoint, apiKey, model, err := loadGenAICredentials(configDir)
+		if err != nil {
+			log.Fatalf("Failed to load GenAI marketplace credentials: %v", err)
+		}
+		cfg.GenAI.Endpoint = endpoint
+		cfg.GenAI.APIKey = apiKey
+		if model != "" && cfg.GenAI.Model == "" {
+			cfg.GenAI.Model = model
+		}
+		log.Printf("GenAI: loaded marketplace credentials, endpoint=%s model=%s", endpoint, cfg.GenAI.Model)
 	}
 
 	director := bosh.NewClient(cfg.BOSH.DirectorURL, cfg.BOSH.ClientID, cfg.BOSH.ClientSecret, cfg.BOSH.CACert, cfg.BOSH.UaaURL)
@@ -180,9 +196,13 @@ type Config struct {
 		RoutingReleaseVersion  string        `json:"routing_release_version"`
 	} `json:"on_demand"`
 	CF struct {
-		SystemDomain   string `json:"system_domain"`
-		AppsDomain     string `json:"apps_domain"`
-		DeploymentName string `json:"deployment_name"`
+		SystemDomain      string `json:"system_domain"`
+		AppsDomain        string `json:"apps_domain"`
+		DeploymentName    string `json:"deployment_name"`
+		APIURL            string `json:"api_url"`
+		AdminUsername     string `json:"admin_username"`
+		AdminPassword     string `json:"admin_password"`
+		SkipSSLValidation bool   `json:"skip_ssl_validation"`
 	} `json:"cf"`
 	Plans  []broker.Plan `json:"plans"`
 	Limits struct {
@@ -204,6 +224,51 @@ func loadConfig(path string) (*Config, error) {
 		cfg.Port = 8080
 	}
 	return &cfg, nil
+}
+
+// GenAI service key credential structures
+type GenAIEndpoint struct {
+	APIBase string `json:"api_base"`
+	APIKey  string `json:"api_key"`
+}
+
+type GenAIServiceKey struct {
+	APIBase   string         `json:"api_base"`
+	APIKey    string         `json:"api_key"`
+	ModelName string         `json:"model_name"`
+	Endpoint  *GenAIEndpoint `json:"endpoint"`
+}
+
+func loadGenAICredentials(configDir string) (endpoint, apiKey, model string, err error) {
+	credsPath := filepath.Join(configDir, "genai-credentials.json")
+	data, err := os.ReadFile(credsPath)
+	if err != nil {
+		return "", "", "", fmt.Errorf("reading %s: %w", credsPath, err)
+	}
+
+	var key GenAIServiceKey
+	if err := json.Unmarshal(data, &key); err != nil {
+		return "", "", "", fmt.Errorf("parsing %s: %w", credsPath, err)
+	}
+
+	// Try top-level api_base/api_key first (single binding format)
+	endpoint = key.APIBase
+	apiKey = key.APIKey
+	model = key.ModelName
+
+	// Fall back to endpoint.api_base/api_key (multi-format binding)
+	if endpoint == "" && key.Endpoint != nil {
+		endpoint = key.Endpoint.APIBase
+	}
+	if apiKey == "" && key.Endpoint != nil {
+		apiKey = key.Endpoint.APIKey
+	}
+
+	if endpoint == "" || apiKey == "" {
+		return "", "", "", fmt.Errorf("genai-credentials.json missing api_base or api_key (top-level and endpoint both empty)")
+	}
+
+	return endpoint, apiKey, model, nil
 }
 
 func basicAuthMiddleware(username, password string) mux.MiddlewareFunc {

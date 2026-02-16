@@ -154,6 +154,10 @@ packages:
                 system_domain: (( ..cf.cloud_controller.system_domain.value ))
                 apps_domain: (( ..cf.cloud_controller.apps_domain.value ))
                 deployment_name: (( ..cf.deployment_name ))
+                api_url: https://api.(( ..cf.cloud_controller.system_domain.value ))
+                admin_username: (( ..cf.uaa.system_services_credentials.identity ))
+                admin_password: (( ..cf.uaa.system_services_credentials.password ))
+                skip_ssl_validation: true
               nats:
                 tls:
                   enabled: true

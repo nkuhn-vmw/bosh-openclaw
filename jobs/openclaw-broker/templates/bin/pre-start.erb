@@ -1,0 +1,169 @@
+#!/bin/bash
+
+set -eu
+
+JOB_NAME="openclaw-broker"
+JOB_DIR="/var/vcap/jobs/${JOB_NAME}"
+LOG_DIR="/var/vcap/sys/log/${JOB_NAME}"
+DATA_DIR="/var/vcap/data/${JOB_NAME}"
+CONFIG_DIR="${JOB_DIR}/config"
+CREDS_FILE="${CONFIG_DIR}/genai-credentials.json"
+
+export PATH="/var/vcap/packages/cf-cli/bin:${PATH}"
+export CF_HOME="${DATA_DIR}/cf-home"
+
+mkdir -p "${LOG_DIR}" "${CF_HOME}"
+
+exec > >(tee -a "${LOG_DIR}/pre-start.log") 2>&1
+echo "=== pre-start begin $(date) ==="
+
+# -----------------------------------------------------------------------
+# Read config to determine provider
+# -----------------------------------------------------------------------
+PROVIDER=$(python3 -c "import json,sys; cfg=json.load(open('${CONFIG_DIR}/config.json')); print(cfg.get('genai',{}).get('provider',''))")
+
+if [ "${PROVIDER}" != "tanzu_genai" ]; then
+  echo "GenAI provider is '${PROVIDER}', not tanzu_genai — skipping marketplace provisioning."
+  rm -f "${CREDS_FILE}"
+  echo "=== pre-start done $(date) ==="
+  exit 0
+fi
+
+echo "GenAI provider is tanzu_genai — provisioning from CF marketplace."
+
+# -----------------------------------------------------------------------
+# Extract CF credentials and GenAI config from config.json
+# -----------------------------------------------------------------------
+CF_API=$(python3 -c "import json; cfg=json.load(open('${CONFIG_DIR}/config.json')); print(cfg['cf']['api_url'])")
+CF_USER=$(python3 -c "import json; cfg=json.load(open('${CONFIG_DIR}/config.json')); print(cfg['cf']['admin_username'])")
+CF_PASSWORD=$(python3 -c "import json; cfg=json.load(open('${CONFIG_DIR}/config.json')); print(cfg['cf']['admin_password'])")
+CF_SKIP_SSL=$(python3 -c "import json; cfg=json.load(open('${CONFIG_DIR}/config.json')); print('true' if cfg['cf'].get('skip_ssl_validation', True) else 'false')")
+OFFERING_NAME=$(python3 -c "import json; cfg=json.load(open('${CONFIG_DIR}/config.json')); print(cfg['genai']['offering_name'])")
+PLAN_NAME=$(python3 -c "import json; cfg=json.load(open('${CONFIG_DIR}/config.json')); print(cfg['genai']['plan_name'])")
+
+# Validate required fields
+if [ -z "${CF_API}" ] || [ -z "${CF_USER}" ] || [ -z "${CF_PASSWORD}" ]; then
+  echo "ERROR: CF API credentials are required for tanzu_genai provider."
+  echo "  cf.api_url='${CF_API}' cf.admin_username='${CF_USER}'"
+  exit 1
+fi
+
+if [ -z "${OFFERING_NAME}" ] || [ -z "${PLAN_NAME}" ]; then
+  echo "ERROR: GenAI offering_name and plan_name are required for tanzu_genai provider."
+  echo "  offering_name='${OFFERING_NAME}' plan_name='${PLAN_NAME}'"
+  exit 1
+fi
+
+# -----------------------------------------------------------------------
+# CF login
+# -----------------------------------------------------------------------
+SSL_FLAG=""
+if [ "${CF_SKIP_SSL}" = "true" ]; then
+  SSL_FLAG="--skip-ssl-validation"
+fi
+
+echo "Connecting to CF API: ${CF_API}"
+cf api "${CF_API}" ${SSL_FLAG}
+cf auth "${CF_USER}" "${CF_PASSWORD}"
+
+# -----------------------------------------------------------------------
+# Target org/space (idempotent)
+# -----------------------------------------------------------------------
+ORG="system"
+SPACE="openclaw-services"
+SERVICE_INSTANCE="openclaw-genai"
+SERVICE_KEY="openclaw-broker-key"
+
+cf target -o "${ORG}"
+echo "Ensuring space '${SPACE}' exists..."
+cf create-space "${SPACE}" -o "${ORG}" 2>/dev/null || true
+cf target -o "${ORG}" -s "${SPACE}"
+
+# -----------------------------------------------------------------------
+# Create service instance (idempotent)
+# -----------------------------------------------------------------------
+echo "Provisioning service instance: ${OFFERING_NAME}/${PLAN_NAME} as '${SERVICE_INSTANCE}'..."
+
+EXISTING_STATUS=""
+if cf service "${SERVICE_INSTANCE}" > /tmp/cf-service-status.txt 2>&1; then
+  EXISTING_STATUS=$(grep -i "status:" /tmp/cf-service-status.txt | head -1 | sed 's/.*status:[[:space:]]*//' | tr '[:upper:]' '[:lower:]')
+  echo "Service instance exists, status: ${EXISTING_STATUS}"
+fi
+
+case "${EXISTING_STATUS}" in
+  *succeeded*)
+    echo "Service instance already provisioned — skipping create."
+    ;;
+  *"in progress"*|*progress*)
+    echo "Service instance creation in progress — will wait."
+    ;;
+  *failed*)
+    echo "Service instance in failed state — purging and recreating."
+    cf purge-service-instance "${SERVICE_INSTANCE}" -f || true
+    sleep 5
+    cf create-service "${OFFERING_NAME}" "${PLAN_NAME}" "${SERVICE_INSTANCE}"
+    ;;
+  *)
+    # Does not exist or unknown — create
+    cf create-service "${OFFERING_NAME}" "${PLAN_NAME}" "${SERVICE_INSTANCE}"
+    ;;
+esac
+
+# -----------------------------------------------------------------------
+# Wait for provisioning (600s timeout)
+# -----------------------------------------------------------------------
+echo "Waiting for service instance to be ready..."
+TIMEOUT=600
+INTERVAL=10
+ELAPSED=0
+
+while [ ${ELAPSED} -lt ${TIMEOUT} ]; do
+  STATUS_OUTPUT=$(cf service "${SERVICE_INSTANCE}" 2>&1 || true)
+  CURRENT_STATUS=$(echo "${STATUS_OUTPUT}" | grep -i "status:" | head -1 | sed 's/.*status:[[:space:]]*//' | tr '[:upper:]' '[:lower:]')
+
+  case "${CURRENT_STATUS}" in
+    *succeeded*)
+      echo "Service instance ready (elapsed: ${ELAPSED}s)."
+      break
+      ;;
+    *failed*)
+      echo "ERROR: Service instance provisioning failed."
+      echo "${STATUS_OUTPUT}"
+      exit 1
+      ;;
+    *)
+      echo "  status: ${CURRENT_STATUS} (${ELAPSED}s/${TIMEOUT}s)"
+      sleep ${INTERVAL}
+      ELAPSED=$((ELAPSED + INTERVAL))
+      ;;
+  esac
+done
+
+if [ ${ELAPSED} -ge ${TIMEOUT} ]; then
+  echo "ERROR: Timed out waiting for service instance (${TIMEOUT}s)."
+  exit 1
+fi
+
+# -----------------------------------------------------------------------
+# Create service key (idempotent) and extract credentials
+# -----------------------------------------------------------------------
+echo "Creating service key '${SERVICE_KEY}'..."
+cf create-service-key "${SERVICE_INSTANCE}" "${SERVICE_KEY}" 2>/dev/null || true
+
+echo "Extracting credentials from service key..."
+# cf service-key output has 2 header lines before the JSON
+cf service-key "${SERVICE_INSTANCE}" "${SERVICE_KEY}" | sed '1,2d' > "${CREDS_FILE}"
+
+chmod 0600 "${CREDS_FILE}"
+echo "Credentials written to ${CREDS_FILE}"
+
+# Log the endpoint (NOT the API key) for verification
+ENDPOINT=$(python3 -c "
+import json, sys
+creds = json.load(open('${CREDS_FILE}'))
+ep = creds.get('api_base') or creds.get('endpoint', {}).get('api_base', '<not found>')
+print(ep)
+")
+echo "Resolved GenAI endpoint: ${ENDPOINT}"
+
+echo "=== pre-start done $(date) ==="

@@ -3,6 +3,7 @@ name: openclaw-broker
 
 templates:
   bin/ctl.erb: bin/ctl
+  bin/pre-start.erb: bin/pre-start
   config/config.json.erb: config/config.json
   config/bpm.yml.erb: config/bpm.yml
   config/catalog.json.erb: config/catalog.json
@@ -10,6 +11,7 @@ templates:
 packages:
   - openclaw-broker
   - golang-1.22
+  - cf-cli
 
 properties:
   openclaw.broker.port:
@@ -165,6 +167,18 @@ properties:
   openclaw.broker.cf.deployment_name:
     description: "CF BOSH deployment name"
     default: ""
+  openclaw.broker.cf.api_url:
+    description: "CF API URL for marketplace provisioning"
+    default: ""
+  openclaw.broker.cf.admin_username:
+    description: "CF admin username for marketplace provisioning"
+    default: ""
+  openclaw.broker.cf.admin_password:
+    description: "CF admin password for marketplace provisioning"
+    default: ""
+  openclaw.broker.cf.skip_ssl_validation:
+    description: "Skip SSL validation when connecting to CF API"
+    default: true
 
   # Security policy
   openclaw.broker.security.sso_enabled:

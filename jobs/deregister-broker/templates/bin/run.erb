@@ -33,3 +33,41 @@ if cf service-brokers | grep -q "^${BROKER_NAME} "; then
 else
   echo "Broker '${BROKER_NAME}' not found, nothing to deregister."
 fi
+
+# -----------------------------------------------------------------------
+# Clean up GenAI marketplace service instance (if provisioned)
+# -----------------------------------------------------------------------
+echo "Cleaning up GenAI marketplace resources..."
+
+if cf target -o "system" -s "openclaw-services" 2>/dev/null; then
+  echo "Deleting GenAI service key..."
+  cf delete-service-key "openclaw-genai" "openclaw-broker-key" -f 2>/dev/null || true
+
+  echo "Deleting GenAI service instance..."
+  cf delete-service "openclaw-genai" -f 2>/dev/null || true
+
+  # Wait for service deletion (up to 120s)
+  TIMEOUT=120
+  ELAPSED=0
+  while [ ${ELAPSED} -lt ${TIMEOUT} ]; do
+    if ! cf service "openclaw-genai" 2>/dev/null | grep -qi "status:"; then
+      break
+    fi
+    STATUS=$(cf service "openclaw-genai" 2>&1 | grep -i "status:" | head -1 | sed 's/.*status:[[:space:]]*//' | tr '[:upper:]' '[:lower:]')
+    case "${STATUS}" in
+      *"in progress"*|*progress*)
+        echo "  Waiting for service deletion... (${ELAPSED}s)"
+        sleep 10
+        ELAPSED=$((ELAPSED + 10))
+        ;;
+      *)
+        break
+        ;;
+    esac
+  done
+
+  echo "Deleting openclaw-services space..."
+  cf delete-space "openclaw-services" -o "system" -f 2>/dev/null || true
+else
+  echo "Space 'openclaw-services' not found — nothing to clean up."
+fi

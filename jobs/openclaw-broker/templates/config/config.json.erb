@@ -102,7 +102,11 @@
   "cf" => {
     "system_domain" => p("openclaw.broker.cf.system_domain", ""),
     "apps_domain" => p("openclaw.broker.cf.apps_domain", ""),
-    "deployment_name" => p("openclaw.broker.cf.deployment_name", "")
+    "deployment_name" => p("openclaw.broker.cf.deployment_name", ""),
+    "api_url" => p("openclaw.broker.cf.api_url", ""),
+    "admin_username" => p("openclaw.broker.cf.admin_username", ""),
+    "admin_password" => p("openclaw.broker.cf.admin_password", ""),
+    "skip_ssl_validation" => p("openclaw.broker.cf.skip_ssl_validation", true)
   },
   "security" => {
     "sandbox_mode" => p("openclaw.broker.security.sandbox_mode"),

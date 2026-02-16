@@ -65,10 +65,11 @@ service_plan_forms:
           min: 1
           max: 10
       - name: az
-        type: service_network_az_multi_select
-        label: Availability Zones
-        description: Select the availability zone(s) where agent VMs for this plan will be deployed
+        type: string
+        label: Availability Zone(s)
+        description: "Comma-separated BOSH AZ names for this plan (e.g. az1 or az1,az2)"
         configurable: true
+        default: "az1"
       - name: instance_quota
         type: integer
         label: Instance Quota

@@ -15,10 +15,15 @@
   plans_hash = p("openclaw.broker.on_demand.plans")
   plans_array = if plans_hash.is_a?(Hash)
     plans_hash.select { |_, cfg| cfg.fetch("enabled", true) }.map do |name, cfg|
-      # Normalize per-plan AZs (service_network_az_multi_select may return string or array)
-      plan_azs = cfg["az"] || cfg["azs"] || cfg["az_multi_select"] || []
-      plan_azs = [plan_azs] if plan_azs.is_a?(String) && !plan_azs.empty?
-      plan_azs = [] unless plan_azs.is_a?(Array)
+      # Normalize per-plan AZs: string type is comma-separated, array type is direct
+      raw_az = cfg["az"] || cfg["azs"] || cfg["az_multi_select"] || ""
+      plan_azs = if raw_az.is_a?(Array)
+        raw_az.map(&:to_s).reject(&:empty?)
+      elsif raw_az.is_a?(String) && !raw_az.strip.empty?
+        raw_az.split(',').map(&:strip).reject(&:empty?)
+      else
+        []
+      end
       {
         "name" => name.to_s.tr('_', '-'),
         "description" => (cfg["plan_description"] || cfg["description"] || "").to_s,

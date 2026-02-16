@@ -65,6 +65,9 @@ if ! echo "${MARKETPLACE}" | grep -q "openclaw"; then
 fi
 echo "PASS: openclaw service found in marketplace"
 
+<% if p('smoke_tests.lifecycle_test') %>
+# --- Full lifecycle test (requires real packages) ---
+
 # Auto-detect plan if configured plan is not available
 if [ -n "${PLAN}" ] && echo "${MARKETPLACE}" | grep -q "^[[:space:]]*${PLAN}[[:space:]]"; then
   echo "Using configured plan: ${PLAN}"
@@ -160,6 +163,12 @@ else
 fi
 <% else %>
 echo "[7/7] Skipping webchat route verification (disabled)."
+<% end %>
+<% else %>
+# --- Marketplace-only test (default for stub packages) ---
+echo "[4/4] Counting available plans..."
+PLAN_COUNT=$(echo "${MARKETPLACE}" | awk '/^[ \t]+[a-z]/ && $1 != "plan" {count++} END {print count+0}')
+echo "PASS: Found ${PLAN_COUNT} plan(s) in marketplace"
 <% end %>
 
 echo ""

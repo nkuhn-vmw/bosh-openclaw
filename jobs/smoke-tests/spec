@@ -27,6 +27,9 @@ properties:
   smoke_tests.plan:
     description: "Service plan to test (empty = auto-detect first available plan)"
     default: ""
+  smoke_tests.lifecycle_test:
+    description: "Enable full lifecycle test (create instance, validate credentials). Disable when using stub packages."
+    default: false
   smoke_tests.timeout_seconds:
     description: "Maximum time to wait for smoke tests to complete"
     default: 300

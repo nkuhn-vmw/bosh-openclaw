@@ -339,22 +339,9 @@ forms:
               - name: genai_fragment
                 manifest: |
                   provider: tanzu_genai
-                  endpoint: (( .properties.genai_provider.tanzu_genai.endpoint.value ))
-                  api_key: (( .properties.genai_provider.tanzu_genai.api_key.value ))
                   offering_name: (( .properties.genai_provider.tanzu_genai.offering_name.value ))
                   plan_name: (( .properties.genai_provider.tanzu_genai.plan_name.value ))
             property_blueprints:
-              - name: endpoint
-                type: string
-                label: GenAI Proxy Endpoint URL
-                description: URL of the Tanzu GenAI proxy (e.g., https://genai-proxy.apps.example.com)
-                configurable: true
-              - name: api_key
-                type: secret
-                label: GenAI API Key
-                description: API key for the GenAI proxy endpoint
-                configurable: true
-                optional: true
               - name: offering_name
                 type: string
                 label: GenAI Offering Name

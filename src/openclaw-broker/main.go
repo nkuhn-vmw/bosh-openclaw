@@ -67,6 +67,8 @@ func main() {
 		LLMAPIKey:              cfg.GenAI.APIKey,
 		LLMModel:               cfg.GenAI.Model,
 		LLMAPIEndpoint:         cfg.GenAI.APIEndpoint,
+		GenAIOfferingName:      cfg.GenAI.OfferingName,
+		GenAIPlanName:          cfg.GenAI.PlanName,
 		BlockedCommands:        cfg.Security.BlockedCommands,
 		NATSTLSEnabled:         cfg.NATS.TLS.Enabled,
 		NATSTLSClientCert:      cfg.NATS.TLS.ClientCert,

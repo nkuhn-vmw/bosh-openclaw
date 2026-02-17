@@ -39,17 +39,21 @@ func (b *Broker) Bind(w http.ResponseWriter, r *http.Request) {
 	// Copy values under lock to avoid race with concurrent state mutations
 	resp := BindResponse{
 		Credentials: map[string]interface{}{
-			"webchat_url":      fmt.Sprintf("https://%s.%s", instance.RouteHostname, instance.AppsDomain),
-			"gateway_url":      fmt.Sprintf("wss://%s.agents.internal:18789", instance.DeploymentName),
-			"gateway_token":    instance.GatewayToken,
-			"api_endpoint":     fmt.Sprintf("https://%s.%s/api", instance.RouteHostname, instance.AppsDomain),
-			"instance_id":      instance.ID,
-			"owner":            instance.Owner,
-			"plan":             instance.PlanName,
-			"openclaw_version": instance.OpenClawVersion,
-			"node_seed":        instance.NodeSeed,
-			"sso_enabled":      instance.SSOEnabled,
+			"webchat_url":         fmt.Sprintf("https://%s.%s", instance.RouteHostname, instance.AppsDomain),
+			"gateway_url":         fmt.Sprintf("wss://%s.agents.internal:18789", instance.DeploymentName),
+			"gateway_token":       instance.GatewayToken,
+			"api_endpoint":        fmt.Sprintf("https://%s.%s/api", instance.RouteHostname, instance.AppsDomain),
+			"instance_id":         instance.ID,
+			"owner":               instance.Owner,
+			"plan":                instance.PlanName,
+			"openclaw_version":    instance.OpenClawVersion,
+			"node_seed":           instance.NodeSeed,
+			"sso_enabled":         instance.SSOEnabled,
+			"control_ui_enabled":  instance.ControlUIEnabled,
 		},
+	}
+	if instance.ControlUIEnabled {
+		resp.Credentials["control_ui_url"] = fmt.Sprintf("https://%s.%s/control", instance.RouteHostname, instance.AppsDomain)
 	}
 	b.mu.RUnlock()
 

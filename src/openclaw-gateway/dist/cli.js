@@ -4,6 +4,7 @@
 const http = require('http');
 const fs = require('fs');
 const { streamChat } = require('./llm');
+const { controlHTML, createAuthMiddleware, handleControlAPI } = require('./control');
 const pkg = require('../package.json');
 
 function esc(s) {
@@ -352,6 +353,10 @@ if (cmd === 'gateway') {
   var llmEndpoint = (config.llm && config.llm.genai && config.llm.genai.endpoint) || 'not set';
 
   var html = webchatHTML({ instanceId: instanceId, planName: planName, owner: owner, version: pkg.version });
+  var ctrlHtml = controlHTML({ instanceId: instanceId, planName: planName, owner: owner, version: pkg.version });
+  var controlAuth = createAuthMiddleware(config);
+  var requestCount = 0;
+  var startedAt = Date.now();
 
   var systemPrompt = 'You are OpenClaw, an AI agent running on instance "' + instanceId +
     '" (plan: ' + planName + ', owner: ' + owner +
@@ -359,11 +364,32 @@ if (cmd === 'gateway') {
 
   // WebChat HTTP server
   var webchatServer = http.createServer(function (req, res) {
-    if (req.method === 'POST' && req.url === '/api/chat') {
+    // Parse pathname for routing
+    var pathname;
+    try { pathname = new URL(req.url, 'http://localhost').pathname; } catch (e) { pathname = req.url.split('?')[0]; }
+
+    if (req.method === 'POST' && pathname === '/api/chat') {
+      requestCount++;
       handleChat(req, res, config, systemPrompt);
-    } else if (req.url === '/healthz' || req.url === '/health') {
+    } else if (pathname === '/healthz' || pathname === '/health') {
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ status: 'ok', version: pkg.version, instance: instanceId }));
+    } else if (pathname.indexOf('/control') === 0) {
+      // Control UI routes
+      var controlConfig = config.control_ui || {};
+      if (!controlConfig.enabled) {
+        res.writeHead(404, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'Control UI is disabled' }));
+        return;
+      }
+      if (!controlAuth(req, res)) return;
+
+      if (pathname.indexOf('/control/api/') === 0) {
+        handleControlAPI(req, res, pathname, config, { requestCount: requestCount, startedAt: startedAt });
+      } else {
+        res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+        res.end(ctrlHtml);
+      }
     } else {
       res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
       res.end(html);

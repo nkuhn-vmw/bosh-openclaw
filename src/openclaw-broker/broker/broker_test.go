@@ -750,11 +750,81 @@ func TestBind_CredentialsContainExpectedKeys(t *testing.T) {
 	expectedKeys := []string{
 		"webchat_url", "gateway_url", "gateway_token", "api_endpoint",
 		"instance_id", "owner", "plan", "openclaw_version", "node_seed", "sso_enabled",
+		"control_ui_enabled",
 	}
 	for _, key := range expectedKeys {
 		if _, ok := resp.Credentials[key]; !ok {
 			t.Errorf("Credentials missing key %q", key)
 		}
+	}
+}
+
+func TestBind_ControlUIEnabled_IncludesURL(t *testing.T) {
+	b, fakeBOSH, router := newTestBroker("done", false)
+	defer fakeBOSH.Close()
+
+	provisionInstance(t, router, "inst-ctrl-on", "openclaw-developer-plan")
+	b.mu.Lock()
+	b.instances["inst-ctrl-on"].State = "ready"
+	b.instances["inst-ctrl-on"].ControlUIEnabled = true
+	b.instances["inst-ctrl-on"].AppsDomain = "apps.example.com"
+	b.mu.Unlock()
+
+	body := BindRequest{ServiceID: "openclaw-service", PlanID: "openclaw-developer-plan"}
+	bodyBytes, _ := json.Marshal(body)
+	req := httptest.NewRequest("PUT", "/v2/service_instances/inst-ctrl-on/service_bindings/bind-ctrl", bytes.NewReader(bodyBytes))
+	rr := httptest.NewRecorder()
+	router.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusCreated {
+		t.Fatalf("Bind status = %d, want %d", rr.Code, http.StatusCreated)
+	}
+
+	var resp BindResponse
+	json.Unmarshal(rr.Body.Bytes(), &resp)
+
+	if resp.Credentials["control_ui_enabled"] != true {
+		t.Errorf("control_ui_enabled = %v, want true", resp.Credentials["control_ui_enabled"])
+	}
+	url, ok := resp.Credentials["control_ui_url"]
+	if !ok {
+		t.Fatal("control_ui_url missing when ControlUIEnabled=true")
+	}
+	expected := "https://openclaw-dev.apps.example.com/control"
+	if url != expected {
+		t.Errorf("control_ui_url = %v, want %q", url, expected)
+	}
+}
+
+func TestBind_ControlUIDisabled_NoURL(t *testing.T) {
+	b, fakeBOSH, router := newTestBroker("done", false)
+	defer fakeBOSH.Close()
+
+	provisionInstance(t, router, "inst-ctrl-off", "openclaw-developer-plan")
+	b.mu.Lock()
+	b.instances["inst-ctrl-off"].State = "ready"
+	b.instances["inst-ctrl-off"].ControlUIEnabled = false
+	b.instances["inst-ctrl-off"].AppsDomain = "apps.example.com"
+	b.mu.Unlock()
+
+	body := BindRequest{ServiceID: "openclaw-service", PlanID: "openclaw-developer-plan"}
+	bodyBytes, _ := json.Marshal(body)
+	req := httptest.NewRequest("PUT", "/v2/service_instances/inst-ctrl-off/service_bindings/bind-ctrl2", bytes.NewReader(bodyBytes))
+	rr := httptest.NewRecorder()
+	router.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusCreated {
+		t.Fatalf("Bind status = %d, want %d", rr.Code, http.StatusCreated)
+	}
+
+	var resp BindResponse
+	json.Unmarshal(rr.Body.Bytes(), &resp)
+
+	if resp.Credentials["control_ui_enabled"] != false {
+		t.Errorf("control_ui_enabled = %v, want false", resp.Credentials["control_ui_enabled"])
+	}
+	if _, ok := resp.Credentials["control_ui_url"]; ok {
+		t.Error("control_ui_url should not be present when ControlUIEnabled=false")
 	}
 }
 

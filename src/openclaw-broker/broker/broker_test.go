@@ -1100,13 +1100,12 @@ func TestUpdate_ChangePlan(t *testing.T) {
 	}
 }
 
-func TestUpdate_SamePlanNoRedeploy(t *testing.T) {
+func TestUpdate_SamePlanRedeploys(t *testing.T) {
 	b, fakeBOSH, router := newTestBroker("done", false)
 	defer fakeBOSH.Close()
 
 	provisionInstance(t, router, "inst-same-plan", "openclaw-developer-plan")
 
-	// Set state to ready so we can check it is NOT reset to provisioning
 	b.mu.Lock()
 	b.instances["inst-same-plan"].State = "ready"
 	b.mu.Unlock()
@@ -1120,17 +1119,17 @@ func TestUpdate_SamePlanNoRedeploy(t *testing.T) {
 	rr := httptest.NewRecorder()
 	router.ServeHTTP(rr, req)
 
-	if rr.Code != http.StatusOK {
-		t.Fatalf("Update same plan status = %d, want %d", rr.Code, http.StatusOK)
+	// Same-plan updates now always redeploy to pick up new release versions
+	if rr.Code != http.StatusAccepted {
+		t.Fatalf("Update same plan status = %d, want %d", rr.Code, http.StatusAccepted)
 	}
 
 	b.mu.RLock()
 	inst := b.instances["inst-same-plan"]
 	b.mu.RUnlock()
 
-	// Should remain "ready" since no re-deploy happened
-	if inst.State != "ready" {
-		t.Errorf("State = %q, want %q (no re-deploy for same plan)", inst.State, "ready")
+	if inst.State != "provisioning" {
+		t.Errorf("State = %q, want %q (redeploy should reset state)", inst.State, "provisioning")
 	}
 }
 
@@ -1221,7 +1220,7 @@ func TestUpdate_BOSHDeployFailure(t *testing.T) {
 	}
 }
 
-func TestUpdate_EmptyPlanIDNoRedeploy(t *testing.T) {
+func TestUpdate_EmptyPlanIDStillRedeploys(t *testing.T) {
 	b, fakeBOSH, router := newTestBroker("done", false)
 	defer fakeBOSH.Close()
 
@@ -1239,16 +1238,17 @@ func TestUpdate_EmptyPlanIDNoRedeploy(t *testing.T) {
 	rr := httptest.NewRecorder()
 	router.ServeHTTP(rr, req)
 
-	if rr.Code != http.StatusOK {
-		t.Fatalf("Update empty plan status = %d, want %d", rr.Code, http.StatusOK)
+	// Empty plan ID still triggers a redeploy to refresh the instance
+	if rr.Code != http.StatusAccepted {
+		t.Fatalf("Update empty plan status = %d, want %d", rr.Code, http.StatusAccepted)
 	}
 
 	b.mu.RLock()
 	inst := b.instances["inst-empty-plan"]
 	b.mu.RUnlock()
 
-	if inst.State != "ready" {
-		t.Errorf("State = %q, want %q (no re-deploy for empty plan)", inst.State, "ready")
+	if inst.State != "provisioning" {
+		t.Errorf("State = %q, want %q (redeploy should reset state)", inst.State, "provisioning")
 	}
 }
 

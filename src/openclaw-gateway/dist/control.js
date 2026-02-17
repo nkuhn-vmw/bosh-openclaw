@@ -14,7 +14,7 @@ function esc(s) {
  */
 function createAuthMiddleware(config) {
   var controlConfig = config.control_ui || {};
-  var token = (config.instance && config.instance.gateway_token) || '';
+  var token = (config.gateway && config.gateway.token) || '';
 
   return function controlAuth(req, res) {
     if (controlConfig.require_auth === false) return true;

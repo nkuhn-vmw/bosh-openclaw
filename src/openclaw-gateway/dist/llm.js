@@ -160,12 +160,10 @@ function streamChat(config, messages, onToken, onDone, onError) {
   try {
     provider = resolveProvider(config);
   } catch (e) {
-    console.log('[llm] resolveProvider error:', e.message);
     onError(e);
     return;
   }
 
-  console.log('[llm] provider resolved, url:', provider.url);
   const body = provider.buildBody(messages);
   const parsed = new URL(provider.url);
   const transport = parsed.protocol === 'https:' ? https : http;
@@ -183,9 +181,7 @@ function streamChat(config, messages, onToken, onDone, onError) {
     rejectUnauthorized: false
   };
 
-  console.log('[llm] requesting:', reqOpts.hostname + ':' + reqOpts.port + reqOpts.path);
   const req = transport.request(reqOpts, (res) => {
-    console.log('[llm] response status:', res.statusCode);
     if (res.statusCode >= 400) {
       let errBody = '';
       res.on('data', (d) => { errBody += d.toString(); });
@@ -197,7 +193,6 @@ function streamChat(config, messages, onToken, onDone, onError) {
         } catch (e) {
           msg += ': ' + errBody.slice(0, 200);
         }
-        console.log('[llm] API error:', msg);
         onError(new Error(msg));
       });
       return;
@@ -205,37 +200,23 @@ function streamChat(config, messages, onToken, onDone, onError) {
 
     const buffer = { data: '' };
     res.setEncoding('utf8');
-    let tokenCount = 0;
     res.on('data', (chunk) => {
       try {
-        provider.parseStream(chunk, buffer, function(token) {
-          tokenCount++;
-          if (tokenCount <= 3) console.log('[llm] token #' + tokenCount + ':', JSON.stringify(token.slice(0, 30)));
-          onToken(token);
-        }, onDone);
+        provider.parseStream(chunk, buffer, onToken, onDone);
       } catch (e) {
-        console.log('[llm] parseStream error:', e.message);
         onError(e);
       }
     });
     res.on('end', () => {
-      console.log('[llm] response stream ended, total tokens:', tokenCount);
       // If stream ended without explicit done signal, call onDone
       onDone();
     });
-    res.on('error', (e) => {
-      console.log('[llm] response error:', e.message);
-      onError(e);
-    });
+    res.on('error', onError);
   });
 
-  req.on('error', (e) => {
-    console.log('[llm] request error:', e.message);
-    onError(e);
-  });
+  req.on('error', onError);
   req.write(body);
   req.end();
-  console.log('[llm] request sent, body length:', Buffer.byteLength(body));
 }
 
 module.exports = { streamChat };

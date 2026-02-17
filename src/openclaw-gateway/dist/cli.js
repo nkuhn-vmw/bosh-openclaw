@@ -1,6 +1,10 @@
 #!/usr/bin/env node
 'use strict';
 
+process.on('uncaughtException', function (err) {
+  console.error('[UNCAUGHT]', err.stack || err.message || err);
+});
+
 const http = require('http');
 const fs = require('fs');
 const { streamChat } = require('./llm');
@@ -415,13 +419,16 @@ if (cmd === 'gateway') {
 /* ── Chat handler ── */
 
 function handleChat(req, res, config, systemPrompt) {
+  console.log('[chat] request received:', req.method, req.url, 'content-length:', req.headers['content-length']);
   var body = '';
   req.on('data', function (chunk) { body += chunk; });
   req.on('end', function () {
+    console.log('[chat] body received, length:', body.length);
     var data;
     try {
       data = JSON.parse(body);
     } catch (e) {
+      console.log('[chat] JSON parse error:', e.message);
       res.writeHead(400, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ error: 'Invalid JSON: ' + e.message }));
       return;
@@ -429,6 +436,7 @@ function handleChat(req, res, config, systemPrompt) {
 
     var msgs = data.messages || [];
     var fullMessages = [{ role: 'system', content: systemPrompt }].concat(msgs);
+    console.log('[chat] parsed OK, messages:', fullMessages.length);
 
     res.writeHead(200, {
       'Content-Type': 'text/event-stream',
@@ -436,6 +444,9 @@ function handleChat(req, res, config, systemPrompt) {
       'Connection': 'keep-alive',
       'X-Accel-Buffering': 'no'
     });
+    // Flush headers immediately with SSE comment
+    res.write(':ok\n\n');
+    console.log('[chat] headers sent, calling streamChat');
 
     var done = false;
 
@@ -443,9 +454,12 @@ function handleChat(req, res, config, systemPrompt) {
       config,
       fullMessages,
       function onToken(token) {
-        if (!done) res.write('data: ' + JSON.stringify({ token: token }) + '\n\n');
+        if (!done) {
+          res.write('data: ' + JSON.stringify({ token: token }) + '\n\n');
+        }
       },
       function onDone() {
+        console.log('[chat] streamChat onDone called, done=' + done);
         if (!done) {
           done = true;
           res.write('data: ' + JSON.stringify({ done: true }) + '\n\n');
@@ -453,6 +467,7 @@ function handleChat(req, res, config, systemPrompt) {
         }
       },
       function onError(err) {
+        console.log('[chat] streamChat onError:', err.message);
         if (!done) {
           done = true;
           res.write('data: ' + JSON.stringify({ error: err.message }) + '\n\n');
@@ -461,6 +476,9 @@ function handleChat(req, res, config, systemPrompt) {
       }
     );
 
-    req.on('close', function () { done = true; });
+    req.on('close', function () {
+      console.log('[chat] client disconnected');
+      done = true;
+    });
   });
 }

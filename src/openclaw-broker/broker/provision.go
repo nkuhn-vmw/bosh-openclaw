@@ -131,7 +131,7 @@ func (b *Broker) Provision(w http.ResponseWriter, r *http.Request) {
 	if sanitizedOwner == "" {
 		sanitizedOwner = "agent"
 	}
-	routeHostname := fmt.Sprintf("openclaw-%s", sanitizedOwner)
+	routeHostname := uniqueRouteHostname(sanitizedOwner, instanceID)
 
 	deploymentName := fmt.Sprintf("openclaw-agent-%s", instanceID)
 
@@ -306,6 +306,29 @@ func (b *Broker) buildManifestParams(instance *Instance) bosh.ManifestParams {
 		NATSTLSClientKey:       b.config.NATSTLSClientKey,
 		NATSTLSCACert:          b.config.NATSTLSCACert,
 	}
+}
+
+// uniqueRouteHostname generates a per-instance DNS-safe hostname: oc-{owner}-{id}.
+// Truncates to 63 characters (DNS label max), trimming the owner portion first.
+func uniqueRouteHostname(sanitizedOwner, instanceID string) string {
+	// Sanitize the instance ID portion (lowercase, DNS-safe chars only)
+	sanitizedID := invalidDNSChars.ReplaceAllString(strings.ToLower(instanceID), "")
+	sanitizedID = strings.Trim(sanitizedID, "-")
+
+	// "oc-" prefix (3) + "-" separator (1) = 4 chars of overhead
+	maxOwnerLen := 63 - 4 - len(sanitizedID)
+	if maxOwnerLen < 1 {
+		maxOwnerLen = 1
+	}
+	owner := sanitizedOwner
+	if len(owner) > maxOwnerLen {
+		owner = strings.TrimRight(owner[:maxOwnerLen], "-")
+	}
+	h := fmt.Sprintf("oc-%s-%s", owner, sanitizedID)
+	if len(h) > 63 {
+		h = strings.TrimRight(h[:63], "-")
+	}
+	return h
 }
 
 // invalidDNSChars matches any character not valid in a DNS label.

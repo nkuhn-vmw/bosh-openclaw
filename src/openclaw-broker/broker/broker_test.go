@@ -606,16 +606,24 @@ func TestDeprovision_ExistingInstance(t *testing.T) {
 	}
 }
 
-func TestDeprovision_NonExistentInstance(t *testing.T) {
+func TestDeprovision_NonExistentInstance_AttemptsBOSHDelete(t *testing.T) {
 	_, fakeBOSH, router := newTestBroker("done", false)
 	defer fakeBOSH.Close()
 
+	// When instance is not in broker memory, broker should attempt BOSH delete
+	// using the naming convention openclaw-agent-{instanceID} and return 202
 	req := httptest.NewRequest("DELETE", "/v2/service_instances/inst-ghost?accepts_incomplete=true&service_id=openclaw-service&plan_id=openclaw-developer-plan", nil)
 	rr := httptest.NewRecorder()
 	router.ServeHTTP(rr, req)
 
-	if rr.Code != http.StatusGone {
-		t.Errorf("Deprovision missing instance status = %d, want %d", rr.Code, http.StatusGone)
+	if rr.Code != http.StatusAccepted {
+		t.Errorf("Deprovision orphaned instance status = %d, want %d. Body: %s", rr.Code, http.StatusAccepted, rr.Body.String())
+	}
+
+	var resp DeprovisionResponse
+	json.Unmarshal(rr.Body.Bytes(), &resp)
+	if resp.Operation != "deprovision-inst-ghost" {
+		t.Errorf("Operation = %q, want %q", resp.Operation, "deprovision-inst-ghost")
 	}
 }
 
@@ -790,7 +798,7 @@ func TestBind_ControlUIEnabled_IncludesURL(t *testing.T) {
 	if !ok {
 		t.Fatal("control_ui_url missing when ControlUIEnabled=true")
 	}
-	expected := "https://openclaw-dev.apps.example.com/control"
+	expected := "https://oc-dev-inst-ctrl-on.apps.example.com/control"
 	if url != expected {
 		t.Errorf("control_ui_url = %v, want %q", url, expected)
 	}

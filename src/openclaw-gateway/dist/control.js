@@ -18,6 +18,8 @@ function createAuthMiddleware(config) {
 
   return function controlAuth(req, res) {
     if (controlConfig.require_auth === false) return true;
+    // When SSO (oauth2-proxy) is enabled, it handles authentication upstream
+    if (config.sso && config.sso.enabled) return true;
     if (!token) {
       res.writeHead(401, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ error: 'No gateway token configured' }));

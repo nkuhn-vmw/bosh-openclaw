@@ -32,8 +32,36 @@ func (b *Broker) Deprovision(w http.ResponseWriter, r *http.Request) {
 
 	instance, exists := b.instances[instanceID]
 	if !exists {
+		// Instance not in broker memory (e.g., broker restarted after tile redeploy).
+		// Attempt to delete the BOSH deployment using the known naming convention
+		// rather than returning 410 Gone and orphaning the deployment.
+		deploymentName := fmt.Sprintf("openclaw-agent-%s", instanceID)
+		instance = &Instance{
+			ID:             instanceID,
+			DeploymentName: deploymentName,
+			State:          "deprovisioning",
+		}
+		b.instances[instanceID] = instance
 		b.mu.Unlock()
-		writeJSON(w, http.StatusGone, map[string]string{})
+
+		taskID, err := b.director.DeleteDeployment(deploymentName)
+		if err != nil {
+			log.Printf("BOSH delete for orphaned deployment %s failed: %v", deploymentName, err)
+			b.mu.Lock()
+			delete(b.instances, instanceID)
+			b.mu.Unlock()
+			// Return 410 Gone so CF can clean up its side even if BOSH deployment is already gone
+			writeJSON(w, http.StatusGone, map[string]string{})
+			return
+		}
+
+		b.mu.Lock()
+		instance.BoshTaskID = taskID
+		b.mu.Unlock()
+
+		writeJSON(w, http.StatusAccepted, DeprovisionResponse{
+			Operation: fmt.Sprintf("deprovision-%s", instanceID),
+		})
 		return
 	}
 

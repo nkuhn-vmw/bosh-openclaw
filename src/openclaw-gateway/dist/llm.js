@@ -176,7 +176,9 @@ function streamChat(config, messages, onToken, onDone, onError) {
     headers: {
       ...provider.headers,
       'Content-Length': Buffer.byteLength(body)
-    }
+    },
+    // Accept enterprise/self-signed certs (TAS, OpsMan CAs)
+    rejectUnauthorized: false
   };
 
   const req = transport.request(reqOpts, (res) => {

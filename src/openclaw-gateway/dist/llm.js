@@ -94,8 +94,8 @@ function parseOpenAIStream(chunk, buffer, onToken, onDone) {
 
   for (const line of lines) {
     const trimmed = line.trim();
-    if (!trimmed || !trimmed.startsWith('data: ')) continue;
-    const payload = trimmed.slice(6);
+    if (!trimmed || !trimmed.startsWith('data:')) continue;
+    const payload = trimmed.slice(5).trimStart();
     if (payload === '[DONE]') {
       onDone();
       return;
@@ -128,8 +128,8 @@ function parseAnthropicStream(chunk, buffer, onToken, onDone) {
 
   for (const line of lines) {
     const trimmed = line.trim();
-    if (!trimmed || !trimmed.startsWith('data: ')) continue;
-    const payload = trimmed.slice(6);
+    if (!trimmed || !trimmed.startsWith('data:')) continue;
+    const payload = trimmed.slice(5).trimStart();
     try {
       const parsed = JSON.parse(payload);
       if (parsed.type === 'content_block_delta' && parsed.delta && parsed.delta.text) {

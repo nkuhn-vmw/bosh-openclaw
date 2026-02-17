@@ -476,7 +476,7 @@ function handleChat(req, res, config, systemPrompt) {
       }
     );
 
-    req.on('close', function () {
+    res.on('close', function () {
       console.log('[chat] client disconnected');
       done = true;
     });

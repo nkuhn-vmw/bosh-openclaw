@@ -1,0 +1,7 @@
+{
+  "name": "openclaw",
+  "version": "0.0.0",
+  "bin": {
+    "openclaw": "dist/cli.js"
+  }
+}

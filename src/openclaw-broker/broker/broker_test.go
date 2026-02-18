@@ -694,6 +694,10 @@ func TestBind_ReadyInstance(t *testing.T) {
 	if creds["webchat_url"] == nil {
 		t.Error("webchat_url is missing")
 	}
+	webchatURL, _ := creds["webchat_url"].(string)
+	if !strings.Contains(webchatURL, "?token=") {
+		t.Errorf("webchat_url should contain ?token= for auth, got %q", webchatURL)
+	}
 	if creds["gateway_url"] == nil {
 		t.Error("gateway_url is missing")
 	}
@@ -799,9 +803,12 @@ func TestBind_ControlUIEnabled_IncludesURL(t *testing.T) {
 	if !ok {
 		t.Fatal("control_ui_url missing when ControlUIEnabled=true")
 	}
-	expected := "https://oc-dev-inst-ctrl-on.apps.example.com/control"
-	if url != expected {
-		t.Errorf("control_ui_url = %v, want %q", url, expected)
+	urlStr, ok2 := url.(string)
+	if !ok2 {
+		t.Fatalf("control_ui_url is not a string: %T", url)
+	}
+	if !strings.HasPrefix(urlStr, "https://oc-dev-inst-ctrl-on.apps.example.com/control?token=") {
+		t.Errorf("control_ui_url = %v, want prefix %q", url, "https://oc-dev-inst-ctrl-on.apps.example.com/control?token=")
 	}
 }
 

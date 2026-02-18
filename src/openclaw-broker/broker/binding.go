@@ -39,7 +39,7 @@ func (b *Broker) Bind(w http.ResponseWriter, r *http.Request) {
 	// Copy values under lock to avoid race with concurrent state mutations
 	resp := BindResponse{
 		Credentials: map[string]interface{}{
-			"webchat_url":         fmt.Sprintf("https://%s.%s", instance.RouteHostname, instance.AppsDomain),
+			"webchat_url":         fmt.Sprintf("https://%s.%s?token=%s", instance.RouteHostname, instance.AppsDomain, instance.GatewayToken),
 			"gateway_url":         fmt.Sprintf("wss://%s.agents.internal:18789", instance.DeploymentName),
 			"gateway_token":       instance.GatewayToken,
 			"api_endpoint":        fmt.Sprintf("https://%s.%s/api", instance.RouteHostname, instance.AppsDomain),
@@ -53,7 +53,7 @@ func (b *Broker) Bind(w http.ResponseWriter, r *http.Request) {
 		},
 	}
 	if instance.ControlUIEnabled {
-		resp.Credentials["control_ui_url"] = fmt.Sprintf("https://%s.%s/control", instance.RouteHostname, instance.AppsDomain)
+		resp.Credentials["control_ui_url"] = fmt.Sprintf("https://%s.%s/control?token=%s", instance.RouteHostname, instance.AppsDomain, instance.GatewayToken)
 	}
 	b.mu.RUnlock()
 

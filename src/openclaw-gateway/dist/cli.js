@@ -331,6 +331,46 @@ function webchatHTML(o) {
 '</html>';
 }
 
+function loginPageHTML(o) {
+  return '<!DOCTYPE html>\n<html lang="en">\n<head>\n<meta charset="utf-8">\n' +
+'<meta name="viewport" content="width=device-width, initial-scale=1">\n' +
+'<title>OpenClaw Agent — Authenticate</title>\n' +
+'<link rel="preconnect" href="https://fonts.googleapis.com">\n' +
+'<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>\n' +
+'<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">\n' +
+'<style>\n' +
+'*{margin:0;padding:0;box-sizing:border-box}\n' +
+':root{--bg:#0c1222;--surface:#151d32;--border:#1e2a45;--text:#e2e8f0;--text-dim:#8892a6;--accent:#3b82f6;--accent-glow:rgba(59,130,246,.15)}\n' +
+'body{font-family:"Outfit",sans-serif;background:var(--bg);color:var(--text);min-height:100vh;display:flex;align-items:center;justify-content:center}\n' +
+'.card{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:48px 40px;max-width:420px;width:90%;text-align:center}\n' +
+'.logo{font-size:28px;font-weight:700;margin-bottom:6px;letter-spacing:-.5px}\n' +
+'.logo span{color:var(--accent)}\n' +
+'.sub{color:var(--text-dim);font-size:13px;margin-bottom:32px;font-family:"IBM Plex Mono",monospace}\n' +
+'.field{position:relative;margin-bottom:20px}\n' +
+'.field input{width:100%;background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:14px 16px;color:var(--text);font-family:"IBM Plex Mono",monospace;font-size:14px;outline:none;transition:border-color .2s}\n' +
+'.field input:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-glow)}\n' +
+'.field input::placeholder{color:var(--text-dim)}\n' +
+'.btn{width:100%;padding:14px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-family:"Outfit",sans-serif;font-size:15px;font-weight:600;cursor:pointer;transition:opacity .2s}\n' +
+'.btn:hover{opacity:.9}\n' +
+'.err{color:#f87171;font-size:13px;margin-top:12px;display:none;font-family:"IBM Plex Mono",monospace}\n' +
+'.meta{margin-top:28px;padding-top:20px;border-top:1px solid var(--border);color:var(--text-dim);font-size:11px;font-family:"IBM Plex Mono",monospace}\n' +
+'</style>\n</head>\n<body>\n' +
+'<div class="card">\n' +
+'<div class="logo">Open<span>Claw</span> Agent</div>\n' +
+'<div class="sub">Authentication required</div>\n' +
+'<form id="f" onsubmit="return go()">\n' +
+'<div class="field"><input id="t" type="password" placeholder="Enter access token" autocomplete="off" autofocus></div>\n' +
+'<button class="btn" type="submit">Authenticate</button>\n' +
+'<div class="err" id="e">Invalid token. Check your service key credentials.</div>\n' +
+'</form>\n' +
+'<div class="meta">Instance ' + esc(o.instanceId) + ' &middot; v' + esc(o.version) + '</div>\n' +
+'</div>\n' +
+'<script>\n' +
+'function go(){var t=document.getElementById("t").value.trim();if(!t){document.getElementById("e").style.display="block";return false}window.location.href="/?token="+encodeURIComponent(t);return false}\n' +
+'</script>\n' +
+'</body>\n</html>';
+}
+
 /* ── Commands ── */
 
 var cmd = process.argv[2];
@@ -362,6 +402,38 @@ if (cmd === 'gateway') {
   var controlAuth = createAuthMiddleware(config);
   var requestCount = 0;
   var startedAt = Date.now();
+  var gwToken = (config.gateway && config.gateway.token) || '';
+
+  // Webchat auth: same pattern as control UI — Bearer header, ?token= param, or cookie
+  function webchatAuth(req, res) {
+    // SSO (oauth2-proxy) handles auth upstream when enabled
+    if (ssoEnabled) return true;
+    if (!gwToken) return true; // no token configured = open access
+
+    // Check Authorization: Bearer <token>
+    var authHeader = req.headers['authorization'] || '';
+    if (authHeader.indexOf('Bearer ') === 0 && authHeader.slice(7) === gwToken) return true;
+
+    // Check ?token= query param — set HttpOnly cookie for subsequent requests
+    var urlObj;
+    try { urlObj = new URL(req.url, 'http://localhost'); } catch (e) { /* ignore */ }
+    if (urlObj) {
+      var qToken = urlObj.searchParams.get('token');
+      if (qToken === gwToken) {
+        res.setHeader('Set-Cookie', 'webchat_token=' + gwToken + '; HttpOnly; Path=/; SameSite=Strict');
+        return true;
+      }
+    }
+
+    // Check webchat_token cookie
+    var cookies = (req.headers.cookie || '').split(';');
+    for (var i = 0; i < cookies.length; i++) {
+      var parts = cookies[i].trim().split('=');
+      if (parts[0] === 'webchat_token' && parts.slice(1).join('=') === gwToken) return true;
+    }
+
+    return false;
+  }
 
   var systemPrompt = 'You are OpenClaw, an AI agent running on instance "' + instanceId +
     '" (plan: ' + planName + ', owner: ' + owner +
@@ -373,10 +445,7 @@ if (cmd === 'gateway') {
     var pathname;
     try { pathname = new URL(req.url, 'http://localhost').pathname; } catch (e) { pathname = req.url.split('?')[0]; }
 
-    if (req.method === 'POST' && pathname === '/api/chat') {
-      requestCount++;
-      handleChat(req, res, config, systemPrompt);
-    } else if (pathname === '/healthz' || pathname === '/health') {
+    if (pathname === '/healthz' || pathname === '/health') {
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ status: 'ok', version: pkg.version, instance: instanceId }));
     } else if (pathname.indexOf('/control') === 0) {
@@ -395,7 +464,20 @@ if (cmd === 'gateway') {
         res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
         res.end(ctrlHtml);
       }
+    } else if (req.method === 'POST' && pathname === '/api/chat') {
+      if (!webchatAuth(req, res)) {
+        res.writeHead(401, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'Unauthorized' }));
+        return;
+      }
+      requestCount++;
+      handleChat(req, res, config, systemPrompt);
     } else {
+      if (!webchatAuth(req, res)) {
+        res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+        res.end(loginPageHTML({ instanceId: instanceId, version: pkg.version }));
+        return;
+      }
       res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
       res.end(html);
     }

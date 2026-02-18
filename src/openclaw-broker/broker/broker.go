@@ -3,7 +3,10 @@ package broker
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
+	"os"
+	"path/filepath"
 	"sync"
 
 	"github.com/nkuhn-vmw/bosh-openclaw/src/openclaw-broker/bosh"
@@ -51,6 +54,7 @@ type BrokerConfig struct {
 	NATSTLSClientCert      string   `json:"nats_tls_client_cert"`
 	NATSTLSClientKey       string   `json:"nats_tls_client_key"`
 	NATSTLSCACert          string   `json:"nats_tls_ca_cert"`
+	StateDir               string   `json:"state_dir"`
 }
 
 type Broker struct {
@@ -96,11 +100,60 @@ type Plan struct {
 
 func New(config BrokerConfig, director *bosh.Client) *Broker {
 	normalizePlans(config.Plans)
-	return &Broker{
+	b := &Broker{
 		config:    config,
 		director:  director,
 		instances: make(map[string]*Instance),
 	}
+	b.loadState()
+	return b
+}
+
+// saveState writes the instance map to disk for persistence across broker restarts.
+// Acquires its own read lock; callers must NOT hold the lock.
+func (b *Broker) saveState() {
+	if b.config.StateDir == "" {
+		return
+	}
+	b.mu.RLock()
+	data, err := json.MarshalIndent(b.instances, "", "  ")
+	b.mu.RUnlock()
+	if err != nil {
+		log.Printf("Failed to marshal state: %v", err)
+		return
+	}
+	path := filepath.Join(b.config.StateDir, "instances.json")
+	tmp := path + ".tmp"
+	if err := os.WriteFile(tmp, data, 0644); err != nil {
+		log.Printf("Failed to write state file: %v", err)
+		return
+	}
+	if err := os.Rename(tmp, path); err != nil {
+		log.Printf("Failed to rename state file: %v", err)
+	}
+}
+
+// loadState reads instance state from disk on startup.
+func (b *Broker) loadState() {
+	if b.config.StateDir == "" {
+		return
+	}
+	path := filepath.Join(b.config.StateDir, "instances.json")
+	data, err := os.ReadFile(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return
+		}
+		log.Printf("Failed to read state file: %v", err)
+		return
+	}
+	var instances map[string]*Instance
+	if err := json.Unmarshal(data, &instances); err != nil {
+		log.Printf("Failed to unmarshal state file: %v", err)
+		return
+	}
+	b.instances = instances
+	log.Printf("Loaded %d instances from state file", len(instances))
 }
 
 // normalizePlans fills in missing ID and Description fields for plans coming

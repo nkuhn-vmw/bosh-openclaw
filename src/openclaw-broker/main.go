@@ -90,6 +90,7 @@ func main() {
 		NATSTLSClientCert:      cfg.NATS.TLS.ClientCert,
 		NATSTLSClientKey:       cfg.NATS.TLS.ClientKey,
 		NATSTLSCACert:          cfg.NATS.TLS.CACert,
+		StateDir:               "/var/vcap/store/openclaw-broker",
 	}
 	b := broker.New(brokerCfg, director)
 

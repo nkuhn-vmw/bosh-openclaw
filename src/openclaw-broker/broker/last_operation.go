@@ -47,11 +47,13 @@ func (b *Broker) LastOperation(w http.ResponseWriter, r *http.Request) {
 			b.mu.Lock()
 			instance.State = "ready"
 			b.mu.Unlock()
+			b.saveState()
 			resp = LastOperationResponse{State: "succeeded", Description: "Agent ready"}
 		case "error", "cancelled":
 			b.mu.Lock()
 			instance.State = "failed"
 			b.mu.Unlock()
+			b.saveState()
 			resp = LastOperationResponse{State: "failed", Description: "BOSH deployment failed"}
 		default:
 			resp = LastOperationResponse{State: "in progress", Description: "Deploying agent VM..."}
@@ -70,6 +72,7 @@ func (b *Broker) LastOperation(w http.ResponseWriter, r *http.Request) {
 			b.mu.Lock()
 			delete(b.instances, instanceID)
 			b.mu.Unlock()
+			b.saveState()
 			resp = LastOperationResponse{State: "succeeded", Description: "Agent deprovisioned"}
 		case "error", "cancelled":
 			resp = LastOperationResponse{State: "failed", Description: "Deprovision failed"}

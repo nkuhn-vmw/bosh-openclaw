@@ -1133,21 +1133,46 @@ func TestUpdate_SamePlanRedeploys(t *testing.T) {
 	}
 }
 
-func TestUpdate_InstanceNotFound(t *testing.T) {
-	_, fakeBOSH, router := newTestBroker("done", false)
+func TestUpdate_OrphanRecovery(t *testing.T) {
+	b, fakeBOSH, router := newTestBroker("done", false)
 	defer fakeBOSH.Close()
 
+	// Instance not in broker memory — should trigger orphan recovery and redeploy
 	body := UpdateRequest{
 		ServiceID: "openclaw-service",
 		PlanID:    "openclaw-team-plan",
 	}
 	bodyBytes, _ := json.Marshal(body)
-	req := httptest.NewRequest("PATCH", "/v2/service_instances/inst-missing?accepts_incomplete=true", bytes.NewReader(bodyBytes))
+	req := httptest.NewRequest("PATCH", "/v2/service_instances/inst-orphan?accepts_incomplete=true", bytes.NewReader(bodyBytes))
 	rr := httptest.NewRecorder()
 	router.ServeHTTP(rr, req)
 
-	if rr.Code != http.StatusNotFound {
-		t.Errorf("Update missing instance status = %d, want %d", rr.Code, http.StatusNotFound)
+	if rr.Code != http.StatusAccepted {
+		t.Fatalf("Update orphan recovery status = %d, want %d. Body: %s", rr.Code, http.StatusAccepted, rr.Body.String())
+	}
+
+	// Verify instance was created with recovery data
+	b.mu.RLock()
+	inst, exists := b.instances["inst-orphan"]
+	b.mu.RUnlock()
+
+	if !exists {
+		t.Fatal("Instance should exist after orphan recovery")
+	}
+	if inst.DeploymentName != "openclaw-agent-inst-orphan" {
+		t.Errorf("DeploymentName = %q, want %q", inst.DeploymentName, "openclaw-agent-inst-orphan")
+	}
+	if inst.Owner != "recovered" {
+		t.Errorf("Owner = %q, want %q", inst.Owner, "recovered")
+	}
+	if inst.PlanID != "openclaw-team-plan" {
+		t.Errorf("PlanID = %q, want %q", inst.PlanID, "openclaw-team-plan")
+	}
+	if inst.State != "provisioning" {
+		t.Errorf("State = %q, want %q", inst.State, "provisioning")
+	}
+	if inst.GatewayToken == "" {
+		t.Error("GatewayToken should not be empty after recovery")
 	}
 }
 
@@ -1535,6 +1560,158 @@ func TestNew_InitializesInstancesMap(t *testing.T) {
 	}
 	if len(b.instances) != 0 {
 		t.Errorf("instances map length = %d, want 0", len(b.instances))
+	}
+}
+
+// --- State persistence tests ---
+
+func TestStatePersistence_SaveAndLoad(t *testing.T) {
+	fakeBOSH := newFakeBOSHDirector("done", false)
+	defer fakeBOSH.Close()
+	director := bosh.NewClient(fakeBOSH.URL, "admin", "admin", "", "")
+
+	stateDir := t.TempDir()
+	cfg := BrokerConfig{
+		OpenClawVersion: "2026.2.10",
+		AZs:             []string{"z1"},
+		AppsDomain:      "apps.example.com",
+		StateDir:        stateDir,
+	}
+
+	// Create broker and provision an instance
+	b1 := New(cfg, director)
+	b1.mu.Lock()
+	b1.instances["persist-001"] = &Instance{
+		ID:             "persist-001",
+		PlanID:         "openclaw-developer-plan",
+		PlanName:       "developer",
+		Owner:          "testuser",
+		DeploymentName: "openclaw-agent-persist-001",
+		GatewayToken:   "tok-abc",
+		NodeSeed:       "seed-xyz",
+		RouteHostname:  "oc-testuser-persist-001",
+		AppsDomain:     "apps.example.com",
+		VMType:         "small",
+		DiskType:       "10GB",
+		State:          "ready",
+		BoshTaskID:     42,
+		SSOEnabled:     true,
+	}
+	b1.mu.Unlock()
+	b1.saveState()
+
+	// Create a new broker that loads state from disk
+	b2 := New(cfg, director)
+
+	b2.mu.RLock()
+	inst, exists := b2.instances["persist-001"]
+	b2.mu.RUnlock()
+
+	if !exists {
+		t.Fatal("Instance should exist after loading state from disk")
+	}
+	if inst.Owner != "testuser" {
+		t.Errorf("Owner = %q, want %q", inst.Owner, "testuser")
+	}
+	if inst.GatewayToken != "tok-abc" {
+		t.Errorf("GatewayToken = %q, want %q", inst.GatewayToken, "tok-abc")
+	}
+	if inst.State != "ready" {
+		t.Errorf("State = %q, want %q", inst.State, "ready")
+	}
+	if inst.SSOEnabled != true {
+		t.Error("SSOEnabled should be true")
+	}
+	if inst.BoshTaskID != 42 {
+		t.Errorf("BoshTaskID = %d, want 42", inst.BoshTaskID)
+	}
+}
+
+func TestStatePersistence_EmptyStateDir(t *testing.T) {
+	fakeBOSH := newFakeBOSHDirector("done", false)
+	defer fakeBOSH.Close()
+	director := bosh.NewClient(fakeBOSH.URL, "admin", "admin", "", "")
+
+	// No StateDir set — persistence is disabled, should work fine
+	cfg := BrokerConfig{}
+	b := New(cfg, director)
+	if len(b.instances) != 0 {
+		t.Errorf("instances should be empty, got %d", len(b.instances))
+	}
+	// saveState should be a no-op
+	b.saveState()
+}
+
+func TestStatePersistence_MissingFileOnLoad(t *testing.T) {
+	fakeBOSH := newFakeBOSHDirector("done", false)
+	defer fakeBOSH.Close()
+	director := bosh.NewClient(fakeBOSH.URL, "admin", "admin", "", "")
+
+	// StateDir exists but no instances.json yet — fresh start
+	cfg := BrokerConfig{StateDir: t.TempDir()}
+	b := New(cfg, director)
+	if len(b.instances) != 0 {
+		t.Errorf("instances should be empty on fresh start, got %d", len(b.instances))
+	}
+}
+
+func TestStatePersistence_ProvisionSavesState(t *testing.T) {
+	fakeBOSH := newFakeBOSHDirector("done", false)
+	defer fakeBOSH.Close()
+	director := bosh.NewClient(fakeBOSH.URL, "admin", "admin", "", "")
+
+	stateDir := t.TempDir()
+	cfg := BrokerConfig{
+		MinOpenClawVersion: "2026.1.29",
+		OpenClawVersion:    "2026.2.10",
+		AZs:                []string{"z1"},
+		AppsDomain:         "apps.example.com",
+		StateDir:           stateDir,
+	}
+	b := New(cfg, director)
+
+	r := mux.NewRouter()
+	r.HandleFunc("/v2/service_instances/{instance_id}", b.Provision).Methods("PUT")
+
+	rr := provisionInstance(t, r, "inst-persist", "openclaw-developer-plan")
+	if rr.Code != http.StatusAccepted {
+		t.Fatalf("Provision failed: %d, body: %s", rr.Code, rr.Body.String())
+	}
+
+	// Create a new broker and verify state was loaded
+	b2 := New(cfg, director)
+	b2.mu.RLock()
+	_, exists := b2.instances["inst-persist"]
+	b2.mu.RUnlock()
+	if !exists {
+		t.Fatal("Instance should be persisted after provision")
+	}
+}
+
+func TestUpdate_OrphanRecovery_FallbackPlan(t *testing.T) {
+	b, fakeBOSH, router := newTestBroker("done", false)
+	defer fakeBOSH.Close()
+
+	// Update with empty plan ID — should fall back to first available plan
+	body := UpdateRequest{
+		ServiceID: "openclaw-service",
+		PlanID:    "",
+	}
+	bodyBytes, _ := json.Marshal(body)
+	req := httptest.NewRequest("PATCH", "/v2/service_instances/inst-orphan-noplan?accepts_incomplete=true", bytes.NewReader(bodyBytes))
+	rr := httptest.NewRecorder()
+	router.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusAccepted {
+		t.Fatalf("Update orphan fallback plan status = %d, want %d. Body: %s", rr.Code, http.StatusAccepted, rr.Body.String())
+	}
+
+	b.mu.RLock()
+	inst := b.instances["inst-orphan-noplan"]
+	b.mu.RUnlock()
+
+	if inst.PlanName != "developer" {
+		t.Errorf("PlanName = %q, want %q (first default plan)", inst.PlanName, "developer")
 	}
 }
 

@@ -2,11 +2,13 @@ package broker
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 
 	"github.com/gorilla/mux"
 	"github.com/nkuhn-vmw/bosh-openclaw/src/openclaw-broker/bosh"
+	"github.com/nkuhn-vmw/bosh-openclaw/src/openclaw-broker/security"
 )
 
 type UpdateRequest struct {
@@ -40,24 +42,61 @@ func (b *Broker) Update(w http.ResponseWriter, r *http.Request) {
 
 	instance, exists := b.instances[instanceID]
 	if !exists {
-		b.mu.Unlock()
-		writeJSON(w, http.StatusNotFound, map[string]string{"error": "Instance not found"})
-		return
-	}
+		// Instance not in broker memory (e.g., broker restarted after tile redeploy).
+		// Create a recovery record and redeploy with current broker config.
+		log.Printf("Update orphan recovery for instance %s", instanceID)
+		deploymentName := fmt.Sprintf("openclaw-agent-%s", instanceID)
 
-	// If the plan is changing, validate the new plan and update instance fields
-	planChanged := req.PlanID != "" && req.PlanID != instance.PlanID
-	if planChanged {
 		plan := b.findPlan(req.PlanID)
+		if plan == nil {
+			// Fall back to first available plan
+			plans := b.config.Plans
+			if len(plans) == 0 {
+				plans = defaultPlans()
+			}
+			if len(plans) > 0 {
+				plan = &plans[0]
+			}
+		}
 		if plan == nil {
 			b.mu.Unlock()
 			writeJSON(w, http.StatusBadRequest, map[string]string{"error": "Unknown plan"})
 			return
 		}
-		instance.PlanID = req.PlanID
-		instance.PlanName = plan.Name
-		instance.VMType = plan.VMType
-		instance.DiskType = plan.DiskType
+
+		instance = &Instance{
+			ID:               instanceID,
+			PlanID:           plan.ID,
+			PlanName:         plan.Name,
+			Owner:            "recovered",
+			DeploymentName:   deploymentName,
+			GatewayToken:     security.GenerateGatewayToken(),
+			NodeSeed:         security.GenerateNodeSeed(),
+			RouteHostname:    uniqueRouteHostname("recovered", instanceID),
+			AppsDomain:       b.config.AppsDomain,
+			VMType:           plan.VMType,
+			DiskType:         plan.DiskType,
+			State:            "provisioning",
+			SSOEnabled:       b.config.SSOEnabled,
+			ControlUIEnabled: b.config.ControlUIEnabled,
+			OpenClawVersion:  b.config.OpenClawVersion,
+		}
+		b.instances[instanceID] = instance
+	} else {
+		// If the plan is changing, validate the new plan and update instance fields
+		planChanged := req.PlanID != "" && req.PlanID != instance.PlanID
+		if planChanged {
+			plan := b.findPlan(req.PlanID)
+			if plan == nil {
+				b.mu.Unlock()
+				writeJSON(w, http.StatusBadRequest, map[string]string{"error": "Unknown plan"})
+				return
+			}
+			instance.PlanID = req.PlanID
+			instance.PlanName = plan.Name
+			instance.VMType = plan.VMType
+			instance.DiskType = plan.DiskType
+		}
 	}
 
 	// Always redeploy — this ensures instances pick up new release versions
@@ -81,6 +120,7 @@ func (b *Broker) Update(w http.ResponseWriter, r *http.Request) {
 	instance.State = "provisioning"
 	instance.BoshTaskID = taskID
 	b.mu.Unlock()
+	b.saveState()
 
 	writeJSON(w, http.StatusAccepted, map[string]string{"operation": "update-" + instanceID})
 }

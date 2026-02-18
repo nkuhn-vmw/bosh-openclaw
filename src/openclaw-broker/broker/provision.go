@@ -198,6 +198,7 @@ func (b *Broker) Provision(w http.ResponseWriter, r *http.Request) {
 	b.mu.Lock()
 	instance.BoshTaskID = taskID
 	b.mu.Unlock()
+	b.saveState()
 
 	resp := ProvisionResponse{
 		DashboardURL: fmt.Sprintf("https://%s.%s", routeHostname, b.config.AppsDomain),

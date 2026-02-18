@@ -58,6 +58,7 @@ func (b *Broker) Deprovision(w http.ResponseWriter, r *http.Request) {
 		b.mu.Lock()
 		instance.BoshTaskID = taskID
 		b.mu.Unlock()
+		b.saveState()
 
 		writeJSON(w, http.StatusAccepted, DeprovisionResponse{
 			Operation: fmt.Sprintf("deprovision-%s", instanceID),
@@ -94,6 +95,7 @@ func (b *Broker) Deprovision(w http.ResponseWriter, r *http.Request) {
 	b.mu.Lock()
 	instance.BoshTaskID = taskID
 	b.mu.Unlock()
+	b.saveState()
 
 	resp := DeprovisionResponse{
 		Operation: fmt.Sprintf("deprovision-%s", instanceID),

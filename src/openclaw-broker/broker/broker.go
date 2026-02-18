@@ -10,6 +10,7 @@ import (
 	"sync"
 
 	"github.com/nkuhn-vmw/bosh-openclaw/src/openclaw-broker/bosh"
+	"github.com/nkuhn-vmw/bosh-openclaw/src/openclaw-broker/uaa"
 )
 
 // writeJSON writes a JSON response with the given status code.
@@ -35,11 +36,13 @@ type BrokerConfig struct {
 	OpenClawReleaseVersion string   `json:"openclaw_release_version"`
 	BPMReleaseVersion      string   `json:"bpm_release_version"`
 	RoutingReleaseVersion  string   `json:"routing_release_version"`
-	SSOEnabled             bool     `json:"sso_enabled"`
-	SSOClientID            string   `json:"sso_client_id"`
-	SSOClientSecret        string   `json:"sso_client_secret"`
-	SSOCookieSecret        string   `json:"sso_cookie_secret"`
-	SSOOIDCIssuerURL       string   `json:"sso_oidc_issuer_url"`
+	SSOEnabled              bool   `json:"sso_enabled"`
+	SSOOIDCIssuerURL        string `json:"sso_oidc_issuer_url"`
+	SSOAllowedEmailDomains  string `json:"sso_allowed_email_domains"`
+	SSOSessionTimeoutHours  int    `json:"sso_session_timeout_hours"`
+	CFUaaURL                string `json:"cf_uaa_url"`
+	CFUaaAdminClientID      string `json:"cf_uaa_admin_client_id"`
+	CFUaaAdminClientSecret  string `json:"cf_uaa_admin_client_secret"`
 	MaxInstances           int      `json:"max_instances"`
 	MaxInstancesPerOrg     int      `json:"max_instances_per_org"`
 	LLMProvider            string   `json:"llm_provider"`
@@ -60,6 +63,7 @@ type BrokerConfig struct {
 type Broker struct {
 	config    BrokerConfig
 	director  *bosh.Client
+	uaaClient *uaa.Client
 	mu        sync.RWMutex
 	instances map[string]*Instance
 }
@@ -81,6 +85,9 @@ type Instance struct {
 	State            string `json:"state"` // provisioning, ready, deprovisioning, failed
 	BoshTaskID       int    `json:"bosh_task_id"`
 	SSOEnabled       bool   `json:"sso_enabled"`
+	SSOClientID      string `json:"sso_client_id,omitempty"`
+	SSOClientSecret  string `json:"sso_client_secret,omitempty"`
+	SSOCookieSecret  string `json:"sso_cookie_secret,omitempty"`
 	ControlUIEnabled bool   `json:"control_ui_enabled"`
 	OpenClawVersion  string `json:"openclaw_version"`
 }
@@ -104,6 +111,10 @@ func New(config BrokerConfig, director *bosh.Client) *Broker {
 		config:    config,
 		director:  director,
 		instances: make(map[string]*Instance),
+	}
+	// Create UAA client for dynamic OAuth2 client management when SSO is enabled
+	if config.SSOEnabled && config.CFUaaURL != "" && config.CFUaaAdminClientSecret != "" {
+		b.uaaClient = uaa.NewClient(config.CFUaaURL, config.CFUaaAdminClientID, config.CFUaaAdminClientSecret, true)
 	}
 	b.loadState()
 	return b

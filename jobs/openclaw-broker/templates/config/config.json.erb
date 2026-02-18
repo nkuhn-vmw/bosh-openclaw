@@ -108,16 +108,20 @@
     "admin_password" => p("openclaw.broker.cf.admin_password", ""),
     "skip_ssl_validation" => p("openclaw.broker.cf.skip_ssl_validation", true)
   },
+  "cf_uaa" => {
+    "url" => p("openclaw.broker.cf_uaa.url", ""),
+    "admin_client_id" => p("openclaw.broker.cf_uaa.admin_client_id", "admin"),
+    "admin_client_secret" => p("openclaw.broker.cf_uaa.admin_client_secret", "")
+  },
   "security" => {
     "sandbox_mode" => p("openclaw.broker.security.sandbox_mode"),
     "control_ui_enabled" => p("openclaw.broker.security.control_ui_enabled"),
     "blocked_commands" => p("openclaw.broker.security.blocked_commands", ""),
     "min_openclaw_version" => p("openclaw.broker.security.min_openclaw_version", ""),
     "sso_enabled" => p("openclaw.broker.security.sso_enabled", false),
-    "sso_client_id" => p("openclaw.broker.security.sso_client_id", ""),
-    "sso_client_secret" => p("openclaw.broker.security.sso_client_secret", ""),
-    "sso_cookie_secret" => p("openclaw.broker.security.sso_cookie_secret", ""),
-    "sso_oidc_issuer_url" => p("openclaw.broker.security.sso_oidc_issuer_url", "")
+    "sso_oidc_issuer_url" => p("openclaw.broker.security.sso_oidc_issuer_url", ""),
+    "sso_allowed_email_domains" => p("openclaw.broker.security.sso_allowed_email_domains", ""),
+    "sso_session_timeout_hours" => p("openclaw.broker.security.sso_session_timeout_hours", 8)
   },
   "metering" => {
     "enabled" => p("openclaw.broker.metering.enabled"),

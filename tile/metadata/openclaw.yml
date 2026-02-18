@@ -46,9 +46,6 @@ property_blueprints:
   - name: generated_broker_credentials
     type: simple_credentials
 
-  - name: generated_sso_cookie_secret
-    type: simple_credentials
-
   #
   # GenAI / LLM provider selector
   #
@@ -226,16 +223,6 @@ property_blueprints:
 
   - name: sso_allowed_email_domains
     type: text
-    configurable: true
-    optional: true
-
-  - name: sso_client_id
-    type: string
-    configurable: true
-    optional: true
-
-  - name: sso_client_secret
-    type: secret
     configurable: true
     optional: true
 
@@ -473,13 +460,9 @@ form_types:
     property_inputs:
       - reference: .properties.sso_enabled
         label: Enable SSO for Agent Instances
-        description: Each agent WebChat UI is protected by SSO via p-identity
-      - reference: .properties.sso_client_id
-        label: SSO OAuth2 Client ID
-        description: OAuth2 client ID for agent SSO proxy (from UAA or p-identity)
-      - reference: .properties.sso_client_secret
-        label: SSO OAuth2 Client Secret
-        description: OAuth2 client secret for agent SSO proxy
+        description: >
+          Each agent WebChat UI is protected by SSO via CF UAA.
+          OAuth2 clients are created automatically per instance.
       - reference: .properties.sso_plan
         label: p-identity Service Plan
       - reference: .properties.sso_allowed_email_domains
@@ -610,10 +593,13 @@ job_types:
             blocked_commands: (( .properties.blocked_commands.value ))
             min_openclaw_version: (( .properties.min_openclaw_version.value ))
             sso_enabled: (( .properties.sso_enabled.value ))
-            sso_client_id: (( .properties.sso_client_id.value ))
-            sso_client_secret: (( .properties.sso_client_secret.value ))
-            sso_cookie_secret: (( .properties.generated_sso_cookie_secret.password ))
             sso_oidc_issuer_url: https://login.(( ..cf.cloud_controller.system_domain.value ))
+            sso_allowed_email_domains: (( .properties.sso_allowed_email_domains.value ))
+            sso_session_timeout_hours: (( .properties.sso_session_timeout_hours.value ))
+          cf_uaa:
+            url: https://uaa.(( ..cf.cloud_controller.system_domain.value ))
+            admin_client_id: admin
+            admin_client_secret: (( ..cf.uaa.admin_client_credentials.password ))
           on_demand:
             service_name: openclaw
             stemcell_os: ubuntu-jammy

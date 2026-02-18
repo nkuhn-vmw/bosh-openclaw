@@ -98,6 +98,9 @@ instance_groups:
 {{- if .SSOOIDCIssuerURL }}
               oidc_issuer_url: "{{ .SSOOIDCIssuerURL }}"
 {{- end }}
+{{- if .SSOSessionTimeoutHours }}
+              session_timeout: "{{ .SSOSessionTimeoutHours }}h"
+{{- end }}
 {{ end }}
       - name: route_registrar
         release: routing
@@ -193,6 +196,8 @@ type ManifestParams struct {
 	NATSTLSClientCert      string
 	NATSTLSClientKey       string
 	NATSTLSCACert          string
+	SSOAllowedEmailDomains string
+	SSOSessionTimeoutHours int
 }
 
 // AZsYAML returns the AZs formatted for inline YAML: "az1, az2"

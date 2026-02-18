@@ -11,6 +11,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/nkuhn-vmw/bosh-openclaw/src/openclaw-broker/bosh"
 	"github.com/nkuhn-vmw/bosh-openclaw/src/openclaw-broker/security"
+	"github.com/nkuhn-vmw/bosh-openclaw/src/openclaw-broker/uaa"
 )
 
 // validInstanceID matches OSB instance IDs: alphanumeric, hyphens, underscores, max 64 chars.
@@ -174,6 +175,36 @@ func (b *Broker) Provision(w http.ResponseWriter, r *http.Request) {
 	b.instances[instanceID] = instance
 	b.mu.Unlock()
 
+	// Create per-instance UAA OAuth2 client for SSO (before BOSH deploy so credentials are available for manifest)
+	if instance.SSOEnabled && b.uaaClient != nil {
+		ssoClientID := uaa.ClientIDForInstance(instanceID)
+		ssoClientSecret := uaa.GenerateClientSecret()
+		ssoCookieSecret := uaa.GenerateCookieSecret()
+		redirectURI := fmt.Sprintf("https://%s.%s/oauth2/callback", routeHostname, b.config.AppsDomain)
+
+		err := b.uaaClient.CreateClient(uaa.OAuthClient{
+			ClientID:             ssoClientID,
+			ClientSecret:         ssoClientSecret,
+			AuthorizedGrantTypes: []string{"authorization_code"},
+			RedirectURI:          []string{redirectURI},
+			Scope:                []string{"openid"},
+			Authorities:          []string{"uaa.resource"},
+			Name:                 fmt.Sprintf("OpenClaw Agent %s", instanceID),
+		})
+		if err != nil {
+			log.Printf("UAA client creation failed for %s: %v — SSO will be disabled", instanceID, err)
+			instance.SSOEnabled = false
+		} else {
+			log.Printf("Created UAA OAuth2 client %s for instance %s", ssoClientID, instanceID)
+			instance.SSOClientID = ssoClientID
+			instance.SSOClientSecret = ssoClientSecret
+			instance.SSOCookieSecret = ssoCookieSecret
+		}
+	} else if instance.SSOEnabled && b.uaaClient == nil {
+		log.Printf("SSO disabled for %s: UAA admin credentials not configured in tile", instanceID)
+		instance.SSOEnabled = false
+	}
+
 	// Build manifest params and deploy via BOSH (outside lock to avoid blocking)
 	params := b.buildManifestParams(instance)
 	log.Printf("Provisioning %s: plan=%s vm=%s sso=%v controlUI=%v route=%s.%s",
@@ -258,12 +289,11 @@ func (b *Broker) buildManifestParams(instance *Instance) bosh.ManifestParams {
 		browserEnabled = true
 	}
 
-	// SSO requires actual OAuth2 credentials — disable if client_id is empty.
-	// This prevents deploying an SSO proxy that can't start (empty credentials)
-	// and avoids setting sso.enabled=true in the gateway config without a working proxy.
-	ssoEnabled := instance.SSOEnabled && b.config.SSOClientID != ""
+	// SSO requires per-instance OAuth2 credentials created during provision.
+	// If the instance has no SSOClientID, SSO was either not requested or UAA client creation failed.
+	ssoEnabled := instance.SSOEnabled && instance.SSOClientID != ""
 	if instance.SSOEnabled && !ssoEnabled {
-		log.Printf("SSO disabled for %s: sso_client_id not configured in tile — configure OAuth2 credentials in OpsMan SSO tab", instance.ID)
+		log.Printf("SSO disabled for %s: no OAuth2 client credentials available", instance.ID)
 	}
 
 	// Parse blocked commands: tile may send newline-separated or comma-separated
@@ -303,10 +333,12 @@ func (b *Broker) buildManifestParams(instance *Instance) bosh.ManifestParams {
 		BPMReleaseVersion:      bpmReleaseVersion,
 		RoutingReleaseVersion:  routingReleaseVersion,
 		AppsDomain:             instance.AppsDomain,
-		SSOClientID:            b.config.SSOClientID,
-		SSOClientSecret:        b.config.SSOClientSecret,
-		SSOCookieSecret:        b.config.SSOCookieSecret,
+		SSOClientID:            instance.SSOClientID,
+		SSOClientSecret:        instance.SSOClientSecret,
+		SSOCookieSecret:        instance.SSOCookieSecret,
 		SSOOIDCIssuerURL:       b.config.SSOOIDCIssuerURL,
+		SSOAllowedEmailDomains: b.config.SSOAllowedEmailDomains,
+		SSOSessionTimeoutHours: b.config.SSOSessionTimeoutHours,
 		LLMProvider:            b.config.LLMProvider,
 		LLMEndpoint:            b.config.LLMEndpoint,
 		LLMAPIKey:              b.config.LLMAPIKey,

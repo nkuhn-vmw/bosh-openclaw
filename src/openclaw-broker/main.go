@@ -71,11 +71,13 @@ func main() {
 		OpenClawReleaseVersion: cfg.OnDemand.OpenClawReleaseVersion,
 		BPMReleaseVersion:      cfg.OnDemand.BPMReleaseVersion,
 		RoutingReleaseVersion:  cfg.OnDemand.RoutingReleaseVersion,
-		SSOEnabled:             cfg.Security.SSOEnabled,
-		SSOClientID:            cfg.Security.SSOClientID,
-		SSOClientSecret:        cfg.Security.SSOClientSecret,
-		SSOCookieSecret:        cfg.Security.SSOCookieSecret,
-		SSOOIDCIssuerURL:       cfg.Security.SSOOIDCIssuerURL,
+		SSOEnabled:              cfg.Security.SSOEnabled,
+		SSOOIDCIssuerURL:        cfg.Security.SSOOIDCIssuerURL,
+		SSOAllowedEmailDomains:  cfg.Security.SSOAllowedEmailDomains,
+		SSOSessionTimeoutHours:  cfg.Security.SSOSessionTimeoutHours,
+		CFUaaURL:                cfg.CFUAA.URL,
+		CFUaaAdminClientID:      cfg.CFUAA.AdminClientID,
+		CFUaaAdminClientSecret:  cfg.CFUAA.AdminClientSecret,
 		MaxInstances:           cfg.Limits.MaxInstances,
 		MaxInstancesPerOrg:     cfg.Limits.MaxInstancesPerOrg,
 		LLMProvider:            cfg.GenAI.Provider,
@@ -98,11 +100,11 @@ func main() {
 		brokerCfg.AZs, brokerCfg.Network, brokerCfg.StemcellOS, brokerCfg.CFDeploymentName, brokerCfg.SSOEnabled)
 	log.Printf("Broker config: Plans=%d MaxInstances=%d MaxPerOrg=%d MinVersion=%q",
 		len(brokerCfg.Plans), brokerCfg.MaxInstances, brokerCfg.MaxInstancesPerOrg, brokerCfg.MinOpenClawVersion)
-	ssoCredsConfigured := brokerCfg.SSOClientID != ""
-	log.Printf("Broker SSO: enabled=%v client_id_set=%v cookie_secret_set=%v issuer=%q",
-		brokerCfg.SSOEnabled, ssoCredsConfigured, brokerCfg.SSOCookieSecret != "", brokerCfg.SSOOIDCIssuerURL)
-	if brokerCfg.SSOEnabled && !ssoCredsConfigured {
-		log.Printf("WARNING: SSO is enabled but sso_client_id is empty — SSO proxy will NOT be deployed. Configure OAuth2 credentials in OpsMan SSO tab.")
+	uaaConfigured := brokerCfg.CFUaaURL != "" && brokerCfg.CFUaaAdminClientSecret != ""
+	log.Printf("Broker SSO: enabled=%v uaa_configured=%v issuer=%q uaa_url=%q",
+		brokerCfg.SSOEnabled, uaaConfigured, brokerCfg.SSOOIDCIssuerURL, brokerCfg.CFUaaURL)
+	if brokerCfg.SSOEnabled && !uaaConfigured {
+		log.Printf("WARNING: SSO is enabled but CF UAA admin credentials are not configured — SSO will be disabled for all instances")
 	}
 
 	r := mux.NewRouter()
@@ -164,16 +166,20 @@ type Config struct {
 		AZ              string `json:"az"`
 	} `json:"agent_defaults"`
 	Security struct {
-		MinOpenClawVersion string `json:"min_openclaw_version"`
-		ControlUIEnabled   bool   `json:"control_ui_enabled"`
-		SandboxMode        string `json:"sandbox_mode"`
-		BlockedCommands    string `json:"blocked_commands"`
-		SSOEnabled         bool   `json:"sso_enabled"`
-		SSOClientID        string `json:"sso_client_id"`
-		SSOClientSecret    string `json:"sso_client_secret"`
-		SSOCookieSecret    string `json:"sso_cookie_secret"`
-		SSOOIDCIssuerURL   string `json:"sso_oidc_issuer_url"`
+		MinOpenClawVersion     string `json:"min_openclaw_version"`
+		ControlUIEnabled       bool   `json:"control_ui_enabled"`
+		SandboxMode            string `json:"sandbox_mode"`
+		BlockedCommands        string `json:"blocked_commands"`
+		SSOEnabled             bool   `json:"sso_enabled"`
+		SSOOIDCIssuerURL       string `json:"sso_oidc_issuer_url"`
+		SSOAllowedEmailDomains string `json:"sso_allowed_email_domains"`
+		SSOSessionTimeoutHours int    `json:"sso_session_timeout_hours"`
 	} `json:"security"`
+	CFUAA struct {
+		URL               string `json:"url"`
+		AdminClientID     string `json:"admin_client_id"`
+		AdminClientSecret string `json:"admin_client_secret"`
+	} `json:"cf_uaa"`
 	GenAI struct {
 		Provider     string `json:"provider"`
 		Endpoint     string `json:"endpoint"`

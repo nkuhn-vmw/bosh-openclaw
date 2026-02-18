@@ -7,6 +7,7 @@ import (
 	"net/http"
 
 	"github.com/gorilla/mux"
+	"github.com/nkuhn-vmw/bosh-openclaw/src/openclaw-broker/uaa"
 )
 
 type DeprovisionResponse struct {
@@ -43,6 +44,9 @@ func (b *Broker) Deprovision(w http.ResponseWriter, r *http.Request) {
 		}
 		b.instances[instanceID] = instance
 		b.mu.Unlock()
+
+		// Delete per-instance UAA OAuth2 client (best-effort — don't block deprovision on failure)
+		b.deleteUAAClient(instanceID)
 
 		taskID, err := b.director.DeleteDeployment(deploymentName)
 		if err != nil {
@@ -81,6 +85,9 @@ func (b *Broker) Deprovision(w http.ResponseWriter, r *http.Request) {
 	deploymentName := instance.DeploymentName
 	b.mu.Unlock()
 
+	// Delete per-instance UAA OAuth2 client (best-effort — don't block deprovision on failure)
+	b.deleteUAAClient(instanceID)
+
 	taskID, err := b.director.DeleteDeployment(deploymentName)
 	if err != nil {
 		log.Printf("BOSH delete failed for %s: %v", instanceID, err)
@@ -104,4 +111,18 @@ func (b *Broker) Deprovision(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusAccepted)
 	json.NewEncoder(w).Encode(resp)
+}
+
+// deleteUAAClient removes the per-instance UAA OAuth2 client.
+// Best-effort: logs errors but does not fail the deprovision.
+func (b *Broker) deleteUAAClient(instanceID string) {
+	if b.uaaClient == nil {
+		return
+	}
+	clientID := uaa.ClientIDForInstance(instanceID)
+	if err := b.uaaClient.DeleteClient(clientID); err != nil {
+		log.Printf("Failed to delete UAA client %s for instance %s: %v (will be orphaned in UAA)", clientID, instanceID, err)
+	} else {
+		log.Printf("Deleted UAA OAuth2 client %s for instance %s", clientID, instanceID)
+	}
 }

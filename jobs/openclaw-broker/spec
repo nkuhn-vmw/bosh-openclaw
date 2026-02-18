@@ -196,17 +196,25 @@ properties:
   openclaw.broker.security.min_openclaw_version:
     description: "Minimum OpenClaw version to deploy"
     default: ""
-  openclaw.broker.security.sso_client_id:
-    description: "OAuth2 client ID for SSO proxy on agent instances"
-    default: ""
-  openclaw.broker.security.sso_client_secret:
-    description: "OAuth2 client secret for SSO proxy on agent instances"
-    default: ""
-  openclaw.broker.security.sso_cookie_secret:
-    description: "Cookie encryption secret for SSO proxy sessions"
-    default: ""
   openclaw.broker.security.sso_oidc_issuer_url:
-    description: "OIDC issuer URL for SSO proxy (e.g., https://uaa.sys.example.com)"
+    description: "OIDC issuer URL for SSO proxy (e.g., https://login.sys.example.com)"
+    default: ""
+  openclaw.broker.security.sso_allowed_email_domains:
+    description: "Allowed email domains for SSO (newline-separated)"
+    default: ""
+  openclaw.broker.security.sso_session_timeout_hours:
+    description: "SSO session timeout in hours"
+    default: 8
+
+  # CF UAA (for dynamic OAuth2 client registration)
+  openclaw.broker.cf_uaa.url:
+    description: "CF UAA base URL for OAuth2 client management"
+    default: ""
+  openclaw.broker.cf_uaa.admin_client_id:
+    description: "UAA admin client ID (for creating per-instance OAuth2 clients)"
+    default: "admin"
+  openclaw.broker.cf_uaa.admin_client_secret:
+    description: "UAA admin client secret"
     default: ""
 
   # NATS TLS configuration (for route registration)

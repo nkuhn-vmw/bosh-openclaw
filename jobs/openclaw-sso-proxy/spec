@@ -36,6 +36,9 @@ properties:
   openclaw.sso_proxy.allowed_domains:
     description: "Email domains allowed to authenticate"
     default: []
+  openclaw.sso_proxy.redirect_url:
+    description: "OAuth2 redirect callback URL (auto-derived from route hostname and apps domain)"
+    default: ""
   openclaw.sso_proxy.allowed_emails:
     description: "Specific email addresses allowed to authenticate"
     default: []

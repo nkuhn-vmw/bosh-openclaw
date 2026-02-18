@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/gorilla/mux"
@@ -1880,6 +1881,7 @@ func TestBuildManifestParams_SSOEnabledWithClientID(t *testing.T) {
 		SSOClientID:     "my-oauth-client",
 		SSOClientSecret: "my-secret",
 		SSOCookieSecret: "cookie-secret",
+		SSOOIDCIssuerURL: "https://login.sys.example.com",
 		AZs:            []string{"z1"},
 		AppsDomain:     "apps.example.com",
 	}
@@ -1890,6 +1892,8 @@ func TestBuildManifestParams_SSOEnabledWithClientID(t *testing.T) {
 		PlanID:         "openclaw-developer-plan",
 		PlanName:       "developer",
 		DeploymentName: "openclaw-agent-sso-test-002",
+		RouteHostname:  "oc-dev-sso-test-002",
+		AppsDomain:     "apps.example.com",
 		SSOEnabled:     true,
 		VMType:         "small",
 		DiskType:       "10GB",
@@ -1901,5 +1905,23 @@ func TestBuildManifestParams_SSOEnabledWithClientID(t *testing.T) {
 	}
 	if params.SSOClientID != "my-oauth-client" {
 		t.Errorf("SSOClientID = %q, want %q", params.SSOClientID, "my-oauth-client")
+	}
+
+	// Verify the manifest renders with SSO proxy and redirect_url
+	manifest, err := bosh.RenderAgentManifest(params)
+	if err != nil {
+		t.Fatalf("RenderAgentManifest failed: %v", err)
+	}
+	manifestStr := string(manifest)
+	if !strings.Contains(manifestStr, "openclaw-sso-proxy") {
+		t.Error("Manifest should contain openclaw-sso-proxy job when SSO is enabled")
+	}
+	expectedRedirect := "redirect_url: \"https://oc-dev-sso-test-002.apps.example.com/oauth2/callback\""
+	if !strings.Contains(manifestStr, expectedRedirect) {
+		t.Errorf("Manifest should contain redirect_url, got:\n%s", manifestStr)
+	}
+	expectedIssuer := "oidc_issuer_url: \"https://login.sys.example.com\""
+	if !strings.Contains(manifestStr, expectedIssuer) {
+		t.Errorf("Manifest should contain OIDC issuer URL, got:\n%s", manifestStr)
 	}
 }

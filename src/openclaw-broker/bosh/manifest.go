@@ -94,6 +94,7 @@ instance_groups:
               client_id: "{{ .SSOClientID }}"
               client_secret: "{{ .SSOClientSecret }}"
               cookie_secret: "{{ .SSOCookieSecret }}"
+              redirect_url: "https://{{ .RouteHostname }}.{{ .AppsDomain }}/oauth2/callback"
 {{- if .SSOOIDCIssuerURL }}
               oidc_issuer_url: "{{ .SSOOIDCIssuerURL }}"
 {{- end }}

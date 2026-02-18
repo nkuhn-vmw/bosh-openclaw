@@ -613,7 +613,7 @@ job_types:
             sso_client_id: (( .properties.sso_client_id.value ))
             sso_client_secret: (( .properties.sso_client_secret.value ))
             sso_cookie_secret: (( .properties.generated_sso_cookie_secret.password ))
-            sso_oidc_issuer_url: https://uaa.(( ..cf.cloud_controller.system_domain.value ))
+            sso_oidc_issuer_url: https://login.(( ..cf.cloud_controller.system_domain.value ))
           on_demand:
             service_name: openclaw
             stemcell_os: ubuntu-jammy

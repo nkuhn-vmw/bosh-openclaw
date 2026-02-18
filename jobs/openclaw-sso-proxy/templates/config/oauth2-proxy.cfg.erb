@@ -20,6 +20,18 @@ cookie_expire = "<%= p('openclaw.sso_proxy.session_timeout') %>"
 oidc_issuer_url = "<%= issuer %>"
 <% end %>
 
+# CF UAA has a split architecture: login.sys.* serves OIDC discovery but
+# reports uaa.sys.* as the issuer. Skip strict issuer verification.
+insecure_oidc_skip_issuer_verification = true
+
+# CF UAA p-identity may not support the default 'email' scope
+scope = "openid"
+
+<% redirect_url = p('openclaw.sso_proxy.redirect_url', '') %>
+<% unless redirect_url.empty? %>
+redirect_url = "<%= redirect_url %>"
+<% end %>
+
 <% domains = p('openclaw.sso_proxy.allowed_domains') %>
 <% unless domains.empty? %>
 email_domains = [
@@ -38,4 +50,5 @@ authenticated_emails_file = "/var/vcap/jobs/openclaw-sso-proxy/config/allowed-em
 
 reverse_proxy = true
 pass_access_token = true
+pass_authorization_header = true
 skip_provider_button = true

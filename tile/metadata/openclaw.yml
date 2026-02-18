@@ -363,12 +363,6 @@ property_blueprints:
     default: "openclaw-broker"
     optional: true
 
-  - name: dashboard_route_prefix
-    type: string
-    configurable: true
-    default: "openclaw-admin"
-    optional: true
-
   - name: agent_route_prefix
     type: string
     configurable: true
@@ -528,9 +522,6 @@ form_types:
       - reference: .properties.broker_route_prefix
         label: Broker Route Prefix
         description: "Route prefix for the service broker (e.g., openclaw-broker → openclaw-broker.<apps-domain>)"
-      - reference: .properties.dashboard_route_prefix
-        label: Dashboard Route Prefix
-        description: "Route prefix for the admin dashboard (e.g., openclaw-admin → openclaw-admin.<apps-domain>)"
       - reference: .properties.agent_route_prefix
         label: Agent Route Prefix
         description: "Route prefix for agent instances (e.g., openclaw → openclaw-<owner>.<apps-domain>)"
@@ -715,73 +706,6 @@ job_types:
         release: openclaw
       - name: bpm
         release: bpm
-
-  #
-  # openclaw-admin-dashboard
-  #
-  - name: openclaw-admin-dashboard
-    resource_label: OpenClaw Admin Dashboard
-    resource_definitions:
-      - name: ram
-        type: integer
-        configurable: false
-        default: 1024
-      - name: ephemeral_disk
-        type: integer
-        configurable: false
-        default: 4096
-      - name: persistent_disk
-        type: integer
-        configurable: false
-        default: 0
-      - name: cpu
-        type: integer
-        configurable: false
-        default: 1
-    static_ip: 0
-    dynamic_ip: 1
-    max_in_flight: 1
-    single_az_only: true
-    instance_definition:
-      name: instances
-      type: integer
-      configurable: false
-      default: 1
-    manifest: |
-      openclaw:
-        admin_dashboard:
-          port: 8083
-          broker_endpoint: http://(( ..openclaw-broker.first_ip )):8080
-          auth:
-            username: admin
-            password: (( .properties.generated_broker_credentials.password ))
-          route:
-            hostname: (( .properties.dashboard_route_prefix.value ))
-            domain: (( $runtime.apps_domains.[0] ))
-      nats:
-        tls:
-          enabled: true
-          client_cert: (( ..cf.properties.nats_client_cert.cert_pem ))
-          client_key: (( ..cf.properties.nats_client_cert.private_key_pem ))
-          ca_cert: (( ..cf.properties.nats_tls_external_cert.cert_pem ))
-      route_registrar:
-        routes:
-          - name: openclaw-admin-dashboard
-            port: 8083
-            registration_interval: 20s
-            uris:
-              - (( .properties.dashboard_route_prefix.value )).(( $runtime.apps_domains.[0] ))
-    templates:
-      - name: openclaw-admin-dashboard
-        release: openclaw
-      - name: bpm
-        release: bpm
-      - name: route_registrar
-        release: routing
-        consumes: |
-          nats-tls:
-            from: nats-tls
-            deployment: (( ..cf.deployment_name ))
 
   #
   # register-broker errand

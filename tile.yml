@@ -190,52 +190,6 @@ packages:
               auto_sync: (( .properties.auto_sync_from_clawhub.value ))
               scan_on_sync: (( .properties.scan_skills_on_sync.value ))
 
-      # --- Admin Dashboard ---------------------------------------------------
-      - name: openclaw-admin-dashboard
-        label: OpenClaw Admin Dashboard
-        templates:
-          - name: openclaw-admin-dashboard
-            release: openclaw
-          - name: route_registrar
-            release: routing
-            consumes:
-              nats-tls:
-                from: nats-tls
-                deployment: (( ..cf.deployment_name ))
-          - name: bpm
-            release: bpm
-        memory: 1024
-        ephemeral_disk: 4096
-        instances: 1
-        cpu: 1
-        static_ip: 0
-        dynamic_ip: 1
-        max_in_flight: 1
-        properties:
-          nats:
-            tls:
-              enabled: true
-              client_cert: (( ..cf.properties.nats_client_cert.cert_pem ))
-              client_key: (( ..cf.properties.nats_client_cert.private_key_pem ))
-              ca_cert: (( ..cf.properties.nats_tls_external_cert.cert_pem ))
-          route_registrar:
-            routes:
-              - name: openclaw-admin-dashboard
-                port: 8083
-                registration_interval: 20s
-                uris:
-                  - (( .properties.dashboard_route_prefix.value )).(( ..cf.cloud_controller.system_domain.value ))
-          openclaw:
-            admin_dashboard:
-              port: 8083
-              broker_endpoint: https://(( .properties.broker_route_prefix.value )).(( ..cf.cloud_controller.system_domain.value ))
-              auth:
-                username: admin
-                password: (( .properties.generated_broker_credentials.password ))
-              route:
-                hostname: (( .properties.dashboard_route_prefix.value ))
-                domain: (( ..cf.cloud_controller.system_domain.value ))
-
       # --- Register Broker Errand -------------------------------------------
       - name: register-broker
         label: Register Service Broker
@@ -547,12 +501,6 @@ forms:
         configurable: true
         default: "openclaw-broker"
         description: "Route prefix for broker (e.g., openclaw-broker → openclaw-broker.<system-domain>)"
-      - name: dashboard_route_prefix
-        type: string
-        label: Dashboard Route Prefix
-        configurable: true
-        default: "openclaw-admin"
-        description: "Route prefix for admin dashboard"
       - name: agent_route_prefix
         type: string
         label: Agent Route Prefix

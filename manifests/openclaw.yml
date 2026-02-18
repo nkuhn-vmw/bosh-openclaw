@@ -106,51 +106,10 @@ instance_groups:
     networks:
       - name: default
 
-  - name: openclaw-admin-dashboard
-    instances: 1
-    jobs:
-      - name: openclaw-admin-dashboard
-        release: openclaw
-        properties:
-          openclaw:
-            dashboard:
-              port: 8080
-              broker_endpoint: "http://openclaw-broker.default.openclaw.bosh:8080"
-              auth:
-                username: ((dashboard_username))
-                password: ((dashboard_password))
-      - name: bpm
-        release: bpm
-      - name: route_registrar
-        release: routing
-        consumes:
-          nats-tls:
-            from: nats-tls
-            deployment: cf
-        properties:
-          route_registrar:
-            routes:
-              - name: openclaw-admin
-                registration_interval: 20s
-                port: 8080
-                uris:
-                  - openclaw-admin.((apps_domain))
-    vm_type: small
-    stemcell: default
-    azs: [z1]
-    networks:
-      - name: default
-
 variables:
   - name: broker_username
     type: value
     options:
       default: openclaw-broker
   - name: broker_password
-    type: password
-  - name: dashboard_username
-    type: value
-    options:
-      default: admin
-  - name: dashboard_password
     type: password

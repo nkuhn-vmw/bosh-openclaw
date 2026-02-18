@@ -1,5 +1,0 @@
-check process openclaw-admin-dashboard
-  with pidfile /var/vcap/sys/run/openclaw-admin-dashboard/openclaw-admin-dashboard.pid
-  start program "/var/vcap/jobs/openclaw-admin-dashboard/bin/ctl start"
-  stop program "/var/vcap/jobs/openclaw-admin-dashboard/bin/ctl stop"
-  group vcap

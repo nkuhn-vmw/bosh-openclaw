@@ -474,7 +474,7 @@ if (cmd === 'gateway') {
       handleChat(req, res, config, systemPrompt);
     } else {
       if (!webchatAuth(req, res)) {
-        res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+        res.writeHead(401, { 'Content-Type': 'text/html; charset=utf-8' });
         res.end(loginPageHTML({ instanceId: instanceId, version: pkg.version }));
         return;
       }

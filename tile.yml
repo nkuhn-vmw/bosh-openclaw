@@ -403,7 +403,7 @@ forms:
         type: string
         label: Minimum OpenClaw Version
         configurable: true
-        default: "2026.1.29"
+        default: "2026.2.17"
         description: Refuse to deploy agents below this version
 
   - name: skills-config

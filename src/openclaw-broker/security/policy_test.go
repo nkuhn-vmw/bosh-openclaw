@@ -15,7 +15,7 @@ func TestValidateVersion_AcceptsNewerVersion(t *testing.T) {
 	versions := []string{
 		"2026.1.30",
 		"2026.2.1",
-		"2026.2.10",
+		"2026.2.17",
 		"2027.1.1",
 	}
 	for _, v := range versions {

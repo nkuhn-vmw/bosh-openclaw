@@ -1837,3 +1837,69 @@ func TestFullLifecycle_ProvisionBindDeprovision(t *testing.T) {
 		t.Error("Instance should be deleted after deprovisioning completes")
 	}
 }
+
+func TestBuildManifestParams_SSODisabledWithoutClientID(t *testing.T) {
+	fakeBOSH := newFakeBOSHDirector("done", false)
+	defer fakeBOSH.Close()
+	director := bosh.NewClient(fakeBOSH.URL, "admin", "admin", "", "")
+
+	// SSOEnabled=true but SSOClientID is empty — SSO should be effectively disabled
+	cfg := BrokerConfig{
+		SSOEnabled:     true,
+		SSOClientID:    "",
+		SSOCookieSecret: "some-secret",
+		AZs:           []string{"z1"},
+		AppsDomain:    "apps.example.com",
+	}
+	b := New(cfg, director)
+
+	instance := &Instance{
+		ID:             "sso-test-001",
+		PlanID:         "openclaw-developer-plan",
+		PlanName:       "developer",
+		DeploymentName: "openclaw-agent-sso-test-001",
+		SSOEnabled:     true,
+		VMType:         "small",
+		DiskType:       "10GB",
+	}
+
+	params := b.buildManifestParams(instance)
+	if params.SSOEnabled {
+		t.Error("SSOEnabled should be false when SSOClientID is empty")
+	}
+}
+
+func TestBuildManifestParams_SSOEnabledWithClientID(t *testing.T) {
+	fakeBOSH := newFakeBOSHDirector("done", false)
+	defer fakeBOSH.Close()
+	director := bosh.NewClient(fakeBOSH.URL, "admin", "admin", "", "")
+
+	// SSOEnabled=true and SSOClientID is set — SSO should be enabled
+	cfg := BrokerConfig{
+		SSOEnabled:      true,
+		SSOClientID:     "my-oauth-client",
+		SSOClientSecret: "my-secret",
+		SSOCookieSecret: "cookie-secret",
+		AZs:            []string{"z1"},
+		AppsDomain:     "apps.example.com",
+	}
+	b := New(cfg, director)
+
+	instance := &Instance{
+		ID:             "sso-test-002",
+		PlanID:         "openclaw-developer-plan",
+		PlanName:       "developer",
+		DeploymentName: "openclaw-agent-sso-test-002",
+		SSOEnabled:     true,
+		VMType:         "small",
+		DiskType:       "10GB",
+	}
+
+	params := b.buildManifestParams(instance)
+	if !params.SSOEnabled {
+		t.Error("SSOEnabled should be true when SSOClientID is configured")
+	}
+	if params.SSOClientID != "my-oauth-client" {
+		t.Errorf("SSOClientID = %q, want %q", params.SSOClientID, "my-oauth-client")
+	}
+}

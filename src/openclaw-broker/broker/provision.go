@@ -176,6 +176,9 @@ func (b *Broker) Provision(w http.ResponseWriter, r *http.Request) {
 
 	// Build manifest params and deploy via BOSH (outside lock to avoid blocking)
 	params := b.buildManifestParams(instance)
+	log.Printf("Provisioning %s: plan=%s vm=%s sso=%v controlUI=%v route=%s.%s",
+		instanceID, instance.PlanName, instance.VMType, params.SSOEnabled, params.ControlUIEnabled,
+		instance.RouteHostname, instance.AppsDomain)
 	manifest, err := bosh.RenderAgentManifest(params)
 	if err != nil {
 		log.Printf("Manifest render failed for %s: %v", instanceID, err)
@@ -255,6 +258,14 @@ func (b *Broker) buildManifestParams(instance *Instance) bosh.ManifestParams {
 		browserEnabled = true
 	}
 
+	// SSO requires actual OAuth2 credentials — disable if client_id is empty.
+	// This prevents deploying an SSO proxy that can't start (empty credentials)
+	// and avoids setting sso.enabled=true in the gateway config without a working proxy.
+	ssoEnabled := instance.SSOEnabled && b.config.SSOClientID != ""
+	if instance.SSOEnabled && !ssoEnabled {
+		log.Printf("SSO disabled for %s: sso_client_id not configured in tile — configure OAuth2 credentials in OpsMan SSO tab", instance.ID)
+	}
+
 	// Parse blocked commands: tile may send newline-separated or comma-separated
 	var blockedCmds []string
 	if b.config.BlockedCommands != "" {
@@ -280,7 +291,7 @@ func (b *Broker) buildManifestParams(instance *Instance) bosh.ManifestParams {
 		VMType:                 instance.VMType,
 		DiskType:               instance.DiskType,
 		ControlUIEnabled:       instance.ControlUIEnabled,
-		SSOEnabled:             instance.SSOEnabled,
+		SSOEnabled:             ssoEnabled,
 		OpenClawVersion:        instance.OpenClawVersion,
 		SandboxMode:            sandboxMode,
 		Network:                network,

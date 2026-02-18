@@ -98,6 +98,12 @@ func main() {
 		brokerCfg.AZs, brokerCfg.Network, brokerCfg.StemcellOS, brokerCfg.CFDeploymentName, brokerCfg.SSOEnabled)
 	log.Printf("Broker config: Plans=%d MaxInstances=%d MaxPerOrg=%d MinVersion=%q",
 		len(brokerCfg.Plans), brokerCfg.MaxInstances, brokerCfg.MaxInstancesPerOrg, brokerCfg.MinOpenClawVersion)
+	ssoCredsConfigured := brokerCfg.SSOClientID != ""
+	log.Printf("Broker SSO: enabled=%v client_id_set=%v cookie_secret_set=%v issuer=%q",
+		brokerCfg.SSOEnabled, ssoCredsConfigured, brokerCfg.SSOCookieSecret != "", brokerCfg.SSOOIDCIssuerURL)
+	if brokerCfg.SSOEnabled && !ssoCredsConfigured {
+		log.Printf("WARNING: SSO is enabled but sso_client_id is empty — SSO proxy will NOT be deployed. Configure OAuth2 credentials in OpsMan SSO tab.")
+	}
 
 	r := mux.NewRouter()
 	r.Use(basicAuthMiddleware(cfg.Auth.Username, cfg.Auth.Password))

@@ -352,6 +352,11 @@ if (cmd === 'gateway') {
   var llmProvider = (config.llm && config.llm.provider) || 'none';
   var llmEndpoint = (config.llm && config.llm.genai && config.llm.genai.endpoint) || 'not set';
 
+  var ssoEnabled = config.sso && config.sso.enabled;
+  var controlUIEnabled = config.control_ui && config.control_ui.enabled;
+  console.log('SSO: enabled=' + !!ssoEnabled + ' webchatPort=' + webchatPort);
+  console.log('Control UI: enabled=' + !!controlUIEnabled);
+
   var html = webchatHTML({ instanceId: instanceId, planName: planName, owner: owner, version: pkg.version });
   var ctrlHtml = controlHTML({ instanceId: instanceId, planName: planName, owner: owner, version: pkg.version });
   var controlAuth = createAuthMiddleware(config);

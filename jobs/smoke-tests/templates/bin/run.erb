@@ -130,7 +130,7 @@ KEY_OUTPUT=$(cf service-key "${SERVICE_INSTANCE}" "${SERVICE_KEY}" 2>&1)
 KEY_JSON=$(echo "${KEY_OUTPUT}" | sed '1,2d')
 
 FAILED=0
-for field in webchat_url gateway_token instance_id; do
+for field in dashboard_url api_token instance_id; do
   if ! echo "${KEY_JSON}" | grep -q "\"${field}\""; then
     echo "FAIL: Service key missing expected field: ${field}"
     FAILED=1
@@ -146,20 +146,20 @@ echo "PASS: Service key contains expected credential fields"
 
 # [7/7] Verify webchat route (conditional)
 <% if p('smoke_tests.verify_webchat_route') %>
-echo "[7/7] Verifying webchat route..."
-WEBCHAT_URL=$(echo "${KEY_JSON}" | grep '"webchat_url"' | sed 's/.*: *"\(.*\)".*/\1/' | sed 's/,$//')
+echo "[7/7] Verifying dashboard route..."
+DASHBOARD_URL=$(echo "${KEY_JSON}" | grep '"dashboard_url"' | sed 's/.*: *"\(.*\)".*/\1/' | sed 's/,$//')
 
-if [ -z "${WEBCHAT_URL}" ]; then
-  echo "FAIL: Could not extract webchat_url from service key"
+if [ -z "${DASHBOARD_URL}" ]; then
+  echo "FAIL: Could not extract dashboard_url from service key"
   exit 1
 fi
 
-HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" --max-time 30 ${SSL_FLAG:+--insecure} "${WEBCHAT_URL}" || echo "000")
+HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" --max-time 30 ${SSL_FLAG:+--insecure} "${DASHBOARD_URL}" || echo "000")
 
 if [ "${HTTP_CODE}" = "200" ]; then
-  echo "PASS: WebChat UI is accessible (HTTP ${HTTP_CODE})"
+  echo "PASS: Dashboard is accessible (HTTP ${HTTP_CODE})"
 else
-  echo "WARN: WebChat UI returned HTTP ${HTTP_CODE} (may still be starting up)"
+  echo "WARN: Dashboard returned HTTP ${HTTP_CODE} (may still be starting up)"
 fi
 <% else %>
 echo "[7/7] Skipping webchat route verification (disabled)."

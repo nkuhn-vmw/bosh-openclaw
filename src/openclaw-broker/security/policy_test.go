@@ -159,20 +159,6 @@ func TestValidateWebSocketOrigin_SubdomainMismatch(t *testing.T) {
 	}
 }
 
-func TestDefaultSecurityPolicy_ControlUIDisabled(t *testing.T) {
-	policy := DefaultSecurityPolicy()
-	if policy.ControlUIEnabled {
-		t.Error("DefaultSecurityPolicy().ControlUIEnabled = true, want false")
-	}
-}
-
-func TestDefaultSecurityPolicy_RequireAuth(t *testing.T) {
-	policy := DefaultSecurityPolicy()
-	if !policy.ControlUIRequireAuth {
-		t.Error("DefaultSecurityPolicy().ControlUIRequireAuth = false, want true")
-	}
-}
-
 func TestDefaultSecurityPolicy_WebSocketOriginCheck(t *testing.T) {
 	policy := DefaultSecurityPolicy()
 	if !policy.WebSocketOriginCheck {

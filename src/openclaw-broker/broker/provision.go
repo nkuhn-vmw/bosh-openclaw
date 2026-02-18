@@ -103,14 +103,6 @@ func (b *Broker) Provision(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Enforce Control UI disabled by default (CVE-2026-25253 mitigation)
-	controlUIEnabled := b.config.ControlUIEnabled
-	if cui, ok := req.Parameters["control_ui_enabled"]; ok {
-		if v, ok := cui.(bool); ok {
-			controlUIEnabled = v
-		}
-	}
-
 	// Find plan
 	plan := b.findPlan(req.PlanID)
 	if plan == nil {
@@ -152,7 +144,6 @@ func (b *Broker) Provision(w http.ResponseWriter, r *http.Request) {
 		DiskType:         plan.DiskType,
 		State:            "provisioning",
 		SSOEnabled:       b.config.SSOEnabled,
-		ControlUIEnabled: controlUIEnabled,
 		OpenClawVersion:  openclawVersion,
 	}
 
@@ -207,8 +198,8 @@ func (b *Broker) Provision(w http.ResponseWriter, r *http.Request) {
 
 	// Build manifest params and deploy via BOSH (outside lock to avoid blocking)
 	params := b.buildManifestParams(instance)
-	log.Printf("Provisioning %s: plan=%s vm=%s sso=%v controlUI=%v route=%s.%s",
-		instanceID, instance.PlanName, instance.VMType, params.SSOEnabled, params.ControlUIEnabled,
+	log.Printf("Provisioning %s: plan=%s vm=%s sso=%v route=%s.%s",
+		instanceID, instance.PlanName, instance.VMType, params.SSOEnabled,
 		instance.RouteHostname, instance.AppsDomain)
 	manifest, err := bosh.RenderAgentManifest(params)
 	if err != nil {
@@ -320,7 +311,6 @@ func (b *Broker) buildManifestParams(instance *Instance) bosh.ManifestParams {
 		RouteHostname:          instance.RouteHostname,
 		VMType:                 instance.VMType,
 		DiskType:               instance.DiskType,
-		ControlUIEnabled:       instance.ControlUIEnabled,
 		SSOEnabled:             ssoEnabled,
 		OpenClawVersion:        instance.OpenClawVersion,
 		SandboxMode:            sandboxMode,

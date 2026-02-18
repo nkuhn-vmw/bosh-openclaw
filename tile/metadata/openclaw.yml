@@ -152,11 +152,6 @@ property_blueprints:
       - name: "loose"
         label: "Loose - Most commands allowed (not recommended)"
 
-  - name: control_ui_enabled
-    type: boolean
-    configurable: true
-    default: false
-
   - name: blocked_commands
     type: text
     configurable: true
@@ -422,11 +417,6 @@ form_types:
     property_inputs:
       - reference: .properties.sandbox_mode
         label: Sandbox Mode
-      - reference: .properties.control_ui_enabled
-        label: Enable Control UI
-        description: >
-          WARNING: The Control UI was the attack vector for CVE-2026-25253.
-          Enable only on patched versions with auth required.
       - reference: .properties.blocked_commands
         label: Blocked Shell Commands
         description: One command per line
@@ -580,7 +570,6 @@ job_types:
           genai: (( .properties.genai_provider.selected_option.parsed_manifest(genai_fragment) ))
           security:
             sandbox_mode: (( .properties.sandbox_mode.value ))
-            control_ui_enabled: (( .properties.control_ui_enabled.value ))
             blocked_commands: (( .properties.blocked_commands.value ))
             min_openclaw_version: (( .properties.min_openclaw_version.value ))
             sso_enabled: (( .properties.sso_enabled.value ))

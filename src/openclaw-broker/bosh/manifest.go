@@ -29,9 +29,6 @@ instance_groups:
             webchat:
               enabled: true
               port: {{ if .SSOEnabled }}8081{{ else }}8080{{ end }}
-            control_ui:
-              enabled: {{ .ControlUIEnabled }}
-              require_auth: true
             security:
               sandbox_mode: {{ .SandboxMode }}
 {{- if .BlockedCommands }}
@@ -169,7 +166,6 @@ type ManifestParams struct {
 	RouteHostname         string
 	VMType                string
 	DiskType              string
-	ControlUIEnabled      bool
 	SSOEnabled            bool
 	OpenClawVersion       string
 	SandboxMode           string

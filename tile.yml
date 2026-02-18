@@ -140,7 +140,6 @@ packages:
               genai: (( .properties.genai_provider.selected_option.parsed_manifest(genai_fragment) ))
               security:
                 sandbox_mode: (( .properties.sandbox_mode.value ))
-                control_ui_enabled: (( .properties.control_ui_enabled.value ))
                 blocked_commands: (( .properties.blocked_commands.value ))
                 min_openclaw_version: (( .properties.min_openclaw_version.value ))
               on_demand:
@@ -394,14 +393,6 @@ forms:
             label: "Moderate - Common commands allowed, destructive blocked"
           - name: loose
             label: "Loose - Most commands allowed (not recommended)"
-      - name: control_ui_enabled
-        type: boolean
-        label: Enable Control UI
-        configurable: true
-        default: false
-        description: >
-          WARNING: The Control UI was the attack vector for CVE-2026-25253.
-          Enable only on patched versions with auth required.
       - name: blocked_commands
         type: text
         label: Blocked Shell Commands

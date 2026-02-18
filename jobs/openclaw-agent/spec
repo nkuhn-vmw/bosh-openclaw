@@ -32,12 +32,6 @@ properties:
   openclaw.webchat.port:
     description: "WebChat HTTP port"
     default: 8080
-  openclaw.control_ui.enabled:
-    description: "Enable the Control UI"
-    default: false
-  openclaw.control_ui.require_auth:
-    description: "Require authentication for Control UI"
-    default: true
   openclaw.llm.provider:
     description: "LLM provider type: genai, anthropic, openai, ollama, custom"
     default: "genai"

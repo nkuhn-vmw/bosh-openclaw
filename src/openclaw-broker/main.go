@@ -58,7 +58,6 @@ func main() {
 
 	brokerCfg := broker.BrokerConfig{
 		MinOpenClawVersion:     cfg.Security.MinOpenClawVersion,
-		ControlUIEnabled:       cfg.Security.ControlUIEnabled,
 		SandboxMode:            cfg.Security.SandboxMode,
 		OpenClawVersion:        cfg.AgentDefaults.OpenClawVersion,
 		Plans:                  plans,
@@ -167,7 +166,6 @@ type Config struct {
 	} `json:"agent_defaults"`
 	Security struct {
 		MinOpenClawVersion     string `json:"min_openclaw_version"`
-		ControlUIEnabled       bool   `json:"control_ui_enabled"`
 		SandboxMode            string `json:"sandbox_mode"`
 		BlockedCommands        string `json:"blocked_commands"`
 		SSOEnabled             bool   `json:"sso_enabled"`

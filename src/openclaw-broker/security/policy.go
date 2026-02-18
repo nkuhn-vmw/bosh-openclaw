@@ -72,8 +72,6 @@ func ValidateWebSocketOrigin(origin, expectedHost string) error {
 
 // SecurityPolicy represents the runtime security policy for an agent instance.
 type SecurityPolicy struct {
-	ControlUIEnabled     bool   `json:"control_ui_enabled"`
-	ControlUIRequireAuth bool   `json:"control_ui_require_auth"`
 	WebSocketOriginCheck bool   `json:"websocket_origin_check"`
 	MinVersion           string `json:"min_version"`
 }
@@ -81,8 +79,6 @@ type SecurityPolicy struct {
 // DefaultSecurityPolicy returns a policy with CVE-2026-25253 mitigations active.
 func DefaultSecurityPolicy() SecurityPolicy {
 	return SecurityPolicy{
-		ControlUIEnabled:     false,
-		ControlUIRequireAuth: true,
 		WebSocketOriginCheck: true,
 		MinVersion:           MinSafeVersion,
 	}

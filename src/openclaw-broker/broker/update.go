@@ -78,7 +78,6 @@ func (b *Broker) Update(w http.ResponseWriter, r *http.Request) {
 			DiskType:         plan.DiskType,
 			State:            "provisioning",
 			SSOEnabled:       b.config.SSOEnabled,
-			ControlUIEnabled: b.config.ControlUIEnabled,
 			OpenClawVersion:  b.config.OpenClawVersion,
 		}
 		b.instances[instanceID] = instance

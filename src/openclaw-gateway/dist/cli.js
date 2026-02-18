@@ -4,14 +4,14 @@
 const http = require('http');
 const fs = require('fs');
 const { streamChat } = require('./llm');
-const { controlHTML, createAuthMiddleware, handleControlAPI } = require('./control');
+const { handleAdminAPI } = require('./control');
 const pkg = require('../package.json');
 
 function esc(s) {
   return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
-function webchatHTML(o) {
+function dashboardHTML(o) {
   var BT = String.fromCharCode(96);
   return '<!DOCTYPE html>\n<html lang="en">\n<head>\n<meta charset="utf-8">\n' +
 '<meta name="viewport" content="width=device-width, initial-scale=1">\n' +
@@ -37,6 +37,8 @@ function webchatHTML(o) {
 '  --border: #1e2a3f;\n' +
 '  --code-bg: #0a0e18;\n' +
 '  --error: #ff4757;\n' +
+'  --success: #2ed573;\n' +
+'  --warn: #ffa502;\n' +
 '  --font-body: "Outfit", system-ui, -apple-system, "Segoe UI", sans-serif;\n' +
 '  --font-mono: "IBM Plex Mono", "SF Mono", "Cascadia Code", "Fira Code", "Consolas", monospace;\n' +
 '}\n' +
@@ -44,7 +46,7 @@ function webchatHTML(o) {
 'html, body { height:100%; overflow:hidden; }\n' +
 'body { font-family:var(--font-body); background:radial-gradient(ellipse at 50% 0%,#0f1a2e 0%,#080b12 50%); color:var(--text-1); display:flex; flex-direction:column; height:100vh; }\n' +
 '\n' +
-'.header { background:var(--surface-1); padding:14px 24px; display:flex; align-items:center; gap:14px; border-bottom:1px solid var(--border); position:relative; overflow:hidden; }\n' +
+'.header { background:var(--surface-1); padding:14px 24px; display:flex; align-items:center; gap:14px; border-bottom:1px solid var(--border); position:relative; overflow:hidden; flex-shrink:0; }\n' +
 '.header::after { content:""; position:absolute; top:0; right:0; width:200px; height:100%; background:repeating-linear-gradient(-45deg,transparent,transparent 8px,rgba(0,212,170,0.03) 8px,rgba(0,212,170,0.03) 9px); pointer-events:none; }\n' +
 '.header .logo { color:var(--accent); display:flex; }\n' +
 '.header h1 { font-size:17px; font-weight:600; letter-spacing:-0.3px; }\n' +
@@ -52,11 +54,20 @@ function webchatHTML(o) {
 '.badge::before { content:""; display:block; width:5px; height:5px; background:#080b12; border-radius:50%; animation:pulse 2s ease-in-out infinite; }\n' +
 '@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }\n' +
 '\n' +
-'.info-bar { padding:7px 24px; background:var(--surface-1); font-family:var(--font-mono); font-size:11px; color:var(--text-3); border-bottom:1px solid var(--border); display:flex; gap:6px; align-items:center; flex-wrap:wrap; }\n' +
+'.tab-bar { background:var(--surface-1); border-bottom:1px solid var(--border); display:flex; gap:0; padding:0 24px; flex-shrink:0; }\n' +
+'.tab { padding:10px 20px; font-family:var(--font-mono); font-size:12px; font-weight:500; color:var(--text-3); cursor:pointer; border-bottom:2px solid transparent; transition:all 0.15s; letter-spacing:0.3px; }\n' +
+'.tab:hover { color:var(--text-2); }\n' +
+'.tab.active { color:var(--accent); border-bottom-color:var(--accent); }\n' +
+'\n' +
+'.info-bar { padding:7px 24px; background:var(--surface-1); font-family:var(--font-mono); font-size:11px; color:var(--text-3); border-bottom:1px solid var(--border); display:flex; gap:6px; align-items:center; flex-wrap:wrap; flex-shrink:0; }\n' +
 '.info-bar .lbl { color:var(--text-2); }\n' +
 '.info-bar .val { color:var(--accent); }\n' +
 '.info-bar .sep { color:var(--border); margin:0 2px; }\n' +
 '\n' +
+'.tab-content { display:none; flex:1; min-height:0; flex-direction:column; }\n' +
+'.tab-content.active { display:flex; }\n' +
+'\n' +
+'/* ── Chat tab ── */\n' +
 '.chat { flex:1; overflow-y:auto; padding:24px 16px; }\n' +
 '.chat::-webkit-scrollbar { width:5px; }\n' +
 '.chat::-webkit-scrollbar-track { background:transparent; }\n' +
@@ -95,7 +106,7 @@ function webchatHTML(o) {
 '.cursor { display:inline-block; width:2px; height:1em; background:var(--accent); animation:blink 1s step-end infinite; margin-left:1px; vertical-align:text-bottom; }\n' +
 '@keyframes blink { 50%{opacity:0} }\n' +
 '\n' +
-'.input-area { padding:14px 24px 18px; background:var(--surface-1); border-top:1px solid var(--border); }\n' +
+'.input-area { padding:14px 24px 18px; background:var(--surface-1); border-top:1px solid var(--border); flex-shrink:0; }\n' +
 '.input-row { max-width:780px; margin:0 auto; display:flex; gap:10px; }\n' +
 '.input-row textarea { flex:1; padding:11px 14px; background:var(--bg); border:1px solid var(--border); border-radius:10px; color:var(--text-1); font-family:var(--font-body); font-size:14px; resize:none; outline:none; min-height:44px; max-height:120px; line-height:1.45; transition:border-color 0.2s,box-shadow 0.2s; }\n' +
 '.input-row textarea:focus { border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-glow); }\n' +
@@ -105,6 +116,47 @@ function webchatHTML(o) {
 '.send-btn.stop { background:var(--error); }\n' +
 '.send-btn.stop:hover { background:#ff6b7a; }\n' +
 '.input-hint { max-width:780px; margin:6px auto 0; font-size:11px; color:var(--text-3); font-family:var(--font-mono); }\n' +
+'\n' +
+'/* ── Admin tab ── */\n' +
+'.admin-panel { flex:1; overflow-y:auto; padding:24px 20px; }\n' +
+'.grid { max-width:1100px; margin:0 auto; display:grid; grid-template-columns:repeat(auto-fit, minmax(340px, 1fr)); gap:16px; }\n' +
+'.card { background:var(--surface-1); border:1px solid var(--border); border-radius:10px; overflow:hidden; }\n' +
+'.card-header { padding:12px 16px; border-bottom:1px solid var(--border); display:flex; align-items:center; gap:8px; }\n' +
+'.card-header h2 { font-size:13px; font-weight:600; letter-spacing:0.3px; }\n' +
+'.card-header .icon { color:var(--accent); font-size:14px; }\n' +
+'.card-body { padding:16px; }\n' +
+'.card.full-width { grid-column: 1 / -1; }\n' +
+'\n' +
+'.kv { display:grid; grid-template-columns:auto 1fr; gap:4px 16px; font-size:13px; }\n' +
+'.kv .label { color:var(--text-2); font-family:var(--font-mono); font-size:12px; white-space:nowrap; }\n' +
+'.kv .value { color:var(--text-1); font-family:var(--font-mono); font-size:12px; word-break:break-all; }\n' +
+'.kv .value.accent { color:var(--accent); }\n' +
+'.kv .value.success { color:var(--success); }\n' +
+'.kv .value.error { color:var(--error); }\n' +
+'.kv .value.warn { color:var(--warn); }\n' +
+'\n' +
+'.btn { padding:8px 16px; border:1px solid var(--border); border-radius:6px; background:var(--surface-2); color:var(--text-1); font-family:var(--font-mono); font-size:12px; cursor:pointer; transition:all 0.15s; }\n' +
+'.btn:hover { border-color:var(--accent); color:var(--accent); }\n' +
+'.btn.primary { background:var(--accent); color:#080b12; border-color:var(--accent); font-weight:600; }\n' +
+'.btn.primary:hover { background:var(--accent-hover); }\n' +
+'.btn.danger { border-color:var(--error); color:var(--error); }\n' +
+'.btn.danger:hover { background:var(--error); color:#fff; }\n' +
+'.btn:disabled { opacity:0.5; cursor:not-allowed; }\n' +
+'.btn-row { display:flex; gap:8px; margin-top:12px; flex-wrap:wrap; }\n' +
+'\n' +
+'.log-box { background:var(--code-bg); border:1px solid #1a2540; border-radius:6px; padding:12px; font-family:var(--font-mono); font-size:11px; line-height:1.6; color:#c8d0e0; max-height:300px; overflow:auto; white-space:pre-wrap; word-break:break-all; }\n' +
+'.log-controls { display:flex; gap:8px; align-items:center; margin-bottom:10px; }\n' +
+'.log-controls select { padding:4px 8px; background:var(--surface-2); border:1px solid var(--border); border-radius:4px; color:var(--text-1); font-family:var(--font-mono); font-size:11px; }\n' +
+'\n' +
+'.test-result { margin-top:12px; padding:10px; border-radius:6px; font-family:var(--font-mono); font-size:12px; display:none; }\n' +
+'.test-result.show { display:block; }\n' +
+'.test-result.pass { background:rgba(46,213,115,0.1); border:1px solid rgba(46,213,115,0.3); color:var(--success); }\n' +
+'.test-result.fail { background:rgba(255,71,87,0.1); border:1px solid rgba(255,71,87,0.3); color:var(--error); }\n' +
+'\n' +
+'.spinner { display:inline-block; width:12px; height:12px; border:2px solid var(--border); border-top-color:var(--accent); border-radius:50%; animation:spin 0.8s linear infinite; margin-right:6px; vertical-align:middle; }\n' +
+'@keyframes spin { to { transform:rotate(360deg); } }\n' +
+'\n' +
+'@media (max-width:720px) { .grid { grid-template-columns:1fr; } }\n' +
 '</style>\n' +
 '</head>\n' +
 '<body>\n' +
@@ -115,6 +167,11 @@ function webchatHTML(o) {
 '  <span class="badge">Online</span>\n' +
 '</header>\n' +
 '\n' +
+'<nav class="tab-bar">\n' +
+'  <div class="tab active" data-tab="chat">Chat</div>\n' +
+'  <div class="tab" data-tab="admin">Admin</div>\n' +
+'</nav>\n' +
+'\n' +
 '<div class="info-bar">\n' +
 '  <span class="lbl">Instance</span><span class="val">' + esc(o.instanceId) + '</span><span class="sep">/</span>\n' +
 '  <span class="lbl">Plan</span><span class="val">' + esc(o.planName) + '</span><span class="sep">/</span>\n' +
@@ -122,21 +179,87 @@ function webchatHTML(o) {
 '  <span class="val">v' + esc(o.version) + '</span>\n' +
 '</div>\n' +
 '\n' +
-'<main class="chat" id="chat"></main>\n' +
-'\n' +
-'<div class="input-area">\n' +
-'  <div class="input-row">\n' +
-'    <textarea id="input" placeholder="Send a message..." rows="1"></textarea>\n' +
-'    <button class="send-btn" id="send-btn" aria-label="Send">\n' +
-'      <svg id="send-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2L11 13"/><path d="M22 2L15 22L11 13L2 9L22 2Z"/></svg>\n' +
-'      <svg id="stop-icon" width="18" height="18" viewBox="0 0 24 24" fill="currentColor" style="display:none"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>\n' +
-'    </button>\n' +
+'<!-- Chat Tab -->\n' +
+'<div class="tab-content active" id="tab-chat">\n' +
+'  <main class="chat" id="chat"></main>\n' +
+'  <div class="input-area">\n' +
+'    <div class="input-row">\n' +
+'      <textarea id="input" placeholder="Send a message..." rows="1"></textarea>\n' +
+'      <button class="send-btn" id="send-btn" aria-label="Send">\n' +
+'        <svg id="send-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2L11 13"/><path d="M22 2L15 22L11 13L2 9L22 2Z"/></svg>\n' +
+'        <svg id="stop-icon" width="18" height="18" viewBox="0 0 24 24" fill="currentColor" style="display:none"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>\n' +
+'      </button>\n' +
+'    </div>\n' +
+'    <div class="input-hint">Enter to send &middot; Shift+Enter for new line</div>\n' +
 '  </div>\n' +
-'  <div class="input-hint">Enter to send &middot; Shift+Enter for new line</div>\n' +
+'</div>\n' +
+'\n' +
+'<!-- Admin Tab -->\n' +
+'<div class="tab-content" id="tab-admin">\n' +
+'  <div class="admin-panel">\n' +
+'    <div class="grid">\n' +
+'      <div class="card">\n' +
+'        <div class="card-header"><span class="icon">&#9679;</span><h2>Instance Status</h2></div>\n' +
+'        <div class="card-body">\n' +
+'          <div class="kv" id="status-kv"><span class="label">Loading...</span><span class="value"></span></div>\n' +
+'          <div class="btn-row"><button class="btn" onclick="loadStatus()">Refresh</button></div>\n' +
+'        </div>\n' +
+'      </div>\n' +
+'      <div class="card">\n' +
+'        <div class="card-header"><span class="icon">&#9889;</span><h2>LLM Health Test</h2></div>\n' +
+'        <div class="card-body">\n' +
+'          <p style="font-size:12px;color:var(--text-2);margin-bottom:8px;">Send a test prompt to verify LLM connectivity.</p>\n' +
+'          <button class="btn primary" id="llm-test-btn" onclick="testLLM()">Run Test</button>\n' +
+'          <div class="test-result" id="llm-result"></div>\n' +
+'        </div>\n' +
+'      </div>\n' +
+'      <div class="card full-width">\n' +
+'        <div class="card-header"><span class="icon">&#9776;</span><h2>Log Viewer</h2></div>\n' +
+'        <div class="card-body">\n' +
+'          <div class="log-controls">\n' +
+'            <select id="log-file"><option value="stdout">stdout</option><option value="stderr">stderr</option></select>\n' +
+'            <select id="log-lines"><option value="100">100 lines</option><option value="200" selected>200 lines</option><option value="500">500 lines</option></select>\n' +
+'            <button class="btn" onclick="loadLogs()">Fetch Logs</button>\n' +
+'          </div>\n' +
+'          <div class="log-box" id="log-content">Click "Fetch Logs" to load...</div>\n' +
+'        </div>\n' +
+'      </div>\n' +
+'      <div class="card">\n' +
+'        <div class="card-header"><span class="icon">&#9881;</span><h2>Process Management</h2></div>\n' +
+'        <div class="card-body">\n' +
+'          <p style="font-size:12px;color:var(--text-2);margin-bottom:8px;">Restart the gateway process (BPM will respawn it).</p>\n' +
+'          <button class="btn danger" onclick="restartProcess()">Restart Process</button>\n' +
+'        </div>\n' +
+'      </div>\n' +
+'      <div class="card">\n' +
+'        <div class="card-header"><span class="icon">&#9733;</span><h2>Request Stats</h2></div>\n' +
+'        <div class="card-body">\n' +
+'          <div class="kv" id="stats-kv"><span class="label">Loading...</span><span class="value"></span></div>\n' +
+'          <div class="btn-row"><button class="btn" onclick="loadStats()">Refresh</button></div>\n' +
+'        </div>\n' +
+'      </div>\n' +
+'    </div>\n' +
+'  </div>\n' +
 '</div>\n' +
 '\n' +
 '<script>\n' +
 '(function() {\n' +
+'  /* ── Tab switching ── */\n' +
+'  var tabs = document.querySelectorAll(".tab");\n' +
+'  var panes = document.querySelectorAll(".tab-content");\n' +
+'  for (var t = 0; t < tabs.length; t++) {\n' +
+'    tabs[t].addEventListener("click", function() {\n' +
+'      for (var i = 0; i < tabs.length; i++) { tabs[i].classList.remove("active"); }\n' +
+'      for (var i = 0; i < panes.length; i++) { panes[i].classList.remove("active"); }\n' +
+'      this.classList.add("active");\n' +
+'      document.getElementById("tab-" + this.dataset.tab).classList.add("active");\n' +
+'      if (this.dataset.tab === "admin" && !adminLoaded) { adminLoaded = true; loadStatus(); loadStats(); }\n' +
+'      if (this.dataset.tab === "chat") { inputEl.focus(); }\n' +
+'    });\n' +
+'  }\n' +
+'  var adminLoaded = false;\n' +
+'\n' +
+'  /* ── Chat ── */\n' +
 '  var chatEl = document.getElementById("chat");\n' +
 '  var inputEl = document.getElementById("input");\n' +
 '  var sendBtn = document.getElementById("send-btn");\n' +
@@ -325,6 +448,104 @@ function webchatHTML(o) {
 '\n' +
 '  addMsg("assistant", "Hello! I am your OpenClaw AI agent. How can I help you today?");\n' +
 '  inputEl.focus();\n' +
+'\n' +
+'  /* ── Admin panel ── */\n' +
+'  function api(method, path) {\n' +
+'    return fetch(path, { method: method, credentials: "same-origin" }).then(function(r) { return r.json(); });\n' +
+'  }\n' +
+'\n' +
+'  function kvHTML(pairs) {\n' +
+'    var h = "";\n' +
+'    for (var i = 0; i < pairs.length; i++) {\n' +
+'      var cls = pairs[i][2] || "";\n' +
+'      h += \'<span class="label">\' + pairs[i][0] + \'</span><span class="value \' + cls + \'">\' + pairs[i][1] + \'</span>\';\n' +
+'    }\n' +
+'    return h;\n' +
+'  }\n' +
+'\n' +
+'  function fmtUptime(s) {\n' +
+'    if (s < 60) return s + "s";\n' +
+'    if (s < 3600) return Math.floor(s/60) + "m " + (s%60) + "s";\n' +
+'    var h = Math.floor(s/3600); var m = Math.floor((s%3600)/60);\n' +
+'    return h + "h " + m + "m";\n' +
+'  }\n' +
+'\n' +
+'  window.loadStatus = function() {\n' +
+'    api("GET", "/api/status").then(function(d) {\n' +
+'      document.getElementById("status-kv").innerHTML = kvHTML([\n' +
+'        ["Version", "v" + d.version, "accent"],\n' +
+'        ["Uptime", fmtUptime(d.uptime), ""],\n' +
+'        ["Instance", d.instance.id, ""],\n' +
+'        ["Owner", d.instance.owner, ""],\n' +
+'        ["Plan", d.instance.plan, ""],\n' +
+'        ["LLM Provider", d.llm.provider, "accent"],\n' +
+'        ["LLM Endpoint", d.llm.endpoint, ""],\n' +
+'        ["LLM Model", d.llm.model, ""],\n' +
+'        ["Memory (RSS)", d.memory.rss_mb + " MB", ""],\n' +
+'        ["Heap Used", d.memory.heap_used_mb + " MB", ""],\n' +
+'        ["Node.js", d.node_version, ""]\n' +
+'      ]);\n' +
+'    }).catch(function(e) {\n' +
+'      document.getElementById("status-kv").innerHTML = \'<span class="label">Error</span><span class="value error">\' + e.message + \'</span>\';\n' +
+'    });\n' +
+'  };\n' +
+'\n' +
+'  window.testLLM = function() {\n' +
+'    var btn = document.getElementById("llm-test-btn");\n' +
+'    var result = document.getElementById("llm-result");\n' +
+'    btn.disabled = true;\n' +
+'    btn.innerHTML = \'<span class="spinner"></span>Testing...\';\n' +
+'    result.className = "test-result";\n' +
+'\n' +
+'    api("POST", "/api/llm-test").then(function(d) {\n' +
+'      btn.disabled = false;\n' +
+'      btn.textContent = "Run Test";\n' +
+'      if (d.success) {\n' +
+'        result.className = "test-result show pass";\n' +
+'        result.textContent = "PASS (" + d.latency_ms + "ms) — " + d.response;\n' +
+'      } else {\n' +
+'        result.className = "test-result show fail";\n' +
+'        result.textContent = "FAIL (" + d.latency_ms + "ms) — " + d.error;\n' +
+'      }\n' +
+'    }).catch(function(e) {\n' +
+'      btn.disabled = false;\n' +
+'      btn.textContent = "Run Test";\n' +
+'      result.className = "test-result show fail";\n' +
+'      result.textContent = "Error: " + e.message;\n' +
+'    });\n' +
+'  };\n' +
+'\n' +
+'  window.loadLogs = function() {\n' +
+'    var file = document.getElementById("log-file").value;\n' +
+'    var lines = document.getElementById("log-lines").value;\n' +
+'    var box = document.getElementById("log-content");\n' +
+'    box.textContent = "Loading...";\n' +
+'    api("GET", "/api/logs?file=" + encodeURIComponent(file) + "&lines=" + lines).then(function(d) {\n' +
+'      box.textContent = d.content || "(empty)";\n' +
+'      box.scrollTop = box.scrollHeight;\n' +
+'    }).catch(function(e) {\n' +
+'      box.textContent = "Error: " + e.message;\n' +
+'    });\n' +
+'  };\n' +
+'\n' +
+'  window.restartProcess = function() {\n' +
+'    if (!confirm("Restart the gateway process? BPM will respawn it.")) return;\n' +
+'    api("POST", "/api/restart").then(function() {\n' +
+'      document.body.innerHTML = \'<div style="text-align:center;padding:60px;font-family:var(--font-mono);color:var(--accent);">Restarting... page will reload shortly.</div>\';\n' +
+'      setTimeout(function() { location.reload(); }, 5000);\n' +
+'    });\n' +
+'  };\n' +
+'\n' +
+'  window.loadStats = function() {\n' +
+'    api("GET", "/api/stats").then(function(d) {\n' +
+'      document.getElementById("stats-kv").innerHTML = kvHTML([\n' +
+'        ["Requests", String(d.request_count), "accent"],\n' +
+'        ["Uptime", fmtUptime(d.uptime), ""]\n' +
+'      ]);\n' +
+'    }).catch(function(e) {\n' +
+'      document.getElementById("stats-kv").innerHTML = \'<span class="label">Error</span><span class="value error">\' + e.message + \'</span>\';\n' +
+'    });\n' +
+'  };\n' +
 '})();\n' +
 '</script>\n' +
 '</body>\n' +
@@ -393,20 +614,16 @@ if (cmd === 'gateway') {
   var llmEndpoint = (config.llm && config.llm.genai && config.llm.genai.endpoint) || 'not set';
 
   var ssoEnabled = config.sso && config.sso.enabled;
-  var controlUIEnabled = config.control_ui && config.control_ui.enabled;
   console.log('SSO: enabled=' + !!ssoEnabled + ' webchatPort=' + webchatPort);
-  console.log('Control UI: enabled=' + !!controlUIEnabled);
 
-  var html = webchatHTML({ instanceId: instanceId, planName: planName, owner: owner, version: pkg.version });
-  var ctrlHtml = controlHTML({ instanceId: instanceId, planName: planName, owner: owner, version: pkg.version });
-  var controlAuth = createAuthMiddleware(config);
+  var html = dashboardHTML({ instanceId: instanceId, planName: planName, owner: owner, version: pkg.version });
   var requestCount = 0;
   var startedAt = Date.now();
   var gwToken = (config.gateway && config.gateway.token) || '';
 
-  // Webchat auth: same pattern as control UI — Bearer header, ?token= param, or cookie
-  function webchatAuth(req, res) {
-    // SSO (oauth2-proxy) handles auth upstream when enabled
+  // Unified auth: Bearer header, ?token= param (sets cookie), or oc_token cookie.
+  // SSO (oauth2-proxy) handles auth upstream when enabled.
+  function checkAuth(req, res) {
     if (ssoEnabled) return true;
     if (!gwToken) return true; // no token configured = open access
 
@@ -420,16 +637,16 @@ if (cmd === 'gateway') {
     if (urlObj) {
       var qToken = urlObj.searchParams.get('token');
       if (qToken === gwToken) {
-        res.setHeader('Set-Cookie', 'webchat_token=' + gwToken + '; HttpOnly; Path=/; SameSite=Strict');
+        res.setHeader('Set-Cookie', 'oc_token=' + gwToken + '; HttpOnly; Path=/; SameSite=Strict');
         return true;
       }
     }
 
-    // Check webchat_token cookie
+    // Check oc_token cookie
     var cookies = (req.headers.cookie || '').split(';');
     for (var i = 0; i < cookies.length; i++) {
       var parts = cookies[i].trim().split('=');
-      if (parts[0] === 'webchat_token' && parts.slice(1).join('=') === gwToken) return true;
+      if (parts[0] === 'oc_token' && parts.slice(1).join('=') === gwToken) return true;
     }
 
     return false;
@@ -439,7 +656,7 @@ if (cmd === 'gateway') {
     '" (plan: ' + planName + ', owner: ' + owner +
     '). Be helpful, clear, and concise. Use markdown formatting when it improves readability.';
 
-  // WebChat HTTP server
+  // Unified HTTP server
   var webchatServer = http.createServer(function (req, res) {
     // Parse pathname for routing
     var pathname;
@@ -448,32 +665,29 @@ if (cmd === 'gateway') {
     if (pathname === '/healthz' || pathname === '/health') {
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ status: 'ok', version: pkg.version, instance: instanceId }));
-    } else if (pathname.indexOf('/control') === 0) {
-      // Control UI routes
-      var controlConfig = config.control_ui || {};
-      if (!controlConfig.enabled) {
-        res.writeHead(404, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ error: 'Control UI is disabled' }));
-        return;
-      }
-      if (!controlAuth(req, res)) return;
-
-      if (pathname.indexOf('/control/api/') === 0) {
-        handleControlAPI(req, res, pathname, config, { requestCount: requestCount, startedAt: startedAt });
-      } else {
-        res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
-        res.end(ctrlHtml);
-      }
-    } else if (req.method === 'POST' && pathname === '/api/chat') {
-      if (!webchatAuth(req, res)) {
+    } else if (pathname === '/api/chat' && req.method === 'POST') {
+      if (!checkAuth(req, res)) {
         res.writeHead(401, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ error: 'Unauthorized' }));
         return;
       }
       requestCount++;
       handleChat(req, res, config, systemPrompt);
+    } else if (pathname.indexOf('/api/') === 0) {
+      // Admin API endpoints (status, stats, llm-test, logs, restart)
+      if (!checkAuth(req, res)) {
+        res.writeHead(401, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'Unauthorized' }));
+        return;
+      }
+      var handled = handleAdminAPI(req, res, pathname, config, { requestCount: requestCount, startedAt: startedAt });
+      if (handled === false) {
+        res.writeHead(404, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'Unknown API endpoint' }));
+      }
     } else {
-      if (!webchatAuth(req, res)) {
+      // Dashboard (root and any other path)
+      if (!checkAuth(req, res)) {
         res.writeHead(401, { 'Content-Type': 'text/html; charset=utf-8' });
         res.end(loginPageHTML({ instanceId: instanceId, version: pkg.version }));
         return;
@@ -483,7 +697,7 @@ if (cmd === 'gateway') {
     }
   });
   webchatServer.listen(webchatPort, gwBind, function () {
-    console.log('OpenClaw WebChat listening on ' + gwBind + ':' + webchatPort);
+    console.log('OpenClaw Dashboard listening on ' + gwBind + ':' + webchatPort);
   });
 
   // Gateway status server

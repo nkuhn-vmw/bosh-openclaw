@@ -23,7 +23,6 @@ func writeJSON(w http.ResponseWriter, status int, v interface{}) {
 
 type BrokerConfig struct {
 	MinOpenClawVersion     string   `json:"min_openclaw_version"`
-	ControlUIEnabled       bool     `json:"control_ui_enabled"`
 	SandboxMode            string   `json:"sandbox_mode"`
 	OpenClawVersion        string   `json:"openclaw_version"`
 	Plans                  []Plan   `json:"plans"`
@@ -88,7 +87,6 @@ type Instance struct {
 	SSOClientID      string `json:"sso_client_id,omitempty"`
 	SSOClientSecret  string `json:"sso_client_secret,omitempty"`
 	SSOCookieSecret  string `json:"sso_cookie_secret,omitempty"`
-	ControlUIEnabled bool   `json:"control_ui_enabled"`
 	OpenClawVersion  string `json:"openclaw_version"`
 }
 

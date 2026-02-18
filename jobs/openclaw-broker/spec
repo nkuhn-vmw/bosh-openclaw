@@ -187,9 +187,6 @@ properties:
   openclaw.broker.security.sandbox_mode:
     description: "Agent sandbox mode (strict, moderate, loose)"
     default: "strict"
-  openclaw.broker.security.control_ui_enabled:
-    description: "Enable control UI for agent instances"
-    default: false
   openclaw.broker.security.blocked_commands:
     description: "Newline-separated list of blocked shell commands"
     default: ""

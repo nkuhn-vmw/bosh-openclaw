@@ -59,7 +59,6 @@ func newTestBroker(taskState string, deployFail bool) (*Broker, *httptest.Server
 	director := bosh.NewClient(fakeBOSH.URL, "admin", "admin", "", "")
 	cfg := BrokerConfig{
 		MinOpenClawVersion: "2026.1.29",
-		ControlUIEnabled:   false,
 		SandboxMode:        "strict",
 		OpenClawVersion:    "2026.2.10",
 		AZs:                []string{"z1"},
@@ -685,21 +684,18 @@ func TestBind_ReadyInstance(t *testing.T) {
 	if creds["instance_id"] != "inst-bind" {
 		t.Errorf("instance_id = %v, want %q", creds["instance_id"], "inst-bind")
 	}
-	if creds["gateway_token"] == nil || creds["gateway_token"] == "" {
-		t.Error("gateway_token is missing or empty")
+	if creds["api_token"] == nil || creds["api_token"] == "" {
+		t.Error("api_token is missing or empty")
 	}
 	if creds["node_seed"] == nil || creds["node_seed"] == "" {
 		t.Error("node_seed is missing or empty")
 	}
-	if creds["webchat_url"] == nil {
-		t.Error("webchat_url is missing")
+	if creds["dashboard_url"] == nil {
+		t.Error("dashboard_url is missing")
 	}
-	webchatURL, _ := creds["webchat_url"].(string)
-	if !strings.Contains(webchatURL, "?token=") {
-		t.Errorf("webchat_url should contain ?token= for auth, got %q", webchatURL)
-	}
-	if creds["gateway_url"] == nil {
-		t.Error("gateway_url is missing")
+	dashURL, _ := creds["dashboard_url"].(string)
+	if !strings.Contains(dashURL, "?token=") {
+		t.Errorf("dashboard_url should contain ?token= for auth, got %q", dashURL)
 	}
 	if creds["api_endpoint"] == nil {
 		t.Error("api_endpoint is missing")
@@ -761,86 +757,13 @@ func TestBind_CredentialsContainExpectedKeys(t *testing.T) {
 	json.Unmarshal(rr.Body.Bytes(), &resp)
 
 	expectedKeys := []string{
-		"webchat_url", "gateway_url", "gateway_token", "api_endpoint",
+		"dashboard_url", "api_endpoint", "api_token",
 		"instance_id", "owner", "plan", "openclaw_version", "node_seed", "sso_enabled",
-		"control_ui_enabled",
 	}
 	for _, key := range expectedKeys {
 		if _, ok := resp.Credentials[key]; !ok {
 			t.Errorf("Credentials missing key %q", key)
 		}
-	}
-}
-
-func TestBind_ControlUIEnabled_IncludesURL(t *testing.T) {
-	b, fakeBOSH, router := newTestBroker("done", false)
-	defer fakeBOSH.Close()
-
-	provisionInstance(t, router, "inst-ctrl-on", "openclaw-developer-plan")
-	b.mu.Lock()
-	b.instances["inst-ctrl-on"].State = "ready"
-	b.instances["inst-ctrl-on"].ControlUIEnabled = true
-	b.instances["inst-ctrl-on"].AppsDomain = "apps.example.com"
-	b.mu.Unlock()
-
-	body := BindRequest{ServiceID: "openclaw-service", PlanID: "openclaw-developer-plan"}
-	bodyBytes, _ := json.Marshal(body)
-	req := httptest.NewRequest("PUT", "/v2/service_instances/inst-ctrl-on/service_bindings/bind-ctrl", bytes.NewReader(bodyBytes))
-	rr := httptest.NewRecorder()
-	router.ServeHTTP(rr, req)
-
-	if rr.Code != http.StatusCreated {
-		t.Fatalf("Bind status = %d, want %d", rr.Code, http.StatusCreated)
-	}
-
-	var resp BindResponse
-	json.Unmarshal(rr.Body.Bytes(), &resp)
-
-	if resp.Credentials["control_ui_enabled"] != true {
-		t.Errorf("control_ui_enabled = %v, want true", resp.Credentials["control_ui_enabled"])
-	}
-	url, ok := resp.Credentials["control_ui_url"]
-	if !ok {
-		t.Fatal("control_ui_url missing when ControlUIEnabled=true")
-	}
-	urlStr, ok2 := url.(string)
-	if !ok2 {
-		t.Fatalf("control_ui_url is not a string: %T", url)
-	}
-	if !strings.HasPrefix(urlStr, "https://oc-dev-inst-ctrl-on.apps.example.com/control?token=") {
-		t.Errorf("control_ui_url = %v, want prefix %q", url, "https://oc-dev-inst-ctrl-on.apps.example.com/control?token=")
-	}
-}
-
-func TestBind_ControlUIDisabled_NoURL(t *testing.T) {
-	b, fakeBOSH, router := newTestBroker("done", false)
-	defer fakeBOSH.Close()
-
-	provisionInstance(t, router, "inst-ctrl-off", "openclaw-developer-plan")
-	b.mu.Lock()
-	b.instances["inst-ctrl-off"].State = "ready"
-	b.instances["inst-ctrl-off"].ControlUIEnabled = false
-	b.instances["inst-ctrl-off"].AppsDomain = "apps.example.com"
-	b.mu.Unlock()
-
-	body := BindRequest{ServiceID: "openclaw-service", PlanID: "openclaw-developer-plan"}
-	bodyBytes, _ := json.Marshal(body)
-	req := httptest.NewRequest("PUT", "/v2/service_instances/inst-ctrl-off/service_bindings/bind-ctrl2", bytes.NewReader(bodyBytes))
-	rr := httptest.NewRecorder()
-	router.ServeHTTP(rr, req)
-
-	if rr.Code != http.StatusCreated {
-		t.Fatalf("Bind status = %d, want %d", rr.Code, http.StatusCreated)
-	}
-
-	var resp BindResponse
-	json.Unmarshal(rr.Body.Bytes(), &resp)
-
-	if resp.Credentials["control_ui_enabled"] != false {
-		t.Errorf("control_ui_enabled = %v, want false", resp.Credentials["control_ui_enabled"])
-	}
-	if _, ok := resp.Credentials["control_ui_url"]; ok {
-		t.Error("control_ui_url should not be present when ControlUIEnabled=false")
 	}
 }
 
@@ -1223,7 +1146,6 @@ func TestUpdate_BOSHDeployFailure(t *testing.T) {
 	director := bosh.NewClient(boshServer.URL, "admin", "admin", "", "")
 	cfg := BrokerConfig{
 		MinOpenClawVersion: "2026.1.29",
-		ControlUIEnabled:   false,
 		SandboxMode:        "strict",
 		OpenClawVersion:    "2026.2.10",
 		AZs:                []string{"z1"},
@@ -1748,7 +1670,6 @@ func TestFullLifecycle_ProvisionBindDeprovision(t *testing.T) {
 	director := bosh.NewClient(boshServer.URL, "admin", "admin", "", "")
 	cfg := BrokerConfig{
 		MinOpenClawVersion: "2026.1.29",
-		ControlUIEnabled:   false,
 		SandboxMode:        "strict",
 		OpenClawVersion:    "2026.2.10",
 		AZs:                []string{"z1"},

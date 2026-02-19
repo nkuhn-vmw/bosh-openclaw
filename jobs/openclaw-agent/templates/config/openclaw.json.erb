@@ -28,7 +28,7 @@
 
   provider = p('openclaw.llm.provider')
 
-  if provider == 'genai'
+  if provider == 'genai' || provider == 'tanzu_genai'
     genai_endpoint = p('openclaw.llm.genai.endpoint', nil)
     genai_key = p('openclaw.llm.genai.api_key', nil)
     genai_model = p('openclaw.llm.genai.model')
@@ -65,9 +65,11 @@
     }
   end
 
+  # gateway.mode "local" is required for self-hosted gateway
   # gateway.bind must be an enum: "lan" binds to 0.0.0.0
   config = {
     "gateway" => {
+      "mode" => "local",
       "bind" => "lan",
       "port" => listen_port,
       "auth" => auth

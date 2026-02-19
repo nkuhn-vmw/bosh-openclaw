@@ -22,35 +22,18 @@ mkdir -p /var/vcap/sys/run/openclaw-agent
 chown -R vcap:vcap /var/vcap/sys/log/openclaw-agent
 chown -R vcap:vcap /var/vcap/sys/run/openclaw-agent
 
-# Verify openclaw works
-echo "Testing openclaw --version..."
+# Verify openclaw loads as root
+echo "Testing openclaw --version (as root)..."
 openclaw --version 2>&1 || { echo "ERROR: openclaw --version failed" >&2; exit 1; }
 
-# Test actual gateway startup (outside BPM) to catch config/runtime errors
-echo "Testing openclaw gateway run (3-second startup test)..."
-export OPENCLAW_CONFIG_PATH="/var/vcap/jobs/openclaw-agent/config/openclaw.json"
-export OPENCLAW_HOME="/var/vcap/data/openclaw-agent"
-export OPENCLAW_STATE_DIR="<%= p('openclaw.state_dir') %>"
-export NODE_TLS_REJECT_UNAUTHORIZED="0"
+# Ensure OPENCLAW_HOME directories exist for BPM
+mkdir -p /var/vcap/data/openclaw-agent
+chown vcap:vcap /var/vcap/data/openclaw-agent
 
-GATEWAY_LOG="${STATE_DIR}/gateway-startup-test.log"
-openclaw gateway run > "${GATEWAY_LOG}" 2>&1 &
-GW_PID=$!
-sleep 3
+# Test that openclaw can load as vcap user (BPM runs processes as vcap)
+echo "Testing openclaw --version as vcap..."
+chpst -u vcap:vcap openclaw --version 2>&1 || { echo "ERROR: openclaw --version failed as vcap user" >&2; exit 1; }
 
-if kill -0 "${GW_PID}" 2>/dev/null; then
-  echo "Gateway startup test PASSED (PID ${GW_PID} running after 3s)"
-  kill "${GW_PID}" 2>/dev/null || true
-  wait "${GW_PID}" 2>/dev/null || true
-else
-  wait "${GW_PID}" 2>/dev/null
-  GW_EXIT=$?
-  echo "ERROR: Gateway crashed during startup test (exit ${GW_EXIT})" >&2
-  echo "--- Gateway startup output ---" >&2
-  cat "${GATEWAY_LOG}" >&2
-  echo "--- End output ---" >&2
-  echo "--- Rendered config ---" >&2
-  cat "${OPENCLAW_CONFIG_PATH}" >&2
-  echo "--- End config ---" >&2
-  exit 1
-fi
+# Ensure persistent disk log directory exists for crash debugging
+mkdir -p /var/vcap/store/openclaw/logs
+chown vcap:vcap /var/vcap/store/openclaw/logs

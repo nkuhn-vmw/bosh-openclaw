@@ -21,3 +21,27 @@ mkdir -p /var/vcap/sys/log/openclaw-agent
 mkdir -p /var/vcap/sys/run/openclaw-agent
 chown -R vcap:vcap /var/vcap/sys/log/openclaw-agent
 chown -R vcap:vcap /var/vcap/sys/run/openclaw-agent
+
+# Diagnostic: verify Node.js and OpenClaw binary work
+echo "=== DIAGNOSTIC: Node.js version ==="
+node --version 2>&1 || echo "FAILED: node not found"
+
+echo "=== DIAGNOSTIC: OpenClaw binary test ==="
+ls -la /var/vcap/packages/openclaw/bin/openclaw 2>&1
+cat /var/vcap/packages/openclaw/bin/openclaw 2>&1
+
+echo "=== DIAGNOSTIC: OpenClaw --version ==="
+su - vcap -c 'export PATH="/var/vcap/packages/node22/bin:/var/vcap/packages/openclaw/bin:$PATH" && openclaw --version' 2>&1 || echo "FAILED: openclaw --version returned $?"
+
+echo "=== DIAGNOSTIC: Config file ==="
+cat /var/vcap/jobs/openclaw-agent/config/openclaw.json 2>&1
+
+echo "=== DIAGNOSTIC: Package structure ==="
+ls -la /var/vcap/packages/openclaw/lib/node_modules/openclaw/ 2>&1 | head -20
+echo "---"
+ls /var/vcap/packages/openclaw/lib/node_modules/ 2>&1 | head -30
+
+echo "=== DIAGNOSTIC: Quick startup test (5s timeout) ==="
+su - vcap -c 'export PATH="/var/vcap/packages/node22/bin:/var/vcap/packages/openclaw/bin:$PATH" && export OPENCLAW_CONFIG_PATH="/var/vcap/jobs/openclaw-agent/config/openclaw.json" && export OPENCLAW_HOME="/var/vcap/data/openclaw-agent" && export OPENCLAW_STATE_DIR="<%= p("openclaw.state_dir") %>" && export NODE_TLS_REJECT_UNAUTHORIZED=0 && timeout 5 openclaw gateway run --verbose 2>&1' || echo "Quick test exited with code $?"
+
+echo "=== END DIAGNOSTICS ==="

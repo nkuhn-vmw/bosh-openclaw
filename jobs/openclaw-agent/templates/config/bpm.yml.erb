@@ -5,6 +5,7 @@ processes:
     args:
       - gateway
       - run
+      - "--verbose"
     env:
       PATH: "/var/vcap/packages/node22/bin:/var/vcap/packages/openclaw/bin:/usr/bin:/bin"
       HOME: "/var/vcap/data/openclaw-agent"

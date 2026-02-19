@@ -3,9 +3,8 @@ export PATH=/var/vcap/packages/node22/bin:$PATH
 export HOME=/var/vcap
 
 mkdir -p ${BOSH_INSTALL_TARGET}/lib
-cd ${BOSH_INSTALL_TARGET}/lib
-
-npm install --global-style --no-optional ${BOSH_COMPILE_TARGET}/openclaw/openclaw-*.tgz
+tar xzf ${BOSH_COMPILE_TARGET}/openclaw/openclaw-*.tgz \
+  -C ${BOSH_INSTALL_TARGET}/lib/
 
 mkdir -p ${BOSH_INSTALL_TARGET}/lib/skills
 tar xzf ${BOSH_COMPILE_TARGET}/openclaw/skills-bundle-*.tgz \

@@ -80,10 +80,14 @@ jobs:
           cp /tmp/cf-cli.tgz src/cf-cli/cf-cli_8.tgz
           ls -lh src/cf-cli/
 
-          # Download real OpenClaw from npm
+          # Download and pre-install real OpenClaw from npm (BOSH VMs lack git)
           OPENCLAW_NPM_VERSION=$(grep -A1 'openclaw.version:' jobs/openclaw-agent/spec | grep 'default:' | sed 's/.*"\(.*\)".*/\1/')
-          echo "Downloading openclaw@${OPENCLAW_NPM_VERSION}..."
-          npm pack "openclaw@${OPENCLAW_NPM_VERSION}" --pack-destination src/openclaw/
+          echo "Installing openclaw@${OPENCLAW_NPM_VERSION} and bundling with dependencies..."
+          BUNDLE_DIR=$(mktemp -d)
+          cd "${BUNDLE_DIR}"
+          npm install "openclaw@${OPENCLAW_NPM_VERSION}"
+          cd "${GITHUB_WORKSPACE}"
+          tar czf "src/openclaw/openclaw-${OPENCLAW_NPM_VERSION}.tgz" -C "${BUNDLE_DIR}" .
 
           # Create placeholder skills bundle
           SKILLS_DIR=$(mktemp -d)

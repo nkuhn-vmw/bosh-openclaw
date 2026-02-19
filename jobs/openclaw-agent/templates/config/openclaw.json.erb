@@ -1,93 +1,77 @@
-<%= JSON.pretty_generate({
-  "version" => p('openclaw.version'),
-  "gateway" => {
-    "port" => p('openclaw.gateway.port'),
-    "token" => p('openclaw.gateway.token'),
-    "bind_address" => p('openclaw.gateway.bind_address')
-  },
-  "webchat" => {
-    "enabled" => p('openclaw.webchat.enabled'),
-    "port" => p('openclaw.webchat.port')
-  },
-  "llm" => {
-    "provider" => p('openclaw.llm.provider'),
-    "genai" => {
-      "endpoint" => p('openclaw.llm.genai.endpoint', nil),
-      "api_key" => p('openclaw.llm.genai.api_key', nil),
-      "model" => p('openclaw.llm.genai.model')
-    },
-    "anthropic" => {
-      "api_key" => p('openclaw.llm.anthropic.api_key', nil)
-    },
-    "openai" => {
-      "api_key" => p('openclaw.llm.openai.api_key', nil)
-    },
-    "model_override" => p('openclaw.llm.model_override', nil)
-  },
-  "security" => {
-    "sandbox_mode" => p('openclaw.security.sandbox_mode'),
-    "skills_allowlist" => p('openclaw.security.skills_allowlist'),
-    "block_outbound_network" => p('openclaw.security.block_outbound_network'),
-    "max_shell_timeout_seconds" => p('openclaw.security.max_shell_timeout_seconds'),
-    "readonly_paths" => p('openclaw.security.readonly_paths'),
-    "blocked_commands" => p('openclaw.security.blocked_commands'),
-    "policy_file" => "/var/vcap/jobs/openclaw-agent/config/security-policy.json"
-  },
-  "state_dir" => p('openclaw.state_dir'),
-  "memory" => {
-    "enabled" => p('openclaw.memory.enabled')
-  },
-  "node" => {
-    "enabled" => p('openclaw.node.enabled'),
-    "seed" => p('openclaw.node.seed', nil)
-  },
-  "browser" => {
-    "enabled" => p('openclaw.browser.enabled'),
-    "sandbox" => p('openclaw.browser.sandbox')
-  },
-  "registry" => {
-    "endpoint" => p('openclaw.registry.endpoint', nil),
-    "sync_interval_hours" => p('openclaw.registry.sync_interval_hours')
-  },
-  "channels" => {
-    "webchat" => {
-      "enabled" => p('openclaw.channels.webchat.enabled')
-    },
-    "slack" => {
-      "enabled" => p('openclaw.channels.slack.enabled'),
-      "bot_token" => p('openclaw.channels.slack.bot_token', nil)
-    },
-    "teams" => {
-      "enabled" => p('openclaw.channels.teams.enabled'),
-      "webhook_url" => p('openclaw.channels.teams.webhook_url', nil)
+<%
+  # Port logic: SSO uses oauth2-proxy on 8080 → OpenClaw on 8081
+  # Without SSO, OpenClaw listens directly on 8080
+  sso_enabled = p('openclaw.sso.enabled')
+  listen_port = sso_enabled ? 8081 : 8080
+
+  # Auth mode: SSO → trusted-proxy (oauth2-proxy handles auth), otherwise token
+  if sso_enabled
+    auth = {
+      "mode" => "trusted-proxy",
+      "trustedProxies" => ["127.0.0.1"]
     }
-  },
-  "metrics" => {
-    "enabled" => p('openclaw.metrics.enabled'),
-    "port" => p('openclaw.metrics.port')
-  },
-  "logging" => {
-    "level" => p('openclaw.logging.level')
-  },
-  "instance" => {
-    "id" => p('openclaw.instance.id', nil),
-    "owner" => p('openclaw.instance.owner', nil),
-    "plan" => p('openclaw.instance.plan', nil)
-  },
-  "route" => {
-    "hostname" => p('openclaw.route.hostname', nil),
-    "domain" => p('openclaw.route.domain', nil),
-    "tls" => {
-      "enabled" => p('openclaw.route.tls.enabled')
+  else
+    auth = {
+      "mode" => "token",
+      "token" => p('openclaw.gateway.token')
     }
-  },
-  "sso" => {
-    "enabled" => p('openclaw.sso.enabled'),
-    "provider" => p('openclaw.sso.provider'),
-    "client_id" => p('openclaw.sso.client_id', nil),
-    "client_secret" => p('openclaw.sso.client_secret', nil),
-    "issuer_url" => p('openclaw.sso.issuer_url', nil),
-    "cookie_secret" => p('openclaw.sso.cookie_secret', nil),
-    "allowed_emails" => p('openclaw.sso.allowed_emails')
+  end
+
+  # Build models.providers based on configured LLM provider
+  providers = {}
+
+  provider = p('openclaw.llm.provider')
+
+  if provider == 'genai'
+    genai_endpoint = p('openclaw.llm.genai.endpoint', nil)
+    genai_key = p('openclaw.llm.genai.api_key', nil)
+    genai_model = p('openclaw.llm.genai.model')
+    if genai_endpoint || genai_key
+      prov = { "api" => "openai-completions" }
+      prov["baseUrl"] = genai_endpoint if genai_endpoint
+      prov["apiKey"] = genai_key if genai_key
+      prov["models"] = [genai_model] if genai_model && genai_model != "auto"
+      providers["genai"] = prov
+    end
+  end
+
+  anthropic_key = p('openclaw.llm.anthropic.api_key', nil)
+  if anthropic_key
+    providers["anthropic"] = {
+      "baseUrl" => "https://api.anthropic.com",
+      "apiKey" => anthropic_key,
+      "api" => "anthropic-messages"
+    }
+  end
+
+  openai_key = p('openclaw.llm.openai.api_key', nil)
+  if openai_key
+    providers["openai"] = {
+      "baseUrl" => "https://api.openai.com",
+      "apiKey" => openai_key,
+      "api" => "openai-completions"
+    }
+  end
+
+  model_override = p('openclaw.llm.model_override', nil)
+
+  config = {
+    "gateway" => {
+      "bind" => p('openclaw.gateway.bind_address'),
+      "port" => listen_port,
+      "auth" => auth
+    },
+    "models" => {
+      "providers" => providers
+    },
+    "browser" => {
+      "enabled" => p('openclaw.browser.enabled')
+    },
+    "logging" => {
+      "level" => p('openclaw.logging.level')
+    }
   }
-}) %>
+
+  config["models"]["default"] = model_override if model_override
+%>
+<%= JSON.pretty_generate(config) %>

@@ -25,10 +25,6 @@ instance_groups:
             version: "{{ .OpenClawVersion }}"
             gateway:
               token: "{{ .GatewayToken }}"
-              port: 18789
-            webchat:
-              enabled: true
-              port: {{ if .SSOEnabled }}8081{{ else }}8080{{ end }}
             security:
               sandbox_mode: {{ .SandboxMode }}
 {{- if .BlockedCommands }}

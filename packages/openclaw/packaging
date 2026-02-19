@@ -10,18 +10,19 @@ mkdir -p ${BOSH_INSTALL_TARGET}/lib/skills
 tar xzf ${BOSH_COMPILE_TARGET}/openclaw/skills-bundle-*.tgz \
   -C ${BOSH_INSTALL_TARGET}/lib/skills/
 
-# Resolve the real CLI entry point from the package's bin field
-ENTRY=$(cd ${BOSH_INSTALL_TARGET}/lib && node -e "
+# Resolve the relative CLI entry point from the package's bin field
+REL_BIN=$(cd ${BOSH_INSTALL_TARGET}/lib && node -e "
   const p = require('./node_modules/openclaw/package.json');
   const bin = typeof p.bin === 'string' ? p.bin : (p.bin.openclaw || p.bin[Object.keys(p.bin)[0]]);
-  console.log(require('path').resolve('./node_modules/openclaw', bin));
+  console.log(bin);
 ")
-echo "Resolved openclaw entry point: ${ENTRY}"
+echo "Resolved openclaw relative bin: ${REL_BIN}"
 
 mkdir -p ${BOSH_INSTALL_TARGET}/bin
 cat > ${BOSH_INSTALL_TARGET}/bin/openclaw <<WRAPPER
 #!/bin/bash
 export PATH=/var/vcap/packages/node22/bin:\$PATH
-exec node ${ENTRY} "\$@"
+SCRIPT_DIR="\$(cd "\$(dirname "\$0")/.." && pwd)"
+exec node "\${SCRIPT_DIR}/lib/node_modules/openclaw/${REL_BIN}" "\$@"
 WRAPPER
 chmod +x ${BOSH_INSTALL_TARGET}/bin/openclaw

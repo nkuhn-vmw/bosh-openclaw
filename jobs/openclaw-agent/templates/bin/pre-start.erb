@@ -22,49 +22,7 @@ mkdir -p /var/vcap/sys/run/openclaw-agent
 chown -R vcap:vcap /var/vcap/sys/log/openclaw-agent
 chown -R vcap:vcap /var/vcap/sys/run/openclaw-agent
 
-# Diagnostic: verify Node.js and OpenClaw binary work
-echo "=== DIAGNOSTIC: Node.js version ==="
-node --version 2>&1 || echo "FAILED: node not found"
-
-echo "=== DIAGNOSTIC: symlinks and real paths ==="
-ls -la /var/vcap/packages/openclaw 2>&1
-readlink -f /var/vcap/packages/openclaw 2>&1
-
-echo "=== DIAGNOSTIC: file check on openclaw.mjs ==="
-ENTRY="/var/vcap/packages/openclaw/lib/node_modules/openclaw/openclaw.mjs"
-stat "${ENTRY}" 2>&1 || echo "stat FAILED"
-file "${ENTRY}" 2>&1 || echo "file FAILED"
-head -3 "${ENTRY}" 2>&1 || echo "head FAILED"
-
-echo "=== DIAGNOSTIC: node fs check ==="
-node -e "
-const fs = require('fs');
-const p = '${ENTRY}';
-console.log('exists:', fs.existsSync(p));
-try { const s = fs.statSync(p); console.log('size:', s.size, 'mode:', s.mode.toString(8)); } catch(e) { console.log('stat error:', e.message); }
-try { const c = fs.readFileSync(p, 'utf8'); console.log('first 80 chars:', c.substring(0, 80)); } catch(e) { console.log('read error:', e.message); }
-" 2>&1
-
-echo "=== DIAGNOSTIC: direct node run (bypassing wrapper) ==="
-node "${ENTRY}" --version 2>&1 || echo "Direct node run returned $?"
-
-echo "=== DIAGNOSTIC: try dist/entry.js ==="
-DIST_ENTRY="/var/vcap/packages/openclaw/lib/node_modules/openclaw/dist/entry.js"
-ls -la "${DIST_ENTRY}" 2>&1 || echo "dist/entry.js not found, trying .mjs"
-DIST_ENTRY_MJS="/var/vcap/packages/openclaw/lib/node_modules/openclaw/dist/entry.mjs"
-ls -la "${DIST_ENTRY_MJS}" 2>&1 || echo "dist/entry.mjs also not found"
-
-echo "=== DIAGNOSTIC: node_modules .bin ==="
-ls -la /var/vcap/packages/openclaw/lib/node_modules/.bin/ 2>&1 | head -10
-
-echo "=== DIAGNOSTIC: npx approach ==="
-cd /var/vcap/packages/openclaw/lib && node -e "
-const {execSync} = require('child_process');
-try {
-  const out = execSync('node node_modules/openclaw/openclaw.mjs --version', {cwd: '/var/vcap/packages/openclaw/lib', env: {...process.env}}).toString();
-  console.log('npx-like output:', out);
-} catch(e) {
-  console.log('npx-like error:', e.stderr ? e.stderr.toString() : e.message);
-}" 2>&1
-
-echo "=== END DIAGNOSTICS ==="
+# Quick health check
+echo "Node.js: $(node --version 2>&1)"
+echo "Wrapper: $(cat /var/vcap/packages/openclaw/bin/openclaw 2>&1)"
+echo "OpenClaw version: $(openclaw --version 2>&1 || echo 'FAILED')"

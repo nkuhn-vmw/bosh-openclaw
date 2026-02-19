@@ -22,7 +22,9 @@ mkdir -p ${BOSH_INSTALL_TARGET}/bin
 cat > ${BOSH_INSTALL_TARGET}/bin/openclaw <<WRAPPER
 #!/bin/bash
 export PATH=/var/vcap/packages/node22/bin:\$PATH
-SCRIPT_DIR="\$(cd "\$(dirname "\$0")/.." && pwd)"
-exec node "\${SCRIPT_DIR}/lib/node_modules/openclaw/${REL_BIN}" "\$@"
+# Resolve symlinks (pwd -P) to avoid Node.js module resolution issues on Linux
+PKG_DIR="\$(cd "\$(dirname "\$0")/../lib/node_modules/openclaw" && pwd -P)"
+cd "\${PKG_DIR}"
+exec node ./${REL_BIN} "\$@"
 WRAPPER
 chmod +x ${BOSH_INSTALL_TARGET}/bin/openclaw

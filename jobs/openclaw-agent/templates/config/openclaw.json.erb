@@ -8,7 +8,9 @@
   if sso_enabled
     auth = {
       "mode" => "trusted-proxy",
-      "trustedProxies" => ["127.0.0.1"]
+      "trustedProxy" => {
+        "userHeader" => "X-Forwarded-User"
+      }
     }
   else
     auth = {
@@ -17,7 +19,11 @@
     }
   end
 
+  # Trusted proxies list (gateway-level, outside auth block)
+  trusted_proxies = sso_enabled ? ["127.0.0.1"] : nil
+
   # Build models.providers based on configured LLM provider
+  # Each provider requires baseUrl and models (array of {id, name} objects)
   providers = {}
 
   provider = p('openclaw.llm.provider')
@@ -30,7 +36,11 @@
       prov = { "api" => "openai-completions" }
       prov["baseUrl"] = genai_endpoint if genai_endpoint
       prov["apiKey"] = genai_key if genai_key
-      prov["models"] = [genai_model] if genai_model && genai_model != "auto"
+      if genai_model && genai_model != "auto"
+        prov["models"] = [{ "id" => genai_model, "name" => genai_model }]
+      else
+        prov["models"] = [{ "id" => "default", "name" => "default" }]
+      end
       providers["genai"] = prov
     end
   end
@@ -40,7 +50,8 @@
     providers["anthropic"] = {
       "baseUrl" => "https://api.anthropic.com",
       "apiKey" => anthropic_key,
-      "api" => "anthropic-messages"
+      "api" => "anthropic-messages",
+      "models" => [{ "id" => "claude-sonnet-4-5-20250929", "name" => "Claude Sonnet 4.5" }]
     }
   end
 
@@ -49,15 +60,15 @@
     providers["openai"] = {
       "baseUrl" => "https://api.openai.com",
       "apiKey" => openai_key,
-      "api" => "openai-completions"
+      "api" => "openai-completions",
+      "models" => [{ "id" => "gpt-4o", "name" => "GPT-4o" }]
     }
   end
 
-  model_override = p('openclaw.llm.model_override', nil)
-
+  # gateway.bind must be an enum: "lan" binds to 0.0.0.0
   config = {
     "gateway" => {
-      "bind" => p('openclaw.gateway.bind_address'),
+      "bind" => "lan",
       "port" => listen_port,
       "auth" => auth
     },
@@ -72,6 +83,6 @@
     }
   }
 
-  config["models"]["default"] = model_override if model_override
+  config["gateway"]["trustedProxies"] = trusted_proxies if trusted_proxies
 %>
 <%= JSON.pretty_generate(config) %>

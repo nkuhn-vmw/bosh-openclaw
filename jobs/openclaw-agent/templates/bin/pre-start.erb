@@ -22,7 +22,22 @@ mkdir -p /var/vcap/sys/run/openclaw-agent
 chown -R vcap:vcap /var/vcap/sys/log/openclaw-agent
 chown -R vcap:vcap /var/vcap/sys/run/openclaw-agent
 
-# Quick health check
-echo "Node.js: $(node --version 2>&1)"
-echo "Wrapper: $(cat /var/vcap/packages/openclaw/bin/openclaw 2>&1)"
-echo "OpenClaw version: $(openclaw --version 2>&1 || echo 'FAILED')"
+# Startup diagnostics (also saved to persistent disk for retrieval)
+{
+  echo "=== Pre-start diagnostics $(date -u) ==="
+  echo "Node.js: $(node --version 2>&1)"
+  echo "--- Wrapper script ---"
+  cat /var/vcap/packages/openclaw/bin/openclaw 2>&1
+  echo "--- Symlink resolution ---"
+  readlink -f /var/vcap/packages/openclaw 2>&1
+  PKG_DIR="$(cd /var/vcap/packages/openclaw/lib/node_modules/openclaw && pwd -P 2>&1)"
+  echo "Physical package dir: ${PKG_DIR}"
+  echo "--- Entry point check ---"
+  ls -la "${PKG_DIR}/dist/entry.js" 2>&1 || echo "dist/entry.js NOT FOUND"
+  ls -la "${PKG_DIR}/openclaw.mjs" 2>&1 || echo "openclaw.mjs NOT FOUND"
+  echo "--- Direct node test (cd + relative path) ---"
+  cd "${PKG_DIR}" && node ./dist/entry.js --version 2>&1 || echo "dist/entry.js FAILED: $?"
+  echo "--- Wrapper test ---"
+  openclaw --version 2>&1 || echo "Wrapper FAILED: $?"
+  echo "=== End diagnostics ==="
+} 2>&1 | tee "${STATE_DIR}/pre-start-diag.log"

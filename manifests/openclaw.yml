@@ -72,40 +72,6 @@ instance_groups:
     networks:
       - name: default
 
-  - name: openclaw-registry
-    instances: 1
-    jobs:
-      - name: openclaw-registry
-        release: openclaw
-        properties:
-          openclaw:
-            registry:
-              port: 8081
-              auto_sync: true
-              sync_interval_hours: 24
-              scan_on_sync: true
-              block_network_calls: true
-              skills_allowlist:
-                - weather
-                - calendar-google
-                - calendar-apple
-                - email-gmail
-                - email-outlook
-                - github
-                - jira
-                - confluence
-                - slack-actions
-                - notion
-                - obsidian
-                - trello
-                - linear
-    vm_type: small
-    stemcell: default
-    azs: [z1]
-    persistent_disk_type: 10GB
-    networks:
-      - name: default
-
 variables:
   - name: broker_username
     type: value

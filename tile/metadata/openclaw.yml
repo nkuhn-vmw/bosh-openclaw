@@ -165,44 +165,6 @@ property_blueprints:
     optional: true
 
   #
-  # Skills management
-  #
-  - name: skills_mode
-    type: dropdown_select
-    configurable: true
-    default: "allowlist"
-    options:
-      - name: "allowlist"
-        label: "Allowlist - Only approved skills"
-      - name: "blocklist"
-        label: "Blocklist - All except blocked"
-      - name: "disabled"
-        label: "Disabled - Built-in tools only"
-
-  - name: approved_skills
-    type: text
-    configurable: true
-    default: |
-      weather
-      calendar-google
-      email-gmail
-      github
-      jira
-      slack-actions
-      notion
-    optional: true
-
-  - name: auto_sync_from_clawhub
-    type: boolean
-    configurable: true
-    default: true
-
-  - name: scan_skills_on_sync
-    type: boolean
-    configurable: true
-    default: true
-
-  #
   # SSO / Authentication
   #
   - name: sso_enabled
@@ -424,20 +386,6 @@ form_types:
         label: Minimum OpenClaw Version
         description: Refuse to deploy agents below this version
 
-  - name: skills-config
-    label: Skills Management
-    description: Control which skills are available to agents
-    property_inputs:
-      - reference: .properties.skills_mode
-        label: Skills Policy
-      - reference: .properties.approved_skills
-        label: Approved Skills
-        description: One skill name per line
-      - reference: .properties.auto_sync_from_clawhub
-        label: Auto-sync from ClawHub
-      - reference: .properties.scan_skills_on_sync
-        label: Security Scan Skills on Sync
-
   - name: sso-config
     label: SSO / Authentication
     description: Configure Single Sign-On for agent WebChat instances
@@ -648,53 +596,6 @@ job_types:
           nats-tls:
             from: nats-tls
             deployment: (( ..cf.deployment_name ))
-
-  #
-  # openclaw-registry
-  #
-  - name: openclaw-registry
-    resource_label: OpenClaw Skills Registry
-    resource_definitions:
-      - name: ram
-        type: integer
-        configurable: false
-        default: 1024
-      - name: ephemeral_disk
-        type: integer
-        configurable: false
-        default: 4096
-      - name: persistent_disk
-        type: integer
-        configurable: true
-        default: 10240
-        constraints:
-          min: 5120
-      - name: cpu
-        type: integer
-        configurable: false
-        default: 1
-    static_ip: 0
-    dynamic_ip: 1
-    max_in_flight: 1
-    single_az_only: true
-    instance_definition:
-      name: instances
-      type: integer
-      configurable: false
-      default: 1
-    manifest: |
-      openclaw:
-        registry:
-          port: 8081
-          skills_mode: (( .properties.skills_mode.value ))
-          skills_allowlist: (( .properties.approved_skills.value ))
-          auto_sync: (( .properties.auto_sync_from_clawhub.value ))
-          scan_on_sync: (( .properties.scan_skills_on_sync.value ))
-    templates:
-      - name: openclaw-registry
-        release: openclaw
-      - name: bpm
-        release: bpm
 
   #
   # register-broker errand

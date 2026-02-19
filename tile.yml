@@ -164,31 +164,6 @@ packages:
                   client_key: (( ..cf.properties.nats_client_cert.private_key_pem ))
                   ca_cert: (( ..cf.properties.nats_tls_external_cert.cert_pem ))
 
-      # --- Skills Registry --------------------------------------------------
-      - name: openclaw-registry
-        label: OpenClaw Skills Registry
-        templates:
-          - name: openclaw-registry
-            release: openclaw
-          - name: bpm
-            release: bpm
-        memory: 1024
-        ephemeral_disk: 4096
-        persistent_disk: 10240
-        instances: 1
-        cpu: 1
-        static_ip: 0
-        dynamic_ip: 1
-        max_in_flight: 1
-        properties:
-          openclaw:
-            registry:
-              port: 8081
-              skills_mode: (( .properties.skills_mode.value ))
-              skills_allowlist: (( .properties.approved_skills.value ))
-              auto_sync: (( .properties.auto_sync_from_clawhub.value ))
-              scan_on_sync: (( .properties.scan_skills_on_sync.value ))
-
       # --- Register Broker Errand -------------------------------------------
       - name: register-broker
         label: Register Service Broker
@@ -405,46 +380,6 @@ forms:
         configurable: true
         default: "2026.2.17"
         description: Refuse to deploy agents below this version
-
-  - name: skills-config
-    label: Skills Management
-    description: Control which skills are available to agents
-    properties:
-      - name: skills_mode
-        type: dropdown_select
-        label: Skills Policy
-        configurable: true
-        default: "allowlist"
-        options:
-          - name: allowlist
-            label: "Allowlist - Only approved skills"
-          - name: blocklist
-            label: "Blocklist - All except blocked"
-          - name: disabled
-            label: "Disabled - Built-in tools only"
-      - name: approved_skills
-        type: text
-        label: Approved Skills
-        configurable: true
-        description: One skill name per line
-        default: |
-          weather
-          calendar-google
-          email-gmail
-          github
-          jira
-          slack-actions
-          notion
-      - name: auto_sync_from_clawhub
-        type: boolean
-        label: Auto-sync from ClawHub
-        configurable: true
-        default: true
-      - name: scan_skills_on_sync
-        type: boolean
-        label: Security Scan Skills on Sync
-        configurable: true
-        default: true
 
   - name: sso-config
     label: SSO / Authentication

@@ -21,14 +21,3 @@ mkdir -p /var/vcap/sys/log/openclaw-agent
 mkdir -p /var/vcap/sys/run/openclaw-agent
 chown -R vcap:vcap /var/vcap/sys/log/openclaw-agent
 chown -R vcap:vcap /var/vcap/sys/run/openclaw-agent
-
-<% if_p('openclaw.registry.endpoint') do |endpoint| %>
-# Sync skills from the curated registry
-echo "Syncing skills from registry: <%= endpoint %>"
-chpst -u vcap:vcap \
-  openclaw registry sync \
-    --endpoint "<%= endpoint %>" \
-    --allowlist /var/vcap/jobs/openclaw-agent/config/skills-allowlist.yml \
-    --dest "${STATE_DIR}/skills" \
-  || echo "WARNING: Skills sync failed, continuing with existing skills"
-<% end %>

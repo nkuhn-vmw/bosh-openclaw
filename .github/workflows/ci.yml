@@ -40,6 +40,11 @@ jobs:
           chmod +x /usr/local/bin/bosh
           bosh --version
 
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
       - name: Download vendored blobs
         run: |
           VERSION="${GITHUB_REF_NAME#v}"
@@ -75,11 +80,10 @@ jobs:
           cp /tmp/cf-cli.tgz src/cf-cli/cf-cli_8.tgz
           ls -lh src/cf-cli/
 
-          # Package OpenClaw gateway from source
-          TMPDIR=$(mktemp -d)
-          cp -r src/openclaw-gateway "${TMPDIR}/package"
-          sed -i "s/\"0.0.0\"/\"${VERSION}\"/" "${TMPDIR}/package/package.json"
-          tar czf "src/openclaw/openclaw-${VERSION}.tgz" -C "${TMPDIR}" package
+          # Download real OpenClaw from npm
+          OPENCLAW_NPM_VERSION=$(grep -A1 'openclaw.version:' jobs/openclaw-agent/spec | grep 'default:' | sed 's/.*"\(.*\)".*/\1/')
+          echo "Downloading openclaw@${OPENCLAW_NPM_VERSION}..."
+          npm pack "openclaw@${OPENCLAW_NPM_VERSION}" --pack-destination src/openclaw/
 
           # Create placeholder skills bundle
           SKILLS_DIR=$(mktemp -d)

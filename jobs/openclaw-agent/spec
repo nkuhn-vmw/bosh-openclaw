@@ -7,8 +7,6 @@ templates:
   bin/drain.erb: bin/drain
   config/bpm.yml.erb: config/bpm.yml
   config/openclaw.json.erb: config/openclaw.json
-  config/skills-allowlist.yml.erb: config/skills-allowlist.yml
-  config/security-policy.json.erb: config/security-policy.json
 
 packages:
   - node22
@@ -17,7 +15,7 @@ packages:
 properties:
   openclaw.version:
     description: "Pinned OpenClaw version (must be >= 2026.1.29 for CVE-2026-25253 patch)"
-    default: "2026.2.10"
+    default: "2026.2.17"
   openclaw.gateway.port:
     description: "Gateway WebSocket port"
     default: 18789

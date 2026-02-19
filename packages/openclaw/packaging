@@ -10,6 +10,9 @@ mkdir -p ${BOSH_INSTALL_TARGET}/lib/skills
 tar xzf ${BOSH_COMPILE_TARGET}/openclaw/skills-bundle-*.tgz \
   -C ${BOSH_INSTALL_TARGET}/lib/skills/
 
+# Ensure all extracted files are readable by vcap (BPM runs as vcap)
+chmod -R a+rX ${BOSH_INSTALL_TARGET}/lib
+
 PKG_DIR=${BOSH_INSTALL_TARGET}/lib/node_modules/openclaw
 
 # Verify the entry point loads on this platform during compilation

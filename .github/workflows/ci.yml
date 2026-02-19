@@ -81,7 +81,7 @@ jobs:
           ls -lh src/cf-cli/
 
           # Download and pre-install real OpenClaw from npm (BOSH VMs lack git)
-          OPENCLAW_NPM_VERSION=$(grep -A1 'openclaw.version:' jobs/openclaw-agent/spec | grep 'default:' | sed 's/.*"\(.*\)".*/\1/')
+          OPENCLAW_NPM_VERSION=$(grep -A2 'openclaw.version:' jobs/openclaw-agent/spec | grep 'default:' | sed 's/.*"\(.*\)".*/\1/')
           echo "Installing openclaw@${OPENCLAW_NPM_VERSION} and bundling with dependencies..."
           BUNDLE_DIR=$(mktemp -d)
           cd "${BUNDLE_DIR}"

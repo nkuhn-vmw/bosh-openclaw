@@ -50,9 +50,6 @@ mkdir -p ${BOSH_INSTALL_TARGET}/bin
 cat > ${BOSH_INSTALL_TARGET}/bin/openclaw <<'WRAPPER'
 #!/bin/bash
 export PATH=/var/vcap/packages/node22/bin:$PATH
-# Tee stderr to persistent disk for crash debugging (BPM logs are lost on VM delete)
-exec 2> >(tee -a /var/vcap/store/openclaw/logs/gateway-stderr.log >&2)
-echo "$(date '+%Y-%m-%d %H:%M:%S') Starting openclaw: $*" >&2
 exec node /var/vcap/packages/openclaw/lib/bootstrap.cjs "$@"
 WRAPPER
 chmod +x ${BOSH_INSTALL_TARGET}/bin/openclaw

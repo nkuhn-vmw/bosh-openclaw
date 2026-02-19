@@ -16,24 +16,20 @@ mkdir -p "${STATE_DIR}/sessions"
 chown -R vcap:vcap "${STATE_DIR}"
 chmod 0750 "${STATE_DIR}"
 
-# Create log and run directories
+# Create log, run, and data directories
 mkdir -p /var/vcap/sys/log/openclaw-agent
 mkdir -p /var/vcap/sys/run/openclaw-agent
+mkdir -p /var/vcap/data/openclaw-agent
+mkdir -p "${STATE_DIR}/logs"
 chown -R vcap:vcap /var/vcap/sys/log/openclaw-agent
 chown -R vcap:vcap /var/vcap/sys/run/openclaw-agent
+chown vcap:vcap /var/vcap/data/openclaw-agent
+chown vcap:vcap "${STATE_DIR}/logs"
 
 # Verify openclaw loads as root
 echo "Testing openclaw --version (as root)..."
 openclaw --version 2>&1 || { echo "ERROR: openclaw --version failed" >&2; exit 1; }
 
-# Ensure OPENCLAW_HOME directories exist for BPM
-mkdir -p /var/vcap/data/openclaw-agent
-chown vcap:vcap /var/vcap/data/openclaw-agent
-
 # Test that openclaw can load as vcap user (BPM runs processes as vcap)
 echo "Testing openclaw --version as vcap..."
 chpst -u vcap:vcap openclaw --version 2>&1 || { echo "ERROR: openclaw --version failed as vcap user" >&2; exit 1; }
-
-# Ensure persistent disk log directory exists for crash debugging
-mkdir -p /var/vcap/store/openclaw/logs
-chown vcap:vcap /var/vcap/store/openclaw/logs

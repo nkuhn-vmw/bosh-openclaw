@@ -85,7 +85,7 @@ jobs:
           echo "Installing openclaw@${OPENCLAW_NPM_VERSION} and bundling with dependencies..."
           BUNDLE_DIR=$(mktemp -d)
           cd "${BUNDLE_DIR}"
-          npm install "openclaw@${OPENCLAW_NPM_VERSION}"
+          npm install --omit=dev "openclaw@${OPENCLAW_NPM_VERSION}"
           cd "${GITHUB_WORKSPACE}"
           tar czf "src/openclaw/openclaw-${OPENCLAW_NPM_VERSION}.tgz" -C "${BUNDLE_DIR}" .
 

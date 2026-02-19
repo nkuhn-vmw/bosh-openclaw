@@ -10,27 +10,46 @@ mkdir -p ${BOSH_INSTALL_TARGET}/lib/skills
 tar xzf ${BOSH_COMPILE_TARGET}/openclaw/skills-bundle-*.tgz \
   -C ${BOSH_INSTALL_TARGET}/lib/skills/
 
-# Resolve the CLI entry point: prefer dist/entry.js (direct), fall back to bin field
 PKG_DIR=${BOSH_INSTALL_TARGET}/lib/node_modules/openclaw
-if [ -f "${PKG_DIR}/dist/entry.js" ]; then
-  ENTRY="dist/entry.js"
-  echo "Using direct entry point: ${ENTRY}"
-else
-  ENTRY=$(cd ${BOSH_INSTALL_TARGET}/lib && node -e "
-    const p = require('./node_modules/openclaw/package.json');
-    const bin = typeof p.bin === 'string' ? p.bin : (p.bin.openclaw || p.bin[Object.keys(p.bin)[0]]);
-    console.log(bin);
-  ")
-  echo "Using bin entry point: ${ENTRY}"
-fi
+
+# Verify the entry point loads on this platform during compilation
+echo "=== Verifying openclaw entry point ==="
+echo "Node.js version: $(node --version)"
+echo "Package dir: ${PKG_DIR}"
+ls -la "${PKG_DIR}/dist/entry.js" 2>&1 || echo "dist/entry.js NOT FOUND"
+ls -la "${PKG_DIR}/openclaw.mjs" 2>&1 || echo "openclaw.mjs NOT FOUND"
+echo "package.json type field: $(node -e "console.log(require('${PKG_DIR}/package.json').type || 'undefined')")"
+
+cd "${PKG_DIR}"
+echo "--- Testing: node ./openclaw.mjs --version ---"
+node ./openclaw.mjs --version 2>&1 || {
+  echo "ERROR: openclaw.mjs failed (exit $?)"
+  echo "Trying dist/entry.js..."
+  node ./dist/entry.js --version 2>&1 || {
+    echo "ERROR: dist/entry.js also failed (exit $?)"
+    exit 1
+  }
+}
+echo "=== Entry point verified ==="
+cd "${BOSH_COMPILE_TARGET}"
+
+# Create a CJS bootstrap wrapper that uses dynamic import() to load the ESM entry.
+# This avoids Node.js ESM file resolution issues that can occur inside BPM containers.
+cat > ${BOSH_INSTALL_TARGET}/lib/bootstrap.cjs <<'BOOTSTRAP'
+const path = require('path');
+const { pathToFileURL } = require('url');
+const pkgDir = path.join(__dirname, 'node_modules', 'openclaw');
+const entry = path.join(pkgDir, 'openclaw.mjs');
+import(pathToFileURL(entry).href).catch(err => {
+  process.stderr.write('OpenClaw bootstrap error: ' + err.stack + '\n');
+  process.exit(1);
+});
+BOOTSTRAP
 
 mkdir -p ${BOSH_INSTALL_TARGET}/bin
-cat > ${BOSH_INSTALL_TARGET}/bin/openclaw <<WRAPPER
+cat > ${BOSH_INSTALL_TARGET}/bin/openclaw <<'WRAPPER'
 #!/bin/bash
-export PATH=/var/vcap/packages/node22/bin:\$PATH
-# cd into physical package dir to avoid Node.js symlink resolution issues
-PKG_DIR="\$(cd "\$(dirname "\$0")/../lib/node_modules/openclaw" && pwd -P)"
-cd "\${PKG_DIR}"
-exec node ./${ENTRY} "\$@"
+export PATH=/var/vcap/packages/node22/bin:$PATH
+exec node /var/vcap/packages/openclaw/lib/bootstrap.cjs "$@"
 WRAPPER
 chmod +x ${BOSH_INSTALL_TARGET}/bin/openclaw

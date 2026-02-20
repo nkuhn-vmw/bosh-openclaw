@@ -13,6 +13,9 @@ export PATH="/var/vcap/packages/cf-cli/bin:${PATH}"
 export CF_HOME="${DATA_DIR}/cf-home"
 
 mkdir -p "${LOG_DIR}" "${CF_HOME}"
+# Ensure broker state dir exists (persistent disk may not be attached)
+mkdir -p /var/vcap/store/openclaw-broker
+chown vcap:vcap /var/vcap/store/openclaw-broker
 
 exec > >(tee -a "${LOG_DIR}/pre-start.log") 2>&1
 echo "=== pre-start begin $(date) ==="
@@ -85,14 +88,23 @@ cf target -o "${ORG}" -s "${SPACE}"
 echo "Provisioning service instance: ${OFFERING_NAME}/${PLAN_NAME} as '${SERVICE_INSTANCE}'..."
 
 EXISTING_STATUS=""
+EXISTING_PLAN=""
 if cf service "${SERVICE_INSTANCE}" > /tmp/cf-service-status.txt 2>&1; then
   EXISTING_STATUS=$(grep -i "status:" /tmp/cf-service-status.txt | head -1 | sed 's/.*status:[[:space:]]*//' | tr '[:upper:]' '[:lower:]')
-  echo "Service instance exists, status: ${EXISTING_STATUS}"
+  EXISTING_PLAN=$(grep -i "plan:" /tmp/cf-service-status.txt | head -1 | sed 's/.*plan:[[:space:]]*//' | xargs)
+  echo "Service instance exists, status: ${EXISTING_STATUS}, plan: ${EXISTING_PLAN}"
 fi
 
 case "${EXISTING_STATUS}" in
   *succeeded*)
-    echo "Service instance already provisioned — skipping create."
+    if [ -n "${EXISTING_PLAN}" ] && [ "${EXISTING_PLAN}" != "${PLAN_NAME}" ]; then
+      echo "Plan changed from '${EXISTING_PLAN}' to '${PLAN_NAME}' — updating service instance."
+      # Delete old service key before update (key may reference old plan endpoint)
+      cf delete-service-key "${SERVICE_INSTANCE}" "${SERVICE_KEY}" -f 2>/dev/null || true
+      cf update-service "${SERVICE_INSTANCE}" -p "${PLAN_NAME}"
+    else
+      echo "Service instance already provisioned with correct plan — skipping."
+    fi
     ;;
   *"in progress"*|*progress*)
     echo "Service instance creation in progress — will wait."

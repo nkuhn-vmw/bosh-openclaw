@@ -98,10 +98,21 @@ fi
 case "${EXISTING_STATUS}" in
   *succeeded*)
     if [ -n "${EXISTING_PLAN}" ] && [ "${EXISTING_PLAN}" != "${PLAN_NAME}" ]; then
-      echo "Plan changed from '${EXISTING_PLAN}' to '${PLAN_NAME}' — updating service instance."
-      # Delete old service key before update (key may reference old plan endpoint)
+      echo "Plan changed from '${EXISTING_PLAN}' to '${PLAN_NAME}' — recreating service instance."
       cf delete-service-key "${SERVICE_INSTANCE}" "${SERVICE_KEY}" -f 2>/dev/null || true
-      cf update-service "${SERVICE_INSTANCE}" -p "${PLAN_NAME}"
+      cf delete-service "${SERVICE_INSTANCE}" -f
+      # Wait for deletion to complete
+      DEL_TIMEOUT=120
+      DEL_ELAPSED=0
+      while [ ${DEL_ELAPSED} -lt ${DEL_TIMEOUT} ]; do
+        if ! cf service "${SERVICE_INSTANCE}" > /dev/null 2>&1; then
+          echo "Old service instance deleted."
+          break
+        fi
+        sleep 5
+        DEL_ELAPSED=$((DEL_ELAPSED + 5))
+      done
+      cf create-service "${OFFERING_NAME}" "${PLAN_NAME}" "${SERVICE_INSTANCE}"
     else
       echo "Service instance already provisioned with correct plan — skipping."
     fi

@@ -44,10 +44,14 @@
       prov = { "api" => "openai-completions" }
       prov["baseUrl"] = genai_endpoint if genai_endpoint
       prov["apiKey"] = genai_key if genai_key
+      # GenAI proxy (vLLM/TanzuAI) doesn't support stream_options
+      # which OpenClaw sends by default for usage tracking
+      genai_compat = { "supportsUsageInStreaming" => false }
+
       # Only specify models when a concrete model name is provided;
       # when "auto" or empty, omit models array so OpenClaw auto-discovers
       if genai_model && genai_model != "" && genai_model != "auto"
-        prov["models"] = [{ "id" => genai_model, "name" => genai_model }]
+        prov["models"] = [{ "id" => genai_model, "name" => genai_model, "compat" => genai_compat }]
       end
       providers["genai"] = prov
     end

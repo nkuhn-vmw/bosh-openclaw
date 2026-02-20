@@ -37,9 +37,15 @@
     genai_key = p('openclaw.llm.genai.api_key', nil)
     genai_model = p('openclaw.llm.genai.model')
     if genai_endpoint || genai_key
-      # Ensure baseUrl includes /v1 for OpenAI-compatible APIs
-      if genai_endpoint && !genai_endpoint.end_with?('/v1') && !genai_endpoint.end_with?('/v1/')
-        genai_endpoint = genai_endpoint.chomp('/') + '/v1'
+      # Fix baseUrl path for GenAI proxy:
+      # - New multi-model format: api_base has no /openai/ path → append /openai/v1
+      # - Old single-model format: api_base has /openai/ but may lack /v1 → append /v1
+      if genai_endpoint
+        if !genai_endpoint.include?('/openai/')
+          genai_endpoint = genai_endpoint.chomp('/') + '/openai/v1'
+        elsif !genai_endpoint.end_with?('/v1') && !genai_endpoint.end_with?('/v1/')
+          genai_endpoint = genai_endpoint.chomp('/') + '/v1'
+        end
       end
       prov = { "api" => "openai-completions" }
       prov["baseUrl"] = genai_endpoint if genai_endpoint

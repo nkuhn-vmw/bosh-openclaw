@@ -239,8 +239,10 @@ func loadConfig(path string) (*Config, error) {
 
 // GenAI service key credential structures
 type GenAIEndpoint struct {
-	APIBase string `json:"api_base"`
-	APIKey  string `json:"api_key"`
+	APIBase   string `json:"api_base"`
+	APIKey    string `json:"api_key"`
+	ConfigURL string `json:"config_url"`
+	Name      string `json:"name"`
 }
 
 type GenAIServiceKey struct {
@@ -255,6 +257,45 @@ type GenAIServiceKeyCreds struct {
 	APIKey    string         `json:"api_key"`
 	ModelName string         `json:"model_name"`
 	Endpoint  *GenAIEndpoint `json:"endpoint"`
+}
+
+// discoverChatModel fetches the GenAI config URL and returns the first model with CHAT capability.
+func discoverChatModel(configURL, apiKey string) (string, error) {
+	req, err := http.NewRequest("GET", configURL, nil)
+	if err != nil {
+		return "", fmt.Errorf("creating request: %w", err)
+	}
+	req.Header.Set("Authorization", "Bearer "+apiKey)
+
+	client := &http.Client{Timeout: 10 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return "", fmt.Errorf("fetching config URL: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("config URL returned status %d", resp.StatusCode)
+	}
+
+	var result struct {
+		AdvertisedModels []struct {
+			Name         string   `json:"name"`
+			Capabilities []string `json:"capabilities"`
+		} `json:"advertisedModels"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return "", fmt.Errorf("parsing config response: %w", err)
+	}
+
+	for _, m := range result.AdvertisedModels {
+		for _, cap := range m.Capabilities {
+			if cap == "CHAT" {
+				return m.Name, nil
+			}
+		}
+	}
+	return "", fmt.Errorf("no model with CHAT capability found")
 }
 
 func loadGenAICredentials(configDir string) (endpoint, apiKey, model string, err error) {
@@ -289,6 +330,17 @@ func loadGenAICredentials(configDir string) (endpoint, apiKey, model string, err
 
 	if endpoint == "" || apiKey == "" {
 		return "", "", "", fmt.Errorf("genai-credentials.json missing api_base or api_key")
+	}
+
+	// Multi-model endpoints don't have model_name — discover the chat model from config URL
+	if model == "" && creds.Endpoint != nil && creds.Endpoint.ConfigURL != "" {
+		discovered, err := discoverChatModel(creds.Endpoint.ConfigURL, apiKey)
+		if err != nil {
+			log.Printf("WARNING: failed to discover chat model: %v", err)
+		} else {
+			model = discovered
+			log.Printf("GenAI: discovered chat model: %s", model)
+		}
 	}
 
 	return endpoint, apiKey, model, nil

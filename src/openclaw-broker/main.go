@@ -312,7 +312,7 @@ func loadGenAICredentials(configDir string) (endpoint, apiKey, model string, err
 
 	// Use wrapped credentials if present, otherwise use top-level
 	creds := &key.GenAIServiceKeyCreds
-	if key.Credentials != nil && (key.Credentials.APIBase != "" || key.Credentials.APIKey != "") {
+	if key.Credentials != nil && (key.Credentials.APIBase != "" || key.Credentials.APIKey != "" || key.Credentials.Endpoint != nil) {
 		creds = key.Credentials
 	}
 

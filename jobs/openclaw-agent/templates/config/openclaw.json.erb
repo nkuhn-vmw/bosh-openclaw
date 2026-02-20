@@ -33,13 +33,17 @@
     genai_key = p('openclaw.llm.genai.api_key', nil)
     genai_model = p('openclaw.llm.genai.model')
     if genai_endpoint || genai_key
+      # Ensure baseUrl includes /v1 for OpenAI-compatible APIs
+      if genai_endpoint && !genai_endpoint.end_with?('/v1') && !genai_endpoint.end_with?('/v1/')
+        genai_endpoint = genai_endpoint.chomp('/') + '/v1'
+      end
       prov = { "api" => "openai-completions" }
       prov["baseUrl"] = genai_endpoint if genai_endpoint
       prov["apiKey"] = genai_key if genai_key
-      if genai_model && genai_model != "auto"
+      # Only specify models when a concrete model name is provided;
+      # when "auto" or empty, omit models array so OpenClaw auto-discovers
+      if genai_model && genai_model != "" && genai_model != "auto"
         prov["models"] = [{ "id" => genai_model, "name" => genai_model }]
-      else
-        prov["models"] = [{ "id" => "default", "name" => "default" }]
       end
       providers["genai"] = prov
     end
@@ -86,5 +90,38 @@
   }
 
   config["gateway"]["trustedProxies"] = trusted_proxies if trusted_proxies
+
+  # Determine default model for agents: "provider/model-id"
+  # This tells OpenClaw which model to use for chat
+  default_model = nil
+  if providers.any?
+    provider_name = providers.keys.first
+    provider_conf = providers[provider_name]
+    if provider_conf["models"] && provider_conf["models"].any?
+      # Specific model known: "genai/claude-sonnet-4-5-20250929"
+      default_model = "#{provider_name}/#{provider_conf['models'].first['id']}"
+    else
+      # Auto-discover mode: just use provider name, OpenClaw picks first available
+      default_model = provider_name
+    end
+  end
+
+  if default_model
+    config["agents"] = {
+      "defaults" => {
+        "model" => { "primary" => default_model }
+      }
+    }
+  end
+
+  # model_override takes precedence over auto-detected model
+  model_override = p('openclaw.llm.model_override', nil)
+  if model_override && model_override != ""
+    config["agents"] = {
+      "defaults" => {
+        "model" => { "primary" => model_override }
+      }
+    }
+  end
 %>
 <%= JSON.pretty_generate(config) %>

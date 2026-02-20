@@ -95,13 +95,20 @@
 
   config["gateway"]["trustedProxies"] = trusted_proxies
 
-  # Disable device pairing for the Control UI. Behind CF gorouter, clients are
-  # never "local" (X-Forwarded-For present), so the interactive pairing approval
-  # flow can never complete — the first browser connection would be rejected with
-  # 1008 "pairing required". Token auth still protects access.
-  config["gateway"]["controlUi"] = {
-    "dangerouslyDisableDeviceAuth" => true
-  }
+  # Control UI settings for running behind CF gorouter:
+  # - dangerouslyDisableDeviceAuth: Device pairing can never complete because
+  #   clients behind gorouter are never "local" (X-Forwarded-For present).
+  #   Token auth still protects access.
+  # - allowedOrigins: Gorouter duplicates the Origin header (comma-separated),
+  #   which breaks the built-in origin check. Explicitly allow the external URL.
+  route_hostname = p('openclaw.route.hostname', nil)
+  route_domain = p('openclaw.route.domain', nil)
+  control_ui = { "dangerouslyDisableDeviceAuth" => true }
+  if route_hostname && route_domain
+    external_origin = "https://#{route_hostname}.#{route_domain}"
+    control_ui["allowedOrigins"] = [external_origin]
+  end
+  config["gateway"]["controlUi"] = control_ui
 
   # Determine default model for agents: "provider/model-id"
   # This tells OpenClaw which model to use for chat

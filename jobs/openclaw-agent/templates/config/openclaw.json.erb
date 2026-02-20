@@ -19,8 +19,12 @@
     }
   end
 
-  # Trusted proxies list (gateway-level, outside auth block)
-  trusted_proxies = sso_enabled ? ["127.0.0.1"] : nil
+  # Trusted proxies: always include RFC1918 ranges since all traffic arrives
+  # through CF gorouter. Without this, the gateway can't detect HTTPS
+  # (gorouter terminates TLS) and restricts write scopes for the Control UI.
+  # SSO also needs 127.0.0.1 for oauth2-proxy on localhost.
+  trusted_proxies = ["10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16"]
+  trusted_proxies << "127.0.0.1" if sso_enabled
 
   # Build models.providers based on configured LLM provider
   # Each provider requires baseUrl and models (array of {id, name} objects)
@@ -89,7 +93,7 @@
     }
   }
 
-  config["gateway"]["trustedProxies"] = trusted_proxies if trusted_proxies
+  config["gateway"]["trustedProxies"] = trusted_proxies
 
   # Determine default model for agents: "provider/model-id"
   # This tells OpenClaw which model to use for chat

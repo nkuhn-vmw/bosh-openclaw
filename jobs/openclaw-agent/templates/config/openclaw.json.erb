@@ -4,20 +4,15 @@
   sso_enabled = p('openclaw.sso.enabled')
   listen_port = sso_enabled ? 8081 : 8080
 
-  # Auth mode: SSO → trusted-proxy (oauth2-proxy handles auth), otherwise token
-  if sso_enabled
-    auth = {
-      "mode" => "trusted-proxy",
-      "trustedProxy" => {
-        "userHeader" => "X-Forwarded-User"
-      }
-    }
-  else
-    auth = {
-      "mode" => "token",
-      "token" => p('openclaw.gateway.token')
-    }
-  end
+  # Auth mode: Always use token auth for the gateway WebSocket protocol.
+  # In SSO mode, oauth2-proxy handles HTTP-level authentication externally;
+  # the gateway token provides the "shared auth" needed for WebSocket connects
+  # (without it, canSkipDevice=false and all browser connections are rejected
+  # with "device identity required").
+  auth = {
+    "mode" => "token",
+    "token" => p('openclaw.gateway.token')
+  }
 
   # Trusted proxies: always include RFC1918 ranges since all traffic arrives
   # through CF gorouter. Without this, the gateway can't detect HTTPS

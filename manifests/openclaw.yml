@@ -39,7 +39,7 @@ instance_groups:
                 client_secret: ((bosh_client_secret))
                 ca_cert: ((bosh_ca_cert))
               agent_defaults:
-                openclaw_version: "2026.2.17"
+                openclaw_version: "2026.2.19"
                 stemcell: ubuntu-jammy
                 network: openclaw-agents
                 az: z1

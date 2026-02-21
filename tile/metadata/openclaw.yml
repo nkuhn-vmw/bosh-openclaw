@@ -161,7 +161,7 @@ property_blueprints:
   - name: min_openclaw_version
     type: string
     configurable: true
-    default: "2026.2.17"
+    default: "2026.2.19"
     optional: true
 
   #

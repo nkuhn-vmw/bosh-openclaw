@@ -169,14 +169,17 @@ func GenerateClientSecret() string {
 	return hex.EncodeToString(b)
 }
 
-// GenerateCookieSecret creates a base64-encoded 32-byte random secret
+// GenerateCookieSecret creates a URL-safe base64-encoded 32-byte random secret
 // suitable for oauth2-proxy cookie encryption (AES-256).
+// Uses RawURLEncoding (no padding, URL-safe alphabet) because oauth2-proxy's
+// secretBytes() decodes with base64.RawURLEncoding — standard base64 with '/'
+// fails to decode and gets treated as raw bytes (wrong length).
 func GenerateCookieSecret() string {
 	b := make([]byte, 32)
 	if _, err := rand.Read(b); err != nil {
 		panic("crypto/rand failed: " + err.Error())
 	}
-	return base64.StdEncoding.EncodeToString(b)
+	return base64.RawURLEncoding.EncodeToString(b)
 }
 
 // ClientIDForInstance returns the UAA client ID for an on-demand instance.

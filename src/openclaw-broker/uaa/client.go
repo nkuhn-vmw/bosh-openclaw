@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"crypto/rand"
 	"crypto/tls"
+	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -168,10 +169,14 @@ func GenerateClientSecret() string {
 	return hex.EncodeToString(b)
 }
 
-// GenerateCookieSecret creates a cryptographically random 32-byte hex secret
-// suitable for oauth2-proxy cookie encryption.
+// GenerateCookieSecret creates a base64-encoded 32-byte random secret
+// suitable for oauth2-proxy cookie encryption (AES-256).
 func GenerateCookieSecret() string {
-	return GenerateClientSecret()
+	b := make([]byte, 32)
+	if _, err := rand.Read(b); err != nil {
+		panic("crypto/rand failed: " + err.Error())
+	}
+	return base64.StdEncoding.EncodeToString(b)
 }
 
 // ClientIDForInstance returns the UAA client ID for an on-demand instance.

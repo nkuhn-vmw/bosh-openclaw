@@ -158,12 +158,6 @@ property_blueprints:
     default: "rm -rf /\ndd if=/dev/zero\nmkfs\ncurl\nwget"
     optional: true
 
-  - name: min_openclaw_version
-    type: string
-    configurable: true
-    default: "2026.2.19"
-    optional: true
-
   #
   # SSO / Authentication
   #
@@ -382,9 +376,6 @@ form_types:
       - reference: .properties.blocked_commands
         label: Blocked Shell Commands
         description: One command per line
-      - reference: .properties.min_openclaw_version
-        label: Minimum OpenClaw Version
-        description: Refuse to deploy agents below this version
 
   - name: sso-config
     label: SSO / Authentication
@@ -516,10 +507,12 @@ job_types:
             client_secret: (( $self.uaa_client_secret ))
             ca_cert: (( $director.ca_public_key ))
           genai: (( .properties.genai_provider.selected_option.parsed_manifest(genai_fragment) ))
+          agent_defaults:
+            openclaw_version: "2026.2.22"
           security:
             sandbox_mode: (( .properties.sandbox_mode.value ))
             blocked_commands: (( .properties.blocked_commands.value ))
-            min_openclaw_version: (( .properties.min_openclaw_version.value ))
+            min_openclaw_version: "2026.2.22"
             sso_enabled: (( .properties.sso_enabled.value ))
             sso_oidc_issuer_url: https://login.(( ..cf.cloud_controller.system_domain.value ))
             sso_allowed_email_domains: (( .properties.sso_allowed_email_domains.value ))

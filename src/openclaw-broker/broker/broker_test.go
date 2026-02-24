@@ -60,7 +60,7 @@ func newTestBroker(taskState string, deployFail bool) (*Broker, *httptest.Server
 	cfg := BrokerConfig{
 		MinOpenClawVersion: "2026.1.29",
 		SandboxMode:        "strict",
-		OpenClawVersion:    "2026.2.17",
+		OpenClawVersion:    "2026.2.22",
 		AZs:                []string{"z1"},
 		AppsDomain:         "apps.example.com",
 	}
@@ -87,8 +87,7 @@ func provisionInstance(t *testing.T, router *mux.Router, instanceID, planID stri
 		OrganizationGUID: "org-123",
 		SpaceGUID:        "space-456",
 		Parameters: map[string]interface{}{
-			"owner":            "dev@example.com",
-			"openclaw_version": "2026.2.17",
+			"owner": "dev@example.com",
 		},
 	}
 	bodyBytes, _ := json.Marshal(body)
@@ -253,7 +252,7 @@ func TestCatalog_UsesConfigPlans(t *testing.T) {
 
 	director := bosh.NewClient(fakeBOSH.URL, "admin", "admin", "", "")
 	cfg := BrokerConfig{
-		OpenClawVersion: "2026.2.17",
+		OpenClawVersion: "2026.2.22",
 		Plans: []Plan{
 			{ID: "custom-plan-1", Name: "custom", Description: "Custom plan", VMType: "tiny", DiskType: "5GB"},
 			{ID: "custom-plan-2", Name: "custom-big", Description: "Big custom plan", VMType: "huge", DiskType: "100GB"},
@@ -333,9 +332,6 @@ func TestProvision_UnknownPlan(t *testing.T) {
 		PlanID:           "nonexistent-plan",
 		OrganizationGUID: "org-123",
 		SpaceGUID:        "space-456",
-		Parameters: map[string]interface{}{
-			"openclaw_version": "2026.2.17",
-		},
 	}
 	bodyBytes, _ := json.Marshal(body)
 	req := httptest.NewRequest("PUT", "/v2/service_instances/inst-bad-plan?accepts_incomplete=true", bytes.NewReader(bodyBytes))
@@ -348,22 +344,23 @@ func TestProvision_UnknownPlan(t *testing.T) {
 }
 
 func TestProvision_RejectsVersionBelowMinimum(t *testing.T) {
-	_, fakeBOSH, router := newTestBroker("done", false)
+	// When the baked-in version is below the minimum, provision should be rejected
+	fakeBOSH := newFakeBOSHDirector("done", false)
 	defer fakeBOSH.Close()
 
-	body := ProvisionRequest{
-		ServiceID:        "openclaw-service",
-		PlanID:           "openclaw-developer-plan",
-		OrganizationGUID: "org-123",
-		SpaceGUID:        "space-456",
-		Parameters: map[string]interface{}{
-			"openclaw_version": "2025.1.1",
-		},
+	director := bosh.NewClient(fakeBOSH.URL, "admin", "admin", "", "")
+	cfg := BrokerConfig{
+		MinOpenClawVersion: "2026.2.22",
+		OpenClawVersion:    "2025.1.1", // below minimum
+		AZs:                []string{"z1"},
+		AppsDomain:         "apps.example.com",
 	}
-	bodyBytes, _ := json.Marshal(body)
-	req := httptest.NewRequest("PUT", "/v2/service_instances/inst-old-ver?accepts_incomplete=true", bytes.NewReader(bodyBytes))
-	rr := httptest.NewRecorder()
-	router.ServeHTTP(rr, req)
+	b := New(cfg, director)
+
+	r := mux.NewRouter()
+	r.HandleFunc("/v2/service_instances/{instance_id}", b.Provision).Methods("PUT")
+
+	rr := provisionInstance(t, r, "inst-old-ver", "openclaw-developer-plan")
 
 	if rr.Code != http.StatusUnprocessableEntity {
 		t.Errorf("Old version status = %d, want %d. Body: %s", rr.Code, http.StatusUnprocessableEntity, rr.Body.String())
@@ -371,22 +368,23 @@ func TestProvision_RejectsVersionBelowMinimum(t *testing.T) {
 }
 
 func TestProvision_AcceptsVersionAtMinimum(t *testing.T) {
-	_, fakeBOSH, router := newTestBroker("done", false)
+	// When the baked-in version equals the minimum, provision should succeed
+	fakeBOSH := newFakeBOSHDirector("done", false)
 	defer fakeBOSH.Close()
 
-	body := ProvisionRequest{
-		ServiceID:        "openclaw-service",
-		PlanID:           "openclaw-developer-plan",
-		OrganizationGUID: "org-123",
-		SpaceGUID:        "space-456",
-		Parameters: map[string]interface{}{
-			"openclaw_version": "2026.1.29",
-		},
+	director := bosh.NewClient(fakeBOSH.URL, "admin", "admin", "", "")
+	cfg := BrokerConfig{
+		MinOpenClawVersion: "2026.1.29",
+		OpenClawVersion:    "2026.1.29", // exactly at minimum
+		AZs:                []string{"z1"},
+		AppsDomain:         "apps.example.com",
 	}
-	bodyBytes, _ := json.Marshal(body)
-	req := httptest.NewRequest("PUT", "/v2/service_instances/inst-min-ver?accepts_incomplete=true", bytes.NewReader(bodyBytes))
-	rr := httptest.NewRecorder()
-	router.ServeHTTP(rr, req)
+	b := New(cfg, director)
+
+	r := mux.NewRouter()
+	r.HandleFunc("/v2/service_instances/{instance_id}", b.Provision).Methods("PUT")
+
+	rr := provisionInstance(t, r, "inst-min-ver", "openclaw-developer-plan")
 
 	if rr.Code != http.StatusAccepted {
 		t.Errorf("Minimum version status = %d, want %d. Body: %s", rr.Code, http.StatusAccepted, rr.Body.String())
@@ -402,9 +400,6 @@ func TestProvision_BOSHDeployFailure(t *testing.T) {
 		PlanID:           "openclaw-developer-plan",
 		OrganizationGUID: "org-123",
 		SpaceGUID:        "space-456",
-		Parameters: map[string]interface{}{
-			"openclaw_version": "2026.2.17",
-		},
 	}
 	bodyBytes, _ := json.Marshal(body)
 	req := httptest.NewRequest("PUT", "/v2/service_instances/inst-bosh-fail?accepts_incomplete=true", bytes.NewReader(bodyBytes))
@@ -426,7 +421,7 @@ func TestProvision_InvalidInstanceID(t *testing.T) {
 		PlanID:           "openclaw-developer-plan",
 		OrganizationGUID: "org-123",
 		SpaceGUID:        "space-456",
-		Parameters:       map[string]interface{}{"openclaw_version": "2026.2.17"},
+		Parameters:       map[string]interface{}{},
 	}
 	bodyBytes, _ := json.Marshal(body)
 
@@ -576,8 +571,8 @@ func TestProvision_UsesConfigVersionWhenNotInParams(t *testing.T) {
 	inst := b.instances["inst-cfg-ver"]
 	b.mu.RUnlock()
 
-	if inst.OpenClawVersion != "2026.2.17" {
-		t.Errorf("OpenClawVersion = %q, want %q", inst.OpenClawVersion, "2026.2.17")
+	if inst.OpenClawVersion != "2026.2.22" {
+		t.Errorf("OpenClawVersion = %q, want %q", inst.OpenClawVersion, "2026.2.22")
 	}
 }
 
@@ -1147,7 +1142,7 @@ func TestUpdate_BOSHDeployFailure(t *testing.T) {
 	cfg := BrokerConfig{
 		MinOpenClawVersion: "2026.1.29",
 		SandboxMode:        "strict",
-		OpenClawVersion:    "2026.2.17",
+		OpenClawVersion:    "2026.2.22",
 		AZs:                []string{"z1"},
 		AppsDomain:         "apps.example.com",
 	}
@@ -1216,7 +1211,7 @@ func TestProvision_LLMConfigFlowsToManifest(t *testing.T) {
 
 	director := bosh.NewClient(fakeBOSH.URL, "admin", "admin", "", "")
 	cfg := BrokerConfig{
-		OpenClawVersion: "2026.2.17",
+		OpenClawVersion: "2026.2.22",
 		AZs:             []string{"z1"},
 		AppsDomain:      "apps.example.com",
 		LLMProvider:     "genai",
@@ -1242,7 +1237,7 @@ func TestProvision_BrowserEnabledFromPlanFeatures(t *testing.T) {
 
 	director := bosh.NewClient(fakeBOSH.URL, "admin", "admin", "", "")
 	cfg := BrokerConfig{
-		OpenClawVersion: "2026.2.17",
+		OpenClawVersion: "2026.2.22",
 		AZs:             []string{"z1"},
 		AppsDomain:      "apps.example.com",
 		Plans: []Plan{
@@ -1267,7 +1262,7 @@ func TestProvision_BrowserEnabledFromPlanFeatures(t *testing.T) {
 
 	// Also test plan without browser feature
 	cfg2 := BrokerConfig{
-		OpenClawVersion: "2026.2.17",
+		OpenClawVersion: "2026.2.22",
 		AZs:             []string{"z1"},
 		AppsDomain:      "apps.example.com",
 		Plans: []Plan{
@@ -1502,7 +1497,7 @@ func TestStatePersistence_SaveAndLoad(t *testing.T) {
 
 	stateDir := t.TempDir()
 	cfg := BrokerConfig{
-		OpenClawVersion: "2026.2.17",
+		OpenClawVersion: "2026.2.22",
 		AZs:             []string{"z1"},
 		AppsDomain:      "apps.example.com",
 		StateDir:        stateDir,
@@ -1593,7 +1588,7 @@ func TestStatePersistence_ProvisionSavesState(t *testing.T) {
 	stateDir := t.TempDir()
 	cfg := BrokerConfig{
 		MinOpenClawVersion: "2026.1.29",
-		OpenClawVersion:    "2026.2.17",
+		OpenClawVersion:    "2026.2.22",
 		AZs:                []string{"z1"},
 		AppsDomain:         "apps.example.com",
 		StateDir:           stateDir,
@@ -1671,7 +1666,7 @@ func TestFullLifecycle_ProvisionBindDeprovision(t *testing.T) {
 	cfg := BrokerConfig{
 		MinOpenClawVersion: "2026.1.29",
 		SandboxMode:        "strict",
-		OpenClawVersion:    "2026.2.17",
+		OpenClawVersion:    "2026.2.22",
 		AZs:                []string{"z1"},
 		AppsDomain:         "apps.example.com",
 	}

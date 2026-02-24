@@ -15,7 +15,7 @@ packages:
 properties:
   openclaw.version:
     description: "Pinned OpenClaw version (must be >= 2026.1.29 for CVE-2026-25253 patch)"
-    default: "2026.2.21-2"
+    default: "2026.2.22"
   openclaw.gateway.port:
     description: "Gateway WebSocket port"
     default: 18789

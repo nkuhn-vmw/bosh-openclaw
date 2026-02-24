@@ -88,9 +88,6 @@ func (b *Broker) Provision(w http.ResponseWriter, r *http.Request) {
 
 	// Enforce minimum OpenClaw version (CVE-2026-25253)
 	openclawVersion := b.config.OpenClawVersion
-	if v, ok := req.Parameters["openclaw_version"]; ok {
-		openclawVersion = fmt.Sprintf("%v", v)
-	}
 	if b.config.MinOpenClawVersion != "" {
 		if err := security.ValidateVersion(openclawVersion, b.config.MinOpenClawVersion); err != nil {
 			log.Printf("Version gate rejected %s for %s: %v", openclawVersion, instanceID, err)

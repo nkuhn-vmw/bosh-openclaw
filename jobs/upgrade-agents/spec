@@ -9,6 +9,7 @@ packages: []
 properties:
   upgrade_agents.target_version:
     description: "Target OpenClaw version to upgrade agents to"
+    default: "2026.2.21-2"
   upgrade_agents.canary_percentage:
     description: "Percentage of agents to upgrade first as canaries"
     default: 10

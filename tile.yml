@@ -250,6 +250,31 @@ packages:
             verify_webchat_route: true
             test_prompt: "What is 2 + 2? Reply with just the number."
 
+      # --- Upgrade Agents Errand ---------------------------------------------
+      - name: upgrade-agents
+        label: Upgrade Agent Instances
+        templates:
+          - name: upgrade-agents
+            release: openclaw
+        lifecycle: errand
+        post_deploy: true
+        memory: 1024
+        ephemeral_disk: 2048
+        instances: 1
+        cpu: 1
+        static_ip: 0
+        dynamic_ip: 1
+        properties:
+          upgrade_agents:
+            canary_percentage: 10
+            pause_after_canary: true
+            max_parallel: 5
+            broker_endpoint: http://(( ..openclaw-broker.first_ip )):8080
+            broker_auth:
+              username: (( .properties.generated_broker_credentials.identity ))
+              password: (( .properties.generated_broker_credentials.password ))
+            health_check_timeout: 120
+
   - name: bpm
     type: bosh-release
     path: resources/bpm-release.tgz

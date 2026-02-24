@@ -49,10 +49,12 @@
       # which OpenClaw sends by default for usage tracking
       genai_compat = { "supportsUsageInStreaming" => false }
 
-      # Only specify models when a concrete model name is provided;
-      # when "auto" or empty, omit models array so OpenClaw auto-discovers
+      # models array is required since openclaw 2026.2.23;
+      # use empty array for auto-discovery, explicit model otherwise
       if genai_model && genai_model != "" && genai_model != "auto"
         prov["models"] = [{ "id" => genai_model, "name" => genai_model, "compat" => genai_compat }]
+      else
+        prov["models"] = []
       end
       providers["genai"] = prov
     end

@@ -60,7 +60,7 @@ func newTestBroker(taskState string, deployFail bool) (*Broker, *httptest.Server
 	cfg := BrokerConfig{
 		MinOpenClawVersion: "2026.1.29",
 		SandboxMode:        "strict",
-		OpenClawVersion:    "2026.2.22",
+		OpenClawVersion:    "2026.2.21-2",
 		AZs:                []string{"z1"},
 		AppsDomain:         "apps.example.com",
 	}
@@ -252,7 +252,7 @@ func TestCatalog_UsesConfigPlans(t *testing.T) {
 
 	director := bosh.NewClient(fakeBOSH.URL, "admin", "admin", "", "")
 	cfg := BrokerConfig{
-		OpenClawVersion: "2026.2.22",
+		OpenClawVersion: "2026.2.21-2",
 		Plans: []Plan{
 			{ID: "custom-plan-1", Name: "custom", Description: "Custom plan", VMType: "tiny", DiskType: "5GB"},
 			{ID: "custom-plan-2", Name: "custom-big", Description: "Big custom plan", VMType: "huge", DiskType: "100GB"},
@@ -350,7 +350,7 @@ func TestProvision_RejectsVersionBelowMinimum(t *testing.T) {
 
 	director := bosh.NewClient(fakeBOSH.URL, "admin", "admin", "", "")
 	cfg := BrokerConfig{
-		MinOpenClawVersion: "2026.2.22",
+		MinOpenClawVersion: "2026.2.21-2",
 		OpenClawVersion:    "2025.1.1", // below minimum
 		AZs:                []string{"z1"},
 		AppsDomain:         "apps.example.com",
@@ -571,8 +571,8 @@ func TestProvision_UsesConfigVersionWhenNotInParams(t *testing.T) {
 	inst := b.instances["inst-cfg-ver"]
 	b.mu.RUnlock()
 
-	if inst.OpenClawVersion != "2026.2.22" {
-		t.Errorf("OpenClawVersion = %q, want %q", inst.OpenClawVersion, "2026.2.22")
+	if inst.OpenClawVersion != "2026.2.21-2" {
+		t.Errorf("OpenClawVersion = %q, want %q", inst.OpenClawVersion, "2026.2.21-2")
 	}
 }
 
@@ -1142,7 +1142,7 @@ func TestUpdate_BOSHDeployFailure(t *testing.T) {
 	cfg := BrokerConfig{
 		MinOpenClawVersion: "2026.1.29",
 		SandboxMode:        "strict",
-		OpenClawVersion:    "2026.2.22",
+		OpenClawVersion:    "2026.2.21-2",
 		AZs:                []string{"z1"},
 		AppsDomain:         "apps.example.com",
 	}
@@ -1211,7 +1211,7 @@ func TestProvision_LLMConfigFlowsToManifest(t *testing.T) {
 
 	director := bosh.NewClient(fakeBOSH.URL, "admin", "admin", "", "")
 	cfg := BrokerConfig{
-		OpenClawVersion: "2026.2.22",
+		OpenClawVersion: "2026.2.21-2",
 		AZs:             []string{"z1"},
 		AppsDomain:      "apps.example.com",
 		LLMProvider:     "genai",
@@ -1237,7 +1237,7 @@ func TestProvision_BrowserEnabledFromPlanFeatures(t *testing.T) {
 
 	director := bosh.NewClient(fakeBOSH.URL, "admin", "admin", "", "")
 	cfg := BrokerConfig{
-		OpenClawVersion: "2026.2.22",
+		OpenClawVersion: "2026.2.21-2",
 		AZs:             []string{"z1"},
 		AppsDomain:      "apps.example.com",
 		Plans: []Plan{
@@ -1262,7 +1262,7 @@ func TestProvision_BrowserEnabledFromPlanFeatures(t *testing.T) {
 
 	// Also test plan without browser feature
 	cfg2 := BrokerConfig{
-		OpenClawVersion: "2026.2.22",
+		OpenClawVersion: "2026.2.21-2",
 		AZs:             []string{"z1"},
 		AppsDomain:      "apps.example.com",
 		Plans: []Plan{
@@ -1497,7 +1497,7 @@ func TestStatePersistence_SaveAndLoad(t *testing.T) {
 
 	stateDir := t.TempDir()
 	cfg := BrokerConfig{
-		OpenClawVersion: "2026.2.22",
+		OpenClawVersion: "2026.2.21-2",
 		AZs:             []string{"z1"},
 		AppsDomain:      "apps.example.com",
 		StateDir:        stateDir,
@@ -1588,7 +1588,7 @@ func TestStatePersistence_ProvisionSavesState(t *testing.T) {
 	stateDir := t.TempDir()
 	cfg := BrokerConfig{
 		MinOpenClawVersion: "2026.1.29",
-		OpenClawVersion:    "2026.2.22",
+		OpenClawVersion:    "2026.2.21-2",
 		AZs:                []string{"z1"},
 		AppsDomain:         "apps.example.com",
 		StateDir:           stateDir,
@@ -1666,7 +1666,7 @@ func TestFullLifecycle_ProvisionBindDeprovision(t *testing.T) {
 	cfg := BrokerConfig{
 		MinOpenClawVersion: "2026.1.29",
 		SandboxMode:        "strict",
-		OpenClawVersion:    "2026.2.22",
+		OpenClawVersion:    "2026.2.21-2",
 		AZs:                []string{"z1"},
 		AppsDomain:         "apps.example.com",
 	}

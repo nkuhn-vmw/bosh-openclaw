@@ -9,7 +9,8 @@ import (
 
 const MinSafeVersion = "2026.1.29"
 
-// parseVersion splits a "YYYY.M.D" version string into integer components.
+// parseVersion splits a "YYYY.M.D" or "YYYY.M.D-N" version string into integer components.
+// Any hyphen suffix (e.g., "-2" in "2026.2.21-2") is stripped from the day component.
 func parseVersion(v string) (int, int, int, error) {
 	parts := strings.Split(v, ".")
 	if len(parts) != 3 {
@@ -23,7 +24,8 @@ func parseVersion(v string) (int, int, int, error) {
 	if err != nil {
 		return 0, 0, 0, fmt.Errorf("invalid month in version %q: %w", v, err)
 	}
-	day, err := strconv.Atoi(parts[2])
+	dayStr, _, _ := strings.Cut(parts[2], "-")
+	day, err := strconv.Atoi(dayStr)
 	if err != nil {
 		return 0, 0, 0, fmt.Errorf("invalid day in version %q: %w", v, err)
 	}

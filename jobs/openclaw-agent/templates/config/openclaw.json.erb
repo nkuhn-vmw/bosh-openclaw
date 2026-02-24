@@ -111,8 +111,7 @@
   route_hostname = p('openclaw.route.hostname', nil)
   route_domain = p('openclaw.route.domain', nil)
   control_ui = {
-    "dangerouslyDisableDeviceAuth" => true,
-    "dangerouslyAllowHostHeaderOriginFallback" => true
+    "dangerouslyDisableDeviceAuth" => true
   }
   if route_hostname && route_domain
     external_origin = "https://#{route_hostname}.#{route_domain}"

@@ -36,23 +36,14 @@ node ./openclaw.mjs --version 2>&1 || {
 echo "=== Entry point verified ==="
 cd "${BOSH_COMPILE_TARGET}"
 
-# Create a CJS bootstrap wrapper that uses dynamic import() to load the ESM entry.
-# This avoids Node.js ESM file resolution issues that can occur inside BPM containers.
-cat > ${BOSH_INSTALL_TARGET}/lib/bootstrap.cjs <<'BOOTSTRAP'
-const path = require('path');
-const { pathToFileURL } = require('url');
-const pkgDir = path.join(__dirname, 'node_modules', 'openclaw');
-const entry = path.join(pkgDir, 'openclaw.mjs');
-import(pathToFileURL(entry).href).catch(err => {
-  process.stderr.write('OpenClaw bootstrap error: ' + err.stack + '\n');
-  process.exit(1);
-});
-BOOTSTRAP
-
+# Create bin wrapper that invokes openclaw.mjs directly as ESM.
+# The CJS bootstrap (dynamic import()) stopped working in openclaw 2026.2.23
+# because the ESM entry now uses top-level await and import.meta checks
+# that don't fire correctly when loaded via dynamic import() from CJS.
 mkdir -p ${BOSH_INSTALL_TARGET}/bin
 cat > ${BOSH_INSTALL_TARGET}/bin/openclaw <<'WRAPPER'
 #!/bin/bash
 export PATH=/var/vcap/packages/node22/bin:$PATH
-exec node /var/vcap/packages/openclaw/lib/bootstrap.cjs "$@"
+exec node /var/vcap/packages/openclaw/lib/node_modules/openclaw/openclaw.mjs "$@"
 WRAPPER
 chmod +x ${BOSH_INSTALL_TARGET}/bin/openclaw

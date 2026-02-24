@@ -59,12 +59,18 @@ type BrokerConfig struct {
 	StateDir               string   `json:"state_dir"`
 }
 
+type upgradeTracker struct {
+	mu    sync.Mutex
+	tasks map[string]int // instanceID -> BOSH task ID
+}
+
 type Broker struct {
 	config    BrokerConfig
 	director  *bosh.Client
 	uaaClient *uaa.Client
 	mu        sync.RWMutex
 	instances map[string]*Instance
+	upgrades  upgradeTracker
 }
 
 type Instance struct {

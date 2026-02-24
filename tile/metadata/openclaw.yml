@@ -785,6 +785,7 @@ job_types:
 post_deploy_errands:
   - name: register-broker
   - name: smoke-tests
+  - name: upgrade-agents
 
 # ---------------------------------------------------------------------------
 # Pre-Delete Errands

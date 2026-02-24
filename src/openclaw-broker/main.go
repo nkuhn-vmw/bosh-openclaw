@@ -117,6 +117,10 @@ func main() {
 	r.HandleFunc("/v2/service_instances/{instance_id}/service_bindings/{binding_id}", b.Unbind).Methods("DELETE")
 	r.HandleFunc("/v2/service_instances/{instance_id}/last_operation", b.LastOperation).Methods("GET")
 
+	r.HandleFunc("/admin/instances", b.AdminListInstances).Methods("GET")
+	r.HandleFunc("/admin/upgrade", b.AdminUpgrade).Methods("POST")
+	r.HandleFunc("/admin/upgrade/status", b.AdminUpgradeStatus).Methods("GET")
+
 	addr := fmt.Sprintf(":%d", cfg.Port)
 	srv := &http.Server{
 		Addr:         addr,

@@ -108,7 +108,10 @@
   #   which breaks the built-in origin check. Explicitly allow the external URL.
   route_hostname = p('openclaw.route.hostname', nil)
   route_domain = p('openclaw.route.domain', nil)
-  control_ui = { "dangerouslyDisableDeviceAuth" => true }
+  control_ui = {
+    "dangerouslyDisableDeviceAuth" => true,
+    "dangerouslyAllowHostHeaderOriginFallback" => true
+  }
   if route_hostname && route_domain
     external_origin = "https://#{route_hostname}.#{route_domain}"
     control_ui["allowedOrigins"] = [external_origin]

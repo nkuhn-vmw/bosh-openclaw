@@ -269,7 +269,7 @@ packages:
             canary_percentage: 10
             pause_after_canary: true
             max_parallel: 5
-            broker_endpoint: http://(( ..openclaw-broker.first_ip )):8080
+            broker_endpoint: https://(( .properties.broker_route_prefix.value )).(( ..cf.cloud_controller.system_domain.value ))
             broker_auth:
               username: (( .properties.generated_broker_credentials.identity ))
               password: (( .properties.generated_broker_credentials.password ))

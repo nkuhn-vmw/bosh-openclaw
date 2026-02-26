@@ -26,9 +26,19 @@ chown -R vcap:vcap /var/vcap/sys/run/openclaw-agent
 chown vcap:vcap /var/vcap/data/openclaw-agent
 chown vcap:vcap "${STATE_DIR}/logs"
 
+# OpenClaw 2026.2.25+ creates a per-user temp dir at /tmp/openclaw with mode 0700
+# during startup. Running as root first would create it owned by root, locking out
+# vcap. Pre-create with vcap ownership so both users can share it.
+mkdir -p /tmp/openclaw
+chown vcap:vcap /tmp/openclaw
+chmod 0700 /tmp/openclaw
+
 # Verify openclaw loads as root
 echo "Testing openclaw --version (as root)..."
 openclaw --version 2>&1 || { echo "ERROR: openclaw --version failed" >&2; exit 1; }
+
+# Re-fix /tmp/openclaw ownership after root run (root may have re-created it)
+chown vcap:vcap /tmp/openclaw
 
 # Test that openclaw can load as vcap user (BPM runs processes as vcap)
 echo "Testing openclaw --version as vcap..."

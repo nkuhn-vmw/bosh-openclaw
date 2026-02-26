@@ -28,4 +28,4 @@ properties:
     description: "Broker API auth password"
   upgrade_agents.health_check_timeout:
     description: "Seconds to wait for agent health after upgrade"
-    default: 120
+    default: 300

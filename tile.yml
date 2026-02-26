@@ -273,7 +273,7 @@ packages:
             broker_auth:
               username: (( .properties.generated_broker_credentials.identity ))
               password: (( .properties.generated_broker_credentials.password ))
-            health_check_timeout: 120
+            health_check_timeout: 300
 
   - name: bpm
     type: bosh-release

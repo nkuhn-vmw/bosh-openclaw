@@ -773,7 +773,7 @@ job_types:
         broker_auth:
           username: (( .properties.generated_broker_credentials.identity ))
           password: (( .properties.generated_broker_credentials.password ))
-        health_check_timeout: 120
+        health_check_timeout: 300
     templates:
       - name: upgrade-agents
         release: openclaw

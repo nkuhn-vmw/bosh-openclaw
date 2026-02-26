@@ -508,11 +508,11 @@ job_types:
             ca_cert: (( $director.ca_public_key ))
           genai: (( .properties.genai_provider.selected_option.parsed_manifest(genai_fragment) ))
           agent_defaults:
-            openclaw_version: "2026.2.21-2"
+            openclaw_version: "OPENCLAW_VERSION_PLACEHOLDER"
           security:
             sandbox_mode: (( .properties.sandbox_mode.value ))
             blocked_commands: (( .properties.blocked_commands.value ))
-            min_openclaw_version: "2026.2.21-2"
+            min_openclaw_version: "OPENCLAW_VERSION_PLACEHOLDER"
             sso_enabled: (( .properties.sso_enabled.value ))
             sso_oidc_issuer_url: https://login.(( ..cf.cloud_controller.system_domain.value ))
             sso_allowed_email_domains: (( .properties.sso_allowed_email_domains.value ))

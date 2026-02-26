@@ -152,6 +152,12 @@ jobs:
 
           ls -lh resources/
 
+      - name: Substitute OpenClaw version in tile metadata
+        run: |
+          OPENCLAW_NPM_VERSION=$(grep -A2 'openclaw.version:' jobs/openclaw-agent/spec | grep 'default:' | sed 's/.*"\(.*\)".*/\1/')
+          echo "Substituting OPENCLAW_VERSION_PLACEHOLDER with ${OPENCLAW_NPM_VERSION}"
+          sed -i "s/OPENCLAW_VERSION_PLACEHOLDER/${OPENCLAW_NPM_VERSION}/g" tile/metadata/openclaw.yml
+
       - name: Build .pivotal tile
         run: |
           VERSION="${GITHUB_REF_NAME#v}"

@@ -411,7 +411,7 @@ forms:
         type: string
         label: Minimum OpenClaw Version
         configurable: true
-        default: "2026.2.24"
+        default: "2026.2.25"
         description: Refuse to deploy agents below this version
 
   - name: sso-config

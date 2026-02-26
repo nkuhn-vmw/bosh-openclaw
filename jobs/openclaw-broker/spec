@@ -41,7 +41,7 @@ properties:
     description: "BOSH Director CA certificate"
   openclaw.broker.agent_defaults.openclaw_version:
     description: "Default OpenClaw version for new instances"
-    default: "2026.2.21-2"
+    default: "2026.2.24"
   openclaw.broker.agent_defaults.stemcell:
     description: "Stemcell for agent VMs"
     default: "ubuntu-jammy"

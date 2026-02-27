@@ -83,6 +83,7 @@ func main() {
 		LLMEndpoint:            cfg.GenAI.Endpoint,
 		LLMAPIKey:              cfg.GenAI.APIKey,
 		LLMModel:               cfg.GenAI.Model,
+		LLMPreferredModel:      cfg.GenAI.PreferredModel,
 		LLMAPIEndpoint:         cfg.GenAI.APIEndpoint,
 		GenAIOfferingName:      cfg.GenAI.OfferingName,
 		GenAIPlanName:          cfg.GenAI.PlanName,
@@ -186,8 +187,9 @@ type Config struct {
 		Provider     string `json:"provider"`
 		Endpoint     string `json:"endpoint"`
 		APIKey       string `json:"api_key"`
-		Model        string `json:"model"`
-		APIEndpoint  string `json:"api_endpoint"`
+		Model          string `json:"model"`
+		PreferredModel string `json:"preferred_model"`
+		APIEndpoint    string `json:"api_endpoint"`
 		OfferingName string `json:"offering_name"`
 		PlanName     string `json:"plan_name"`
 	} `json:"genai"`

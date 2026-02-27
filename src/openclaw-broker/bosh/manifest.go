@@ -59,6 +59,9 @@ instance_groups:
 {{- end }}
 {{- end }}
 {{- end }}
+{{- if .LLMPreferredModel }}
+              model_override: "{{ .LLMPreferredModel }}"
+{{- end }}
 {{- end }}
             browser:
               enabled: {{ .BrowserEnabled }}
@@ -182,6 +185,7 @@ type ManifestParams struct {
 	LLMEndpoint            string
 	LLMAPIKey              string
 	LLMModel               string
+	LLMPreferredModel      string
 	LLMAPIEndpoint         string
 	BrowserEnabled         bool
 	BlockedCommands        []string
@@ -237,6 +241,7 @@ func RenderAgentManifest(params ManifestParams) ([]byte, error) {
 	params.LLMEndpoint = sanitizeForYAML(params.LLMEndpoint)
 	params.LLMAPIKey = sanitizeForYAML(params.LLMAPIKey)
 	params.LLMModel = sanitizeForYAML(params.LLMModel)
+	params.LLMPreferredModel = sanitizeForYAML(params.LLMPreferredModel)
 	params.LLMAPIEndpoint = sanitizeForYAML(params.LLMAPIEndpoint)
 	for i := range params.BlockedCommands {
 		params.BlockedCommands[i] = sanitizeForYAML(params.BlockedCommands[i])

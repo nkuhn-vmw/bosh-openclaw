@@ -48,6 +48,7 @@ type BrokerConfig struct {
 	LLMEndpoint            string   `json:"llm_endpoint"`
 	LLMAPIKey              string   `json:"llm_api_key"`
 	LLMModel               string   `json:"llm_model"`
+	LLMPreferredModel      string   `json:"llm_preferred_model"`
 	LLMAPIEndpoint         string   `json:"llm_api_endpoint"`
 	GenAIOfferingName      string   `json:"genai_offering_name"`
 	GenAIPlanName          string   `json:"genai_plan_name"`

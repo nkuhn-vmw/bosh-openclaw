@@ -330,6 +330,7 @@ func (b *Broker) buildManifestParams(instance *Instance) bosh.ManifestParams {
 		LLMEndpoint:            b.config.LLMEndpoint,
 		LLMAPIKey:              b.config.LLMAPIKey,
 		LLMModel:               b.config.LLMModel,
+		LLMPreferredModel:      b.config.LLMPreferredModel,
 		LLMAPIEndpoint:         b.config.LLMAPIEndpoint,
 		BrowserEnabled:         browserEnabled,
 		BlockedCommands:        blockedCmds,

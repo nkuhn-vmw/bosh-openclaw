@@ -1,6 +1,6 @@
 set -e
 
-export GOROOT=/var/vcap/packages/golang-1.22
+export GOROOT=/var/vcap/packages/golang-1.24
 export PATH=${GOROOT}/bin:$PATH
 export HOME=/var/vcap
 export GOCACHE=/var/vcap/data/compile/openclaw-broker/.cache/go-build

@@ -1,0 +1,184 @@
+name: OpenClaw Version Watcher
+
+on:
+  schedule:
+    - cron: '0 */4 * * *'  # Every 4 hours
+  workflow_dispatch:
+
+jobs:
+  check-and-bump:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Check for new openclaw version
+        id: check
+        run: |
+          set -euo pipefail
+
+          # Get current version from agent spec
+          CURRENT=$(grep -A2 'openclaw.version:' jobs/openclaw-agent/spec | grep 'default:' | sed 's/.*"\(.*\)".*/\1/')
+          echo "Current openclaw version: ${CURRENT}"
+
+          # Get latest version from npm
+          LATEST=$(npm view openclaw version 2>/dev/null || echo "")
+          if [ -z "$LATEST" ]; then
+            echo "ERROR: Failed to fetch latest openclaw version from npm"
+            exit 1
+          fi
+          echo "Latest openclaw version: ${LATEST}"
+
+          echo "current=${CURRENT}" >> "$GITHUB_OUTPUT"
+          echo "latest=${LATEST}" >> "$GITHUB_OUTPUT"
+
+          if [ "$CURRENT" = "$LATEST" ]; then
+            echo "Already up to date."
+            echo "needs_update=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "New version available: ${CURRENT} → ${LATEST}"
+            echo "needs_update=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Set up Node.js
+        if: steps.check.outputs.needs_update == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Bump openclaw version in all files
+        if: steps.check.outputs.needs_update == 'true'
+        run: |
+          set -euo pipefail
+          NEW_VERSION="${{ steps.check.outputs.latest }}"
+          OLD_VERSION="${{ steps.check.outputs.current }}"
+
+          echo "Bumping openclaw ${OLD_VERSION} → ${NEW_VERSION}"
+
+          # 1. jobs/openclaw-agent/spec
+          sed -i "s|default: \"${OLD_VERSION}\"|default: \"${NEW_VERSION}\"|" jobs/openclaw-agent/spec
+
+          # 2. jobs/openclaw-broker/spec (agent_defaults.openclaw_version)
+          #    Use context to target the right default line
+          sed -i "/openclaw.broker.agent_defaults.openclaw_version:/,/default:/ s|default: \"${OLD_VERSION}\"|default: \"${NEW_VERSION}\"|" jobs/openclaw-broker/spec
+
+          # 3. jobs/upgrade-agents/spec
+          sed -i "s|default: \"${OLD_VERSION}\"|default: \"${NEW_VERSION}\"|" jobs/upgrade-agents/spec
+
+          # 4. tile.yml (min_openclaw_version default)
+          sed -i "/min_openclaw_version/,+3 s|default: \"${OLD_VERSION}\"|default: \"${NEW_VERSION}\"|" tile.yml
+
+          echo "=== Verification ==="
+          echo "openclaw-agent/spec:"
+          grep -A2 'openclaw.version:' jobs/openclaw-agent/spec | head -3
+          echo "openclaw-broker/spec:"
+          grep -A2 'agent_defaults.openclaw_version:' jobs/openclaw-broker/spec | head -3
+          echo "upgrade-agents/spec:"
+          grep -A2 'target_version:' jobs/upgrade-agents/spec | head -3
+          echo "tile.yml:"
+          grep -A1 'min_openclaw_version' tile.yml | grep default | head -1
+
+      - name: Check for dependency updates
+        if: steps.check.outputs.needs_update == 'true'
+        id: deps
+        run: |
+          set -euo pipefail
+          CI_FILE=".github/workflows/ci.yml"
+          CHANGED=""
+
+          # --- Node.js 22.x LTS ---
+          CURRENT_NODE=$(grep -oP 'NODE_VERSION="\K[^"]+' "$CI_FILE" || echo "unknown")
+          LATEST_NODE=$(curl -sf "https://nodejs.org/dist/index.json" | \
+            python3 -c "import sys,json; versions=json.load(sys.stdin); lts=[v for v in versions if v.get('lts') and v['version'].startswith('v22.')]; print(lts[0]['version'].lstrip('v') if lts else '')")
+          if [ -n "$LATEST_NODE" ] && [ "$CURRENT_NODE" != "$LATEST_NODE" ]; then
+            echo "Bumping Node.js: ${CURRENT_NODE} → ${LATEST_NODE}"
+            sed -i "s|NODE_VERSION=\"${CURRENT_NODE}\"|NODE_VERSION=\"${LATEST_NODE}\"|" "$CI_FILE"
+            CHANGED="${CHANGED}Node.js ${CURRENT_NODE}→${LATEST_NODE}, "
+          fi
+
+          # --- oauth2-proxy ---
+          CURRENT_OAUTH2=$(grep -oP 'OAUTH2_PROXY_VERSION="\K[^"]+' "$CI_FILE" || echo "unknown")
+          LATEST_OAUTH2=$(curl -sf "https://api.github.com/repos/oauth2-proxy/oauth2-proxy/releases/latest" | \
+            python3 -c "import sys,json; print(json.load(sys.stdin)['tag_name'].lstrip('v'))" 2>/dev/null || echo "")
+          if [ -n "$LATEST_OAUTH2" ] && [ "$CURRENT_OAUTH2" != "$LATEST_OAUTH2" ]; then
+            echo "Bumping oauth2-proxy: ${CURRENT_OAUTH2} → ${LATEST_OAUTH2}"
+            sed -i "s|OAUTH2_PROXY_VERSION=\"${CURRENT_OAUTH2}\"|OAUTH2_PROXY_VERSION=\"${LATEST_OAUTH2}\"|" "$CI_FILE"
+            CHANGED="${CHANGED}oauth2-proxy ${CURRENT_OAUTH2}→${LATEST_OAUTH2}, "
+          fi
+
+          # --- BPM release ---
+          CURRENT_BPM=$(grep -oP 'BPM_VERSION="\K[^"]+' "$CI_FILE" || echo "unknown")
+          LATEST_BPM=$(curl -sf "https://api.github.com/repos/cloudfoundry/bpm-release/releases/latest" | \
+            python3 -c "import sys,json; print(json.load(sys.stdin)['tag_name'].lstrip('v'))" 2>/dev/null || echo "")
+          if [ -n "$LATEST_BPM" ] && [ "$CURRENT_BPM" != "$LATEST_BPM" ]; then
+            echo "Bumping BPM: ${CURRENT_BPM} → ${LATEST_BPM}"
+            sed -i "s|BPM_VERSION=\"${CURRENT_BPM}\"|BPM_VERSION=\"${LATEST_BPM}\"|" "$CI_FILE"
+            # Also update broker spec default for on-demand deployments
+            sed -i "/bpm_release_version:/,/default:/ s|default: \"${CURRENT_BPM}\"|default: \"${LATEST_BPM}\"|" jobs/openclaw-broker/spec
+            CHANGED="${CHANGED}BPM ${CURRENT_BPM}→${LATEST_BPM}, "
+          fi
+
+          # --- Routing release ---
+          CURRENT_ROUTING=$(grep -oP 'ROUTING_VERSION="\K[^"]+' "$CI_FILE" || echo "unknown")
+          LATEST_ROUTING=$(curl -sf "https://api.github.com/repos/cloudfoundry/routing-release/releases/latest" | \
+            python3 -c "import sys,json; print(json.load(sys.stdin)['tag_name'].lstrip('v'))" 2>/dev/null || echo "")
+          if [ -n "$LATEST_ROUTING" ] && [ "$CURRENT_ROUTING" != "$LATEST_ROUTING" ]; then
+            echo "Bumping Routing: ${CURRENT_ROUTING} → ${LATEST_ROUTING}"
+            sed -i "s|ROUTING_VERSION=\"${CURRENT_ROUTING}\"|ROUTING_VERSION=\"${LATEST_ROUTING}\"|" "$CI_FILE"
+            # Also update broker spec default for on-demand deployments
+            sed -i "/routing_release_version:/,/default:/ s|default: \"${CURRENT_ROUTING}\"|default: \"${LATEST_ROUTING}\"|" jobs/openclaw-broker/spec
+            CHANGED="${CHANGED}Routing ${CURRENT_ROUTING}→${LATEST_ROUTING}, "
+          fi
+
+          if [ -n "$CHANGED" ]; then
+            echo "dep_changes=${CHANGED%,*}" >> "$GITHUB_OUTPUT"
+          else
+            echo "dep_changes=" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Determine next tile version
+        if: steps.check.outputs.needs_update == 'true'
+        id: version
+        run: |
+          set -euo pipefail
+          # Find the latest tag and increment
+          LATEST_TAG=$(git tag -l 'v*' --sort=-v:refname | head -1)
+          if [ -z "$LATEST_TAG" ]; then
+            NEXT="0.0.117"
+          else
+            CURRENT_TILE="${LATEST_TAG#v}"
+            # Increment the patch version
+            MAJOR=$(echo "$CURRENT_TILE" | cut -d. -f1)
+            MINOR=$(echo "$CURRENT_TILE" | cut -d. -f2)
+            PATCH=$(echo "$CURRENT_TILE" | cut -d. -f3)
+            NEXT="${MAJOR}.${MINOR}.$((PATCH + 1))"
+          fi
+          echo "Next tile version: v${NEXT}"
+          echo "next=${NEXT}" >> "$GITHUB_OUTPUT"
+
+      - name: Commit, tag, and push
+        if: steps.check.outputs.needs_update == 'true'
+        run: |
+          set -euo pipefail
+          NEW_VERSION="${{ steps.check.outputs.latest }}"
+          TILE_VERSION="${{ steps.version.outputs.next }}"
+          DEP_CHANGES="${{ steps.deps.outputs.dep_changes }}"
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git add -A
+
+          COMMIT_MSG="Bump openclaw to ${NEW_VERSION}"
+          if [ -n "$DEP_CHANGES" ]; then
+            COMMIT_MSG="${COMMIT_MSG}, update deps: ${DEP_CHANGES}"
+          fi
+
+          git commit -m "${COMMIT_MSG}"
+          git tag "v${TILE_VERSION}"
+          git push origin main --tags
+          echo "Pushed v${TILE_VERSION} with openclaw ${NEW_VERSION}"

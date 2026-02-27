@@ -1,0 +1,3 @@
+set -eu
+
+tar xzf golang/go1.24.*.linux-amd64.tar.gz --strip-components=1 -C "${BOSH_INSTALL_TARGET}"

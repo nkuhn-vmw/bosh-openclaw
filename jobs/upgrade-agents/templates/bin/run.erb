@@ -55,11 +55,19 @@ echo ""
 
 # Phase 1: Canary upgrades
 echo "--- Phase 1: Canary Upgrade (${CANARY_COUNT} instances) ---"
-curl -sf -X POST -u "${BROKER_USER}:${BROKER_PASSWORD}" \
+UPGRADE_RESP=$(curl -sf -X POST -u "${BROKER_USER}:${BROKER_PASSWORD}" \
   "${BROKER_ENDPOINT}/admin/upgrade" \
   -H "Content-Type: application/json" \
   -d "{\"target_version\": \"${TARGET_VERSION}\", \"count\": ${CANARY_COUNT}, \"max_parallel\": ${MAX_PARALLEL}}" \
-  --max-time 60 || { echo "FAIL: Canary upgrade request failed"; exit 1; }
+  --max-time 60) || { echo "FAIL: Canary upgrade request failed"; exit 1; }
+
+echo "${UPGRADE_RESP}"
+UPGRADING=$(json_int "${UPGRADE_RESP}" "upgrading")
+
+if [ "${UPGRADING}" = "0" ]; then
+  echo "All instances already at target version ${TARGET_VERSION}. Nothing to upgrade."
+  exit 0
+fi
 
 echo ""
 echo "Waiting for canary instances to become healthy..."

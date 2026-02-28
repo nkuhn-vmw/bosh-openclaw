@@ -62,7 +62,7 @@ properties:
   openclaw.broker.genai.api_endpoint:
     description: "External OpenAI-compatible API endpoint"
     default: ""
-  openclaw.broker.genai.preferred_model:
+  openclaw.broker.preferred_model:
     description: "Force a specific model for all agent instances (overrides auto-detected model)"
     default: ""
   openclaw.broker.genai.offering_name:

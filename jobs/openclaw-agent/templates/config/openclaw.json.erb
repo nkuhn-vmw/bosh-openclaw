@@ -143,6 +143,7 @@
   end
 
   # model_override takes precedence over auto-detected model
+  # Format: "provider/model-id" (e.g., "genai/Qwen/Qwen3-Coder-30B-A3B-Instruct-FP8")
   model_override = p('openclaw.llm.model_override', nil)
   if model_override && model_override != ""
     config["agents"] = {
@@ -150,10 +151,18 @@
         "model" => { "primary" => model_override }
       }
     }
-    # When overriding the model, switch to auto-discovery (empty models array)
-    # so the provider can see and use the override model, not just the default.
-    providers.each do |_name, prov|
-      prov["models"] = [] if prov["models"]
+    # Extract the provider and model-id from the override string.
+    # The provider is before the first "/", the model-id is everything after.
+    override_parts = model_override.split("/", 2)
+    if override_parts.length == 2
+      override_provider = override_parts[0]
+      override_model_id = override_parts[1]
+      if providers[override_provider]
+        prov = providers[override_provider]
+        # Replace the models list with the override model, preserving compat settings
+        genai_compat = { "supportsUsageInStreaming" => false }
+        prov["models"] = [{ "id" => override_model_id, "name" => override_model_id, "compat" => genai_compat }]
+      end
     end
   end
 %>

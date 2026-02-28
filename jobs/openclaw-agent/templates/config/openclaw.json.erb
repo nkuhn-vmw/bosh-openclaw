@@ -150,6 +150,11 @@
         "model" => { "primary" => model_override }
       }
     }
+    # When overriding the model, switch to auto-discovery (empty models array)
+    # so the provider can see and use the override model, not just the default.
+    providers.each do |_name, prov|
+      prov["models"] = [] if prov["models"]
+    end
   end
 %>
 <%= JSON.pretty_generate(config) %>
